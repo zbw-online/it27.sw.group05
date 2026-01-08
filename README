@@ -1,8 +1,10 @@
 
-##Development
+## Development
 
-###Local commands (run before pushing)
-```
+### Local commands (run before pushing)
+
+```ps
+
 dotnet format
 
 ```
