@@ -1,0 +1,29 @@
+trigger:
+  branches:
+    include:
+      - Develop
+      - feature/*
+
+pr:
+  branches:
+    include:
+      - Develop
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- checkout: self
+  clean: true
+
+- task: UseDotNet@2
+  inputs:
+    packageType: sdk
+    version: 9.x
+
+- script: dotnet restore
+  displayName: Restore
+
+# Verify formatting (CI should fail if someone didn't run dotnet format locally)
+- script: dotnet format --verify-no-changes
+  displayName: Verify formatting

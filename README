@@ -1,1 +1,8 @@
 
+##Development
+
+###Local commands (run before pushing)
+```
+dotnet format
+
+```
