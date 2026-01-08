@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SharedKernel.Primitives
-{
-    internal class Result
-    {
+namespace SharedKernel.Primitives {
+    internal sealed class Result {
     }
 }

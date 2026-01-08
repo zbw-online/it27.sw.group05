@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace OrderManagement.Domain.Tests.Catalog
-{
-    internal class ArticleGroupTests
-    {
+namespace OrderManagement.Domain.Tests.Catalog {
+    internal sealed class ArticleGroupTests {
     }
 }

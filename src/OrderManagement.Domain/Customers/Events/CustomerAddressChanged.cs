@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace OrderManagement.Domain.Customers.Events
-{
-    internal class CustomerAddressChanged
-    {
+namespace OrderManagement.Domain.Customers.Events {
+    internal sealed class CustomerAddressChanged {
     }
 }
