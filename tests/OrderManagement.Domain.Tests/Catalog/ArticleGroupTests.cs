@@ -1,4 +1,6 @@
-namespace OrderManagement.Domain.Tests.Catalog {
-    internal sealed class ArticleGroupTests {
+namespace OrderManagement.Domain.Tests.Catalog
+{
+    internal sealed class ArticleGroupTests
+    {
     }
 }

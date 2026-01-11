@@ -1,4 +1,6 @@
-namespace OrderManagement.Infrastructure.Tests.Repositories {
-    internal sealed class CustomerRepositoryTests {
+namespace OrderManagement.Infrastructure.Tests.Repositories
+{
+    internal sealed class CustomerRepositoryTests
+    {
     }
 }

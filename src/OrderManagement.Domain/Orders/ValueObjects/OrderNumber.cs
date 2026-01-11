@@ -1,4 +1,6 @@
-namespace OrderManagement.Domain.Orders.ValueObjects {
-    internal sealed class OrderNumber {
+namespace OrderManagement.Domain.Orders.ValueObjects
+{
+    internal sealed class OrderNumber
+    {
     }
 }

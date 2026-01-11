@@ -1,4 +1,6 @@
-namespace SharedKernel.Primitives {
-    internal sealed class Money {
+namespace SharedKernel.Primitives
+{
+    internal sealed class Money
+    {
     }
 }

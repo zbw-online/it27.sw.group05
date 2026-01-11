@@ -1,4 +1,6 @@
-namespace OrderManagement.Domain.Tests.Orders {
-    internal sealed class OrderTests {
+namespace OrderManagement.Domain.Tests.Orders
+{
+    internal sealed class OrderTests
+    {
     }
 }

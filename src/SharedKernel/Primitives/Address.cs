@@ -1,4 +1,6 @@
-namespace SharedKernel.Primitives {
-    internal sealed class Address {
+namespace SharedKernel.Primitives
+{
+    internal sealed class Address
+    {
     }
 }

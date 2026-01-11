@@ -8,4 +8,8 @@
     <UseVSTest>true</UseVSTest>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OrderManagement.Domain\OrderManagement.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

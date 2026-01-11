@@ -1,4 +1,6 @@
-namespace OrderManagement.Domain.Catalog.ValueObjects {
-    internal sealed class ArticleNumber {
+namespace OrderManagement.Domain.Catalog.ValueObjects
+{
+    internal sealed class ArticleNumber
+    {
     }
 }

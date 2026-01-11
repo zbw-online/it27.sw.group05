@@ -1,4 +1,6 @@
-namespace OrderManagement.Domain.Catalog {
-    internal sealed class ArticleGroup {
+namespace OrderManagement.Domain.Catalog
+{
+    internal sealed class ArticleGroup
+    {
     }
 }

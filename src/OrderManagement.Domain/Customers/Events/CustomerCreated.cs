@@ -4,5 +4,5 @@ using SharedKernel.SeedWork;
 
 namespace OrderManagement.Domain.Customers.Events
 {
-    public sealed record CustomerAddressChanged(CustomerId CustomerId, DateTime OccurredOnUtc) : DomainEvent(OccurredOnUtc);
+    public sealed record CustomerCreated(CustomerId CustomerId, DateTime OccuredOnUtc) : DomainEvent(OccuredOnUtc);
 }

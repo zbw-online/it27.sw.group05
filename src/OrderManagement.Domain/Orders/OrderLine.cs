@@ -1,4 +1,6 @@
-namespace OrderManagement.Domain.Orders {
-    internal sealed class OrderLine {
+namespace OrderManagement.Domain.Orders
+{
+    internal sealed class OrderLine
+    {
     }
 }
