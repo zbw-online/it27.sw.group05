@@ -4,10 +4,8 @@ using SharedKernel.SeedWork;
 
 namespace OrderManagement.Domain.Catalog.Events
 {
-    public sealed record ArticleMovedToGroup(
-        ArticleId ArticleId,
-        ArticleGroupId OldGroupId,
-        ArticleGroupId NewGroupId,
+    public sealed record ArticleGroupRenamed(
+        ArticleGroupId ArticleGroupId,
         DateTime OccuredOnUtc
         ) : DomainEvent(OccuredOnUtc);
 }
