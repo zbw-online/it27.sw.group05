@@ -21,20 +21,31 @@ namespace SharedKernel.Primitives
                 decimal.Round(amount, 2, MidpointRounding.AwayFromZero),
                 currency.Trim().ToUpperInvariant());
 
-        public Money Add(Money other)
+        public static Money operator +(Money left, Money right)
         {
-            EnsureSameCurrency(other);
-            return new Money(Amount + other.Amount, Currency);
+            left.EnsureSameCurrency(right);
+            return new Money(left.Amount + right.Amount, left.Currency);
         }
 
-        public Money Subtract(Money other)
+        public static Money operator -(Money left, Money right)
         {
-            EnsureSameCurrency(other);
-            return new Money(Amount - other.Amount, Currency);
+            left.EnsureSameCurrency(right);
+            return new Money(left.Amount - right.Amount, left.Currency);
         }
 
-        public Money Multiply(int factor)
-            => new(Amount * factor, Currency);
+        public static Money operator *(Money left, int multiplier)
+            => new(left.Amount * multiplier, left.Currency);
+
+        public static Money operator /(Money dividend, int divisor) => divisor == 0
+                ? throw new DomainException("Cannot divide by zero.")
+                : new Money(
+                decimal.Round(dividend.Amount / divisor, 2, MidpointRounding.AwayFromZero),
+                dividend.Currency);
+
+        public Money Add(Money other) => this + other;
+        public Money Subtract(Money other) => this - other;
+        public Money Multiply(int factor) => this * factor;
+        public Money Divide(int divisor) => this / divisor;
 
         private void EnsureSameCurrency(Money other)
         {
