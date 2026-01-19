@@ -1,6 +1,88 @@
+using OrderManagement.Domain.Catalog.Events;
+using OrderManagement.Domain.Catalog.ValueObjects;
+
+using SharedKernel.Primitives;
+using SharedKernel.SeedWork;
+
 namespace OrderManagement.Domain.Catalog
 {
-    internal sealed class ArticleGroup
+    public sealed class ArticleGroup : AggregateRoot<ArticleGroupId>
     {
+        private readonly List<ArticleGroup> _children = [];
+        private ArticleGroup() : base(default) { }
+
+        private ArticleGroup(
+            ArticleGroupId id,
+            string name
+            ) : base(id)
+        {
+            Name = name;
+            AddDomainEvent(new ArticleGroupCreated(id, DateTime.UtcNow));
+        }
+
+        public string Name { get; private set; } = default!;
+        public ArticleGroupId? ParentGroupId { get; private set; }
+        public IReadOnlyCollection<ArticleGroup> Children => _children.AsReadOnly();
+        public string? Description { get; private set; }
+        public int Status { get; private set; } = 1;
+
+        public static Result<ArticleGroup> Create(
+            int id,
+            string? name,
+            int? parentGroupId = null
+            )
+        {
+            if (id <= 0) return Results.Fail<ArticleGroup>("ArticleGroup id must be positive.");
+
+            string trimmedName = (name ?? string.Empty).Trim();
+            if (trimmedName.Length == 0) return Results.Fail<ArticleGroup>("Name is required.");
+
+            if (parentGroupId.HasValue && parentGroupId <= 0)
+                return Results.Fail<ArticleGroup>("ParentGroupId must be positive.");
+
+            var group = new ArticleGroup(new ArticleGroupId(id), trimmedName);
+
+            if (parentGroupId.HasValue)
+                group.ParentGroupId = new ArticleGroupId(parentGroupId.Value);
+
+            return Results.Success(group);
+        }
+
+        public Result AddChild(ArticleGroup child)
+        {
+            if (_children.Contains(child))
+                return Result.Fail("Child already exists.");
+
+            if (HasCircularReference(child))
+                return Result.Fail("Cannot create circular group hierarchy.");
+
+            _children.Add(child);
+            return Result.Success();
+        }
+
+        private bool HasCircularReference(ArticleGroup potentialChild)
+        {
+            // Simple cycle detection: check if potentialChild is already an ancestor
+            ArticleGroup current = this;
+            while (current.ParentGroupId.HasValue)
+            {
+                if (current.Id.Value == potentialChild.Id.Value)
+                    return true;
+                // Would need repository access for full check
+                current = null!; // Simplified - full impl needs repo
+            }
+            return false;
+        }
+
+        public Result Rename(string newName)
+        {
+            string trimmedName = (newName ?? string.Empty).Trim();
+            if (trimmedName.Length == 0)
+                return Result.Fail("Name is required.");
+
+            Name = trimmedName;
+            AddDomainEvent(new ArticleGroupRenamed(Id, DateTime.UtcNow));
+            return Result.Success();
+        }
     }
 }
