@@ -43,34 +43,40 @@ namespace OrderManagement.Domain.Catalog
             string priceCurrency,
             int groupId,
             int stock = 0,
-            decimal vatRate = 0.0m
+            decimal vatRate = 0.0m,
+            string? description = null,
+            int status = 1
             )
         {
             if (id <= 0) return Results.Fail<Article>("Article id must be positive.");
-
+            if (!string.IsNullOrEmpty(articleNr) && articleNr.Length > 20) return Results.Fail<Article>("ArticleNumber cannot exceed 20 characters.");
             Result<ArticleNumber> nr = ArticleNumber.Create(articleNr);
             if (!nr.IsSuccess) return Results.Fail<Article>(nr.Error!);
 
             string trimmedName = (name ?? string.Empty).Trim();
             if (trimmedName.Length == 0) return Results.Fail<Article>("Name is required.");
+            if (trimmedName.Length > 200) return Results.Fail<Article>("Name cannot exceed 200 characters.");
 
             var price = Money.From(priceAmount, priceCurrency);
             if (price is null) return Results.Fail<Article>("Invalid price amount or currency.");
 
             if (groupId <= 0) return Results.Fail<Article>("ArticleGroupId must be positive.");
             if (stock < 0) return Results.Fail<Article>("Stock cannot be negative.");
-            if (vatRate is < 0 or > 1) return Results.Fail<Article>("VatRate must be between 0 and 1.");
+            if (vatRate is < 0 or > 999.99m) return Results.Fail<Article>("VatRate must be between 0 and 999.99 (decimal(5,2)).");
+            if (Math.Floor(vatRate * 100) / 100 != vatRate) return Results.Fail<Article>("VatRate must have at most 2 decimal places.");
 
             var article = new Article(
-                new ArticleId(id),
-                nr.Value!,
-                trimmedName,
-                price,
-                new ArticleGroupId(groupId)
-                )
+            new ArticleId(id),
+            nr.Value!,
+            trimmedName,
+            price,
+            new ArticleGroupId(groupId)
+            )
             {
                 Stock = stock,
-                VatRate = vatRate
+                VatRate = vatRate,
+                Description = description,
+                Status = status
             };
 
             return Results.Success(article);
