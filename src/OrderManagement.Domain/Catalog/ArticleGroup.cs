@@ -9,7 +9,7 @@ namespace OrderManagement.Domain.Catalog
     public sealed class ArticleGroup : AggregateRoot<ArticleGroupId>
     {
         private readonly List<ArticleGroup> _children = [];
-        private ArticleGroup() : base(default) { }
+        private ArticleGroup() : base(new ArticleGroupId(0)) { }
 
         private ArticleGroup(
             ArticleGroupId id,

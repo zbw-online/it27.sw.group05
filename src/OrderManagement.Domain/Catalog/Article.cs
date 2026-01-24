@@ -8,7 +8,7 @@ namespace OrderManagement.Domain.Catalog
 {
     public sealed class Article : AggregateRoot<ArticleId>
     {
-        private Article() : base(default) { }
+        private Article() : base(new ArticleId(0)) { }
 
         private Article(
             ArticleId id,
