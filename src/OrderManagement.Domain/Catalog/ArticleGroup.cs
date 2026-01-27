@@ -9,7 +9,7 @@ namespace OrderManagement.Domain.Catalog
     public sealed class ArticleGroup : AggregateRoot<ArticleGroupId>
     {
         private readonly List<ArticleGroup> _children = [];
-        private ArticleGroup() : base(default) { }
+        private ArticleGroup() : base(new ArticleGroupId(0)) { }
 
         private ArticleGroup(
             ArticleGroupId id,
@@ -35,7 +35,11 @@ namespace OrderManagement.Domain.Catalog
             if (id <= 0) return Results.Fail<ArticleGroup>("ArticleGroup id must be positive.");
 
             string trimmedName = (name ?? string.Empty).Trim();
-            if (trimmedName.Length == 0) return Results.Fail<ArticleGroup>("Name is required.");
+            if (trimmedName.Length == 0)
+                return Results.Fail<ArticleGroup>("Name is required.");
+
+            if (trimmedName.Length > 150)
+                return Results.Fail<ArticleGroup>("Name must not exceed 150 characters.");
 
             if (parentGroupId.HasValue && parentGroupId <= 0)
                 return Results.Fail<ArticleGroup>("ParentGroupId must be positive.");
@@ -62,17 +66,26 @@ namespace OrderManagement.Domain.Catalog
 
         private bool HasCircularReference(ArticleGroup potentialChild)
         {
-            // Simple cycle detection: check if potentialChild is already an ancestor
-            ArticleGroup current = this;
-            while (current.ParentGroupId.HasValue)
+            var visited = new HashSet<int> { Id.Value };
+            ArticleGroup? current = this;
+
+            while (current?.ParentGroupId.HasValue == true)
             {
-                if (current.Id.Value == potentialChild.Id.Value)
-                    return true;
-                // Would need repository access for full check
-                current = null!; // Simplified - full impl needs repo
+                int parentId = current.ParentGroupId.Value.Value;
+
+                if (parentId == potentialChild.Id.Value)
+                    return true; // potentialChild is ancestor
+
+                if (visited.Contains(parentId))
+                    return true; // cycle detected
+
+                _ = visited.Add(parentId);
+                current = null!; // In real app, load parent from repo
             }
+
             return false;
         }
+
 
         public Result Rename(string newName)
         {
