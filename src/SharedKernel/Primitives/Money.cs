@@ -1,47 +1,64 @@
-using SharedKernel.Primitives;
 using SharedKernel.SeedWork;
 
-using System.Text.RegularExpressions;
-
-namespace SharedKernel.ValueObjects;
-
-public sealed class Money : ValueObject
+namespace SharedKernel.Primitives
 {
-    private Money(decimal amount, string currency)
+    public sealed class Money : ValueObject
     {
-        Amount = amount;
-        Currency = currency;
-    }
+        public decimal Amount { get; }
+        public string Currency { get; }
 
-    public decimal Amount { get; }
-    public string Currency { get; }
+        private Money(decimal amount, string currency)
+        {
+            Amount = amount;
+            Currency = currency;
+        }
 
-    public static Result<Money> Create(decimal amount, string currency)
-    {
-        if (string.IsNullOrWhiteSpace(currency))
-            return Results.Fail<Money>("Currency code is required.");
+        public static Money From(decimal amount, string currency) => amount < 0
+                ? throw new DomainException("Amount cannot be negative.")
+                : string.IsNullOrWhiteSpace(currency) || currency.Trim().Length != 3
+                ? throw new DomainException("Currency must be a 3-letter code.")
+                : new Money(
+                decimal.Round(amount, 2, MidpointRounding.AwayFromZero),
+                currency.Trim().ToUpperInvariant());
 
-        string cleanedCurrency = currency.Trim().ToUpperInvariant();
-        if (cleanedCurrency.Length != 3 || !Regex.IsMatch(cleanedCurrency, @"^[A-Z]{3}$"))
-            return Results.Fail<Money>("Currency code must be a 3-letter ISO code (e.g., CHF, EUR).");
+        public static Money operator +(Money left, Money right)
+        {
+            left.EnsureSameCurrency(right);
+            return new Money(left.Amount + right.Amount, left.Currency);
+        }
 
-        if (amount < 0)
-            return Results.Fail<Money>("Amount cannot be negative.");
+        public static Money operator -(Money left, Money right)
+        {
+            left.EnsureSameCurrency(right);
+            return new Money(left.Amount - right.Amount, left.Currency);
+        }
 
-        return Results.Success(new Money(amount, cleanedCurrency));
-    }
+        public static Money operator *(Money left, int multiplier)
+            => new(left.Amount * multiplier, left.Currency);
 
-    protected override IEnumerable<object> GetEqualityComponents()
-    {
-        yield return Amount;
-        yield return Currency;
-    }
+        public static Money operator /(Money dividend, int divisor) => divisor == 0
+                ? throw new DomainException("Cannot divide by zero.")
+                : new Money(
+                decimal.Round(dividend.Amount / divisor, 2, MidpointRounding.AwayFromZero),
+                dividend.Currency);
 
-    public Result<Money> Add(Money other)
-    {
-        if (this.Currency != other.Currency)
-            return Results.Fail<Money>("Cannot add different currencies.");
+        public Money Add(Money other) => this + other;
+        public Money Subtract(Money other) => this - other;
+        public Money Multiply(int factor) => this * factor;
+        public Money Divide(int divisor) => this / divisor;
 
-        return Create(this.Amount + other.Amount, this.Currency);
+        private void EnsureSameCurrency(Money other)
+        {
+            if (!string.Equals(Currency, other.Currency, StringComparison.OrdinalIgnoreCase))
+                throw new DomainException("Currency mismatch.");
+        }
+
+        protected override IEnumerable<object?> GetEqualityComponents()
+        {
+            yield return Amount;
+            yield return Currency;
+        }
+
+        public override string ToString() => $"{Amount:0.00} {Currency}";
     }
 }
