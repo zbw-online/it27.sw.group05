@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,7 +10,7 @@ namespace OrderManagement.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
+            _ = migrationBuilder.CreateTable(
                 name: "ArticleGroups",
                 columns: table => new
                 {
@@ -22,8 +22,8 @@ namespace OrderManagement.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ArticleGroups", x => x.Id);
-                    table.ForeignKey(
+                    _ = table.PrimaryKey("PK_ArticleGroups", x => x.Id);
+                    _ = table.ForeignKey(
                         name: "FK_ArticleGroups_ArticleGroups_ParentGroupId",
                         column: x => x.ParentGroupId,
                         principalTable: "ArticleGroups",
@@ -31,7 +31,7 @@ namespace OrderManagement.Infrastructure.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
-            migrationBuilder.CreateTable(
+            _ = migrationBuilder.CreateTable(
                 name: "Articles",
                 columns: table => new
                 {
@@ -48,8 +48,8 @@ namespace OrderManagement.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Articles", x => x.Id);
-                    table.ForeignKey(
+                    _ = table.PrimaryKey("PK_Articles", x => x.Id);
+                    _ = table.ForeignKey(
                         name: "FK_Articles_ArticleGroups_ArticleGroupId",
                         column: x => x.ArticleGroupId,
                         principalTable: "ArticleGroups",
@@ -57,22 +57,22 @@ namespace OrderManagement.Infrastructure.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
-            migrationBuilder.CreateIndex(
+            _ = migrationBuilder.CreateIndex(
                 name: "IX_ArticleGroups_Name",
                 table: "ArticleGroups",
                 column: "Name");
 
-            migrationBuilder.CreateIndex(
+            _ = migrationBuilder.CreateIndex(
                 name: "IX_ArticleGroups_ParentGroupId",
                 table: "ArticleGroups",
                 column: "ParentGroupId");
 
-            migrationBuilder.CreateIndex(
+            _ = migrationBuilder.CreateIndex(
                 name: "IX_ArticleGroups_Status",
                 table: "ArticleGroups",
                 column: "Status");
 
-            migrationBuilder.CreateIndex(
+            _ = migrationBuilder.CreateIndex(
                 name: "IX_Articles_ArticleGroupId",
                 table: "Articles",
                 column: "ArticleGroupId");
@@ -81,10 +81,10 @@ namespace OrderManagement.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
+            _ = migrationBuilder.DropTable(
                 name: "Articles");
 
-            migrationBuilder.DropTable(
+            _ = migrationBuilder.DropTable(
                 name: "ArticleGroups");
         }
     }

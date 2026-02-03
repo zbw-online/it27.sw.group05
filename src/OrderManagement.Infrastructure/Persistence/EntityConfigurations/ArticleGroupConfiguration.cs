@@ -28,7 +28,7 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                    .HasColumnName("ParentGroupId")
                    .HasConversion(
                        p => p.HasValue ? p.Value.Value : (int?)null,
-                       v => v.HasValue ? new ArticleGroupId(v.Value) : (ArticleGroupId?)null);
+                       v => v.HasValue ? new ArticleGroupId(v.Value) : null);
 
             // Self-referencing relationship (hierarchical)
             _ = builder.HasOne<ArticleGroup>()           // Parent

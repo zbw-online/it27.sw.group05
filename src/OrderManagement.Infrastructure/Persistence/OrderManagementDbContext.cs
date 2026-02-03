@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
 using OrderManagement.Domain.Catalog;
-using OrderManagement.Domain.Customers;
-using OrderManagement.Domain.Orders;
 using OrderManagement.Infrastructure.Persistence.EntityConfigurations;
 
 using SharedKernel.SeedWork;
