@@ -12,10 +12,6 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Catalog
             ArticleGroupId id,
             CancellationToken cancellationToken = default);
 
-        Task<ArticleGroup?> GetByIdWithArticlesAsync(
-            ArticleGroupId id,
-            CancellationToken cancellationToken = default);
-
         // Hierarchy navigation
         Task<IReadOnlyList<ArticleGroup>> GetByParentAsync(
             ArticleGroupId? parentId,
