@@ -1,6 +1,6 @@
-using OrderManagement.Domain.Catalog.ValueObjects;
-
 using System.Globalization;
+
+using OrderManagement.Domain.Catalog.ValueObjects;
 
 namespace OrderManagement.Domain.Tests.Catalog.ValueObjects
 {
