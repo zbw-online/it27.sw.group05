@@ -13,45 +13,58 @@ namespace SharedKernel.Primitives
             Currency = currency;
         }
 
-        public static Money From(decimal amount, string currency) => amount < 0
-                ? throw new DomainException("Amount cannot be negative.")
-                : string.IsNullOrWhiteSpace(currency) || currency.Trim().Length != 3
-                ? throw new DomainException("Currency must be a 3-letter code.")
-                : new Money(
+        public static Result<Money> From(decimal amount, string currency)
+        {
+            if (amount < 0)
+            {
+                return Results.Fail<Money>("Amount cannot be negative.");
+            }
+
+            if (string.IsNullOrWhiteSpace(currency) || currency.Trim().Length != 3)
+            {
+                return Results.Fail<Money>("Currency must be a 3-letter code.");
+            }
+
+            var money = new Money(
                 decimal.Round(amount, 2, MidpointRounding.AwayFromZero),
                 currency.Trim().ToUpperInvariant());
 
+            return Results.Success(money);
+        }
+
         public static Money operator +(Money left, Money right)
         {
-            left.EnsureSameCurrency(right);
+            left.EnsureSameCurrency(right).EnsureSuccess();
             return new Money(left.Amount + right.Amount, left.Currency);
         }
 
         public static Money operator -(Money left, Money right)
         {
-            left.EnsureSameCurrency(right);
+            left.EnsureSameCurrency(right).EnsureSuccess();
             return new Money(left.Amount - right.Amount, left.Currency);
         }
 
-        public static Money operator *(Money left, int multiplier)
-            => new(left.Amount * multiplier, left.Currency);
+        public static Money operator *(Money left, int multiplier) => new(left.Amount * multiplier, left.Currency);
 
-        public static Money operator /(Money dividend, int divisor) => divisor == 0
-                ? throw new DomainException("Cannot divide by zero.")
-                : new Money(
-                decimal.Round(dividend.Amount / divisor, 2, MidpointRounding.AwayFromZero),
-                dividend.Currency);
+        public static Money operator /(Money dividend, int divisor)
+        {
+            Result<Money> result = divisor == 0
+                ? Results.Fail<Money>("Cannot divide by zero.")
+                : Results.Success(new Money(
+                    decimal.Round(dividend.Amount / divisor, 2, MidpointRounding.AwayFromZero),
+                    dividend.Currency));
+
+            return result.EnsureValue();
+        }
 
         public Money Add(Money other) => this + other;
         public Money Subtract(Money other) => this - other;
         public Money Multiply(int factor) => this * factor;
         public Money Divide(int divisor) => this / divisor;
 
-        private void EnsureSameCurrency(Money other)
-        {
-            if (!string.Equals(Currency, other.Currency, StringComparison.OrdinalIgnoreCase))
-                throw new DomainException("Currency mismatch.");
-        }
+        private Result EnsureSameCurrency(Money other) => !string.Equals(Currency, other.Currency, StringComparison.OrdinalIgnoreCase)
+                ? Result.Fail("Currency mismatch.")
+                : Result.Success();
 
         protected override IEnumerable<object?> GetEqualityComponents()
         {

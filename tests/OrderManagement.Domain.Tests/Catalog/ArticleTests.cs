@@ -208,7 +208,9 @@ namespace OrderManagement.Domain.Tests.Catalog
             Result<Article> r = CreateValidArticle();
             Article a = r.Value!;
 
-            Money newPrice = Money.From(199.99m, "CHF")!;
+            Result<Money> moneyResult = Money.From(199.99m, "CHF")!;
+            Assert.IsTrue(moneyResult.IsSuccess);
+            Money newPrice = moneyResult.Value!;
             Result result = a.ChangePrice(newPrice);
 
             Assert.IsTrue(result.IsSuccess);

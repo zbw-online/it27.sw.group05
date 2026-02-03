@@ -57,8 +57,7 @@ namespace OrderManagement.Domain.Catalog
             if (trimmedName.Length == 0) return Results.Fail<Article>("Name is required.");
             if (trimmedName.Length > 200) return Results.Fail<Article>("Name cannot exceed 200 characters.");
 
-            var price = Money.From(priceAmount, priceCurrency);
-            if (price is null) return Results.Fail<Article>("Invalid price amount or currency.");
+            Money priceValue = Money.From(priceAmount, priceCurrency).EnsureValue();
 
             if (groupId <= 0) return Results.Fail<Article>("ArticleGroupId must be positive.");
             if (stock < 0) return Results.Fail<Article>("Stock cannot be negative.");
@@ -66,11 +65,11 @@ namespace OrderManagement.Domain.Catalog
             if (Math.Floor(vatRate * 100) / 100 != vatRate) return Results.Fail<Article>("VatRate must have at most 2 decimal places.");
 
             var article = new Article(
-            new ArticleId(id),
-            nr.Value!,
-            trimmedName,
-            price,
-            new ArticleGroupId(groupId)
+                new ArticleId(id),
+                nr.Value!,
+                trimmedName,
+                priceValue,
+                new ArticleGroupId(groupId)
             )
             {
                 Stock = stock,
