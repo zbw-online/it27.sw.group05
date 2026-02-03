@@ -1,6 +1,6 @@
 namespace OrderManagement.Infrastructure.Tests.Persistence
 {
-    internal sealed class DbContextTests
+    internal sealed class OrderManagementDbContextTests
     {
     }
 }
