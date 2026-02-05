@@ -36,7 +36,8 @@ dotnet user-secrets init --project 'C\Here\Must\Be\Your\Path\To\OrderManagement.
 ```
 
 •	Set secret:
-    •	    replace . in Server=. with your Server
+
+replace . in Server=. with your Server
 
 ```ps
 
