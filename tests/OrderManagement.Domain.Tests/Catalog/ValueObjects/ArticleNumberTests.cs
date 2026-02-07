@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Catalog.ValueObjects;
 
 using SharedKernel.Primitives;
