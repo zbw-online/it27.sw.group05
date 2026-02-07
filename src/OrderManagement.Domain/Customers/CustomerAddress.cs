@@ -36,7 +36,7 @@ namespace OrderManagement.Domain.Customers
         public string City { get; private set; } = default!;
         public string CountryCode { get; private set; } = default!;
 
-        public bool IsAciveOn(DateOnly date) => ValidFrom <= date && (ValidTo is null || date <= ValidTo.Value);
+        public bool IsActiveOn(DateOnly date) => ValidFrom <= date && (ValidTo is null || date <= ValidTo.Value);
 
         internal void Close(DateOnly validTo) => ValidTo = validTo;
 
