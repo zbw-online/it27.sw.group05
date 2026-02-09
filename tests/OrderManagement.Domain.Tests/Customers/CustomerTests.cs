@@ -1,3 +1,5 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 using OrderManagement.Domain.Customers;
 
 using SharedKernel.Primitives;

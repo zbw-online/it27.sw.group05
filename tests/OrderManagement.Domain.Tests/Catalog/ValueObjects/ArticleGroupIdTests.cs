@@ -1,5 +1,7 @@
 using System.Globalization;
 
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 using OrderManagement.Domain.Catalog.ValueObjects;
 
 namespace OrderManagement.Domain.Tests.Catalog.ValueObjects
