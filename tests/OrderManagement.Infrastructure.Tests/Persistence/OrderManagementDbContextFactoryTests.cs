@@ -20,9 +20,9 @@ namespace OrderManagement.Infrastructure.Tests.Persistence
         [TestMethod]
         public void CreateDbContextUsesProvidedConnectionString()
         {
-            KeyValuePair<string, string>[] initialData =
+            KeyValuePair<string, string?>[] initialData =
 [
-    new KeyValuePair<string, string>(
+    new KeyValuePair<string, string?>(
         "ConnectionStrings:OrderManagement",
         "Server=(localdb)\\mssqllocaldb;Database=OrderManagement.Tests;Trusted_Connection=True;")
 ];

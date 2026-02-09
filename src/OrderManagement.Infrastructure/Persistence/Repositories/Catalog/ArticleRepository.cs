@@ -31,7 +31,7 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Catalog
             ArticleNumber number,
             CancellationToken cancellationToken = default) => await _context.Set<Article>()
                 .FirstOrDefaultAsync(
-                    a => a.ArticleNumber.Equals(number),
+                    a => a.ArticleNumber.Value == number.Value,
                     cancellationToken);
 
         public async Task<IReadOnlyList<Article>> GetByGroupAsync(

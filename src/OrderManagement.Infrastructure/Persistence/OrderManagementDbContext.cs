@@ -14,9 +14,9 @@ namespace OrderManagement.Infrastructure.Persistence
         public DbSet<Article> Articles { get; set; }
         public DbSet<ArticleGroup> ArticleGroups { get; set; }
         //public DbSet<Customer> Customers { get; set; }
-        //public DbSet<CustomerAddress> CustomerAddresses { get; set; }
+
         //public DbSet<Order> Orders { get; set; }
-        //public DbSet<OrderLine> OrderLines { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
