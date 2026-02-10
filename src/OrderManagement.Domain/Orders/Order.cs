@@ -4,7 +4,6 @@ using OrderManagement.Domain.Orders.ValueObjects;
 
 using SharedKernel.Primitives;
 using SharedKernel.SeedWork;
-using SharedKernel.ValueObjects;
 
 namespace OrderManagement.Domain.Orders
 {

@@ -2,7 +2,6 @@ using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
 
 using SharedKernel.Primitives;
-using SharedKernel.ValueObjects;
 
 namespace OrderManagement.Domain.Tests.Orders
 {

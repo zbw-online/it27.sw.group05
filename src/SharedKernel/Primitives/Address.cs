@@ -1,7 +1,6 @@
-using SharedKernel.Primitives;
 using SharedKernel.SeedWork;
 
-namespace SharedKernel.ValueObjects
+namespace SharedKernel.Primitives
 {
     public sealed class Address : ValueObject
     {
@@ -33,10 +32,9 @@ namespace SharedKernel.ValueObjects
             if (string.IsNullOrEmpty(pc)) return Results.Fail<Address>("Postal code is required.");
             if (string.IsNullOrEmpty(ci)) return Results.Fail<Address>("City is required.");
 
-            if (co.Length != 2)
-                return Results.Fail<Address>("Country must be a 2-letter ISO code (e.g., CH).");
-
-            return pc.Length is < 3 or > 10
+            return co.Length != 2
+                ? Results.Fail<Address>("Country must be a 2-letter ISO code (e.g., CH).")
+                : pc.Length is < 3 or > 10
                 ? Results.Fail<Address>("Postal code has an invalid length.")
                 : Results.Success(new Address(s, n, pc, ci, co));
         }
