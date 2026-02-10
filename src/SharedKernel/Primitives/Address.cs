@@ -27,12 +27,15 @@ namespace SharedKernel.Primitives
             string ci = (city ?? string.Empty).Trim();
             string co = (country ?? string.Empty).Trim().ToUpperInvariant();
 
-            if (string.IsNullOrEmpty(s)) return Results.Fail<Address>("Street is required.");
-            if (string.IsNullOrEmpty(n)) return Results.Fail<Address>("House number is required.");
-            if (string.IsNullOrEmpty(pc)) return Results.Fail<Address>("Postal code is required.");
-            if (string.IsNullOrEmpty(ci)) return Results.Fail<Address>("City is required.");
-
-            return co.Length != 2
+            return string.IsNullOrEmpty(s)
+                ? Results.Fail<Address>("Street is required.")
+                : string.IsNullOrEmpty(n)
+                ? Results.Fail<Address>("House number is required.")
+                : string.IsNullOrEmpty(pc)
+                ? Results.Fail<Address>("Postal code is required.")
+                : string.IsNullOrEmpty(ci)
+                ? Results.Fail<Address>("City is required.")
+                : co.Length != 2
                 ? Results.Fail<Address>("Country must be a 2-letter ISO code (e.g., CH).")
                 : pc.Length is < 3 or > 10
                 ? Results.Fail<Address>("Postal code has an invalid length.")
