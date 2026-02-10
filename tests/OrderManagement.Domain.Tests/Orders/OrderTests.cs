@@ -1,9 +1,8 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using OrderManagement.Domain.Orders;
-using OrderManagement.Domain.Orders.ValueObjects;
 using OrderManagement.Domain.Customers.ValueObjects;
-using SharedKernel.ValueObjects;
+using OrderManagement.Domain.Orders;
+
 using SharedKernel.Primitives;
+using SharedKernel.ValueObjects;
 
 namespace OrderManagement.Domain.Tests.Orders
 {
@@ -21,7 +20,7 @@ namespace OrderManagement.Domain.Tests.Orders
         }
 
         [TestMethod]
-        public void Create_ShouldRaiseOrderCreatedEvent()
+        public void CreateShouldRaiseOrderCreatedEvent()
         {
             // Act
             Result<Order> result = Order.Create(
@@ -38,7 +37,7 @@ namespace OrderManagement.Domain.Tests.Orders
         }
 
         [TestMethod]
-        public void AddLine_ShouldIncreaseTotalAndAddLine()
+        public void AddLineShouldIncreaseTotalAndAddLine()
         {
             // Arrange
             Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
@@ -59,7 +58,7 @@ namespace OrderManagement.Domain.Tests.Orders
         }
 
         [TestMethod]
-        public void AddLine_WithMultiplePositions_ShouldSumUpTotal()
+        public void AddLineWithMultiplePositionsShouldSumUpTotal()
         {
             // Arrange
             Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
@@ -67,8 +66,8 @@ namespace OrderManagement.Domain.Tests.Orders
             Money price2 = Money.From(25.50m, "CHF")!;
 
             // Act
-            order.AddLine(1, "Artikel 1", price1, 1);
-            order.AddLine(2, "Artikel 2", price2, 2);
+            _ = order.AddLine(1, "Artikel 1", price1, 1);
+            _ = order.AddLine(2, "Artikel 2", price2, 2);
 
             // Assert
             Assert.AreEqual(61.00m, order.Total.Amount);
@@ -76,7 +75,7 @@ namespace OrderManagement.Domain.Tests.Orders
         }
 
         [TestMethod]
-        public void AddLine_ShouldFail_WhenQuantityIsZeroOrNegative()
+        public void AddLineShouldFailWhenQuantityIsZeroOrNegative()
         {
             // Arrange
             Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
@@ -91,7 +90,7 @@ namespace OrderManagement.Domain.Tests.Orders
         }
 
         [TestMethod]
-        public void Create_ShouldFail_WhenOrderNumberIsEmpty()
+        public void CreateShouldFailWhenOrderNumberIsEmpty()
         {
             // Act
             Result<Order> result = Order.Create(1, "", _testCustomerId, _testAddress);
@@ -101,11 +100,11 @@ namespace OrderManagement.Domain.Tests.Orders
         }
 
         [TestMethod]
-        public void AddLine_ShouldFail_WhenCurrenciesDoNotMatch()
+        public void AddLineShouldFailWhenCurrenciesDoNotMatch()
         {
             // Arrange
             Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            order.AddLine(1, "Artikel CHF", Money.From(10, "CHF")!, 1);
+            _ = order.AddLine(1, "Artikel CHF", Money.From(10, "CHF")!, 1);
 
             // Act
             Result result = order.AddLine(2, "Artikel EUR", Money.From(10, "EUR")!, 1);
@@ -115,10 +114,10 @@ namespace OrderManagement.Domain.Tests.Orders
         }
 
         [TestMethod]
-        public void Address_Create_ShouldFail_WhenStreetIsEmpty()
+        public void AddressCreateShouldFailWhenStreetIsEmpty()
         {
             // Act
-            var result = Address.Create("", "10", "8000", "Zürich", "CH");
+            Result<Address> result = Address.Create("", "10", "8000", "Zürich", "CH");
 
             // Assert
             Assert.IsFalse(result.IsSuccess);
@@ -126,11 +125,11 @@ namespace OrderManagement.Domain.Tests.Orders
         }
 
         [TestMethod]
-        public void Addresses_WithSameValues_ShouldBeEqual()
+        public void AddressesWithSameValuesShouldBeEqual()
         {
             // Arrange
-            var addr1 = Address.Create("Bahnhofstr", "1", "8001", "ZH", "CH").Value!;
-            var addr2 = Address.Create("Bahnhofstr", "1", "8001", "ZH", "CH").Value!;
+            Address addr1 = Address.Create("Bahnhofstr", "1", "8001", "ZH", "CH").Value!;
+            Address addr2 = Address.Create("Bahnhofstr", "1", "8001", "ZH", "CH").Value!;
 
             // Assert
             Assert.AreEqual(addr1, addr2);
