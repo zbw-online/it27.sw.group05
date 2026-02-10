@@ -24,7 +24,7 @@ public sealed class Order : AggregateRoot<OrderId>
         OrderDate = DateTime.UtcNow;
         CustomerId = customerId;
         DeliveryAddress = deliveryAddress;
-        Total = Money.Create(0, "CHF").Value!; // Standardwährung
+        Total = Money.From(0, "CHF")!; // Standardwährung
     }
 
     public string OrderNumber { get; private set; } = default!;
@@ -46,11 +46,8 @@ public sealed class Order : AggregateRoot<OrderId>
     }
     public Result AddLine(int articleId, string articleName, Money unitPrice, int quantity)
     {
-        // 1. Validierung der Menge
         if (quantity <= 0) return Result.Fail("Quantity must be positive.");
 
-        // 2. Validierung der Währung (NEU)
-        // Wenn schon Linien existieren, muss die neue Währung mit der bestehenden übereinstimmen
         if (_lines.Any() && _lines[0].UnitPrice.Currency != unitPrice.Currency)
         {
             return Result.Fail($"Invalid currency. Expected {_lines[0].UnitPrice.Currency} but got {unitPrice.Currency}.");
@@ -75,6 +72,6 @@ public sealed class Order : AggregateRoot<OrderId>
     {
         var totalAmount = _lines.Sum(x => x.LineTotal.Amount);
         var currency = _lines.FirstOrDefault()?.LineTotal.Currency ?? "CHF";
-        Total = Money.Create(totalAmount, currency).Value!;
+        Total = Money.From(totalAmount, currency)!;
     }
 }

@@ -23,7 +23,7 @@ public sealed class OrderLine : Entity<OrderLineId>
         UnitPrice = unitPrice;
         Quantity = quantity;
 
-        LineTotal = Money.Create(unitPrice.Amount * quantity, unitPrice.Currency).Value!;
+        LineTotal = Money.From(unitPrice.Amount * quantity, unitPrice.Currency)!;
     }
 
     public int LineNumber { get; private set; }

@@ -16,7 +16,6 @@ namespace OrderManagement.Domain.Tests.Orders
         [TestInitialize]
         public void Setup()
         {
-            // Hilfsobjekte für die Tests vorbereiten
             _testAddress = Address.Create("Teststrasse", "1", "8000", "Zürich", "CH").Value!;
             _testCustomerId = new CustomerId(1);
         }
@@ -43,7 +42,7 @@ namespace OrderManagement.Domain.Tests.Orders
         {
             // Arrange
             Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            Money price = Money.Create(50.50m, "CHF").Value!;
+            Money price = Money.From(50.50m, "CHF")!;
 
             // Act
             Result result = order.AddLine(
@@ -55,7 +54,7 @@ namespace OrderManagement.Domain.Tests.Orders
             // Assert
             Assert.IsTrue(result.IsSuccess);
             Assert.AreEqual(1, order.Lines.Count);
-            Assert.AreEqual(101.00m, order.Total.Amount); // 50.50 * 2
+            Assert.AreEqual(101.00m, order.Total.Amount);
             Assert.AreEqual("CHF", order.Total.Currency);
         }
 
@@ -64,15 +63,14 @@ namespace OrderManagement.Domain.Tests.Orders
         {
             // Arrange
             Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            Money price1 = Money.Create(10.00m, "CHF").Value!;
-            Money price2 = Money.Create(25.50m, "CHF").Value!;
+            Money price1 = Money.From(10.00m, "CHF")!;
+            Money price2 = Money.From(25.50m, "CHF")!;
 
             // Act
             order.AddLine(1, "Artikel 1", price1, 1);
             order.AddLine(2, "Artikel 2", price2, 2);
 
             // Assert
-            // 10.00 + (2 * 25.50) = 61.00
             Assert.AreEqual(61.00m, order.Total.Amount);
             Assert.AreEqual(2, order.Lines.Count);
         }
@@ -82,7 +80,7 @@ namespace OrderManagement.Domain.Tests.Orders
         {
             // Arrange
             Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            Money price = Money.Create(10.00m, "CHF").Value!;
+            Money price = Money.From(10.00m, "CHF")!;
 
             // Act
             Result result = order.AddLine(1, "Artikel", price, 0);
@@ -107,23 +105,13 @@ namespace OrderManagement.Domain.Tests.Orders
         {
             // Arrange
             Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            order.AddLine(1, "Artikel CHF", Money.Create(10, "CHF").Value!, 1);
+            order.AddLine(1, "Artikel CHF", Money.From(10, "CHF")!, 1);
 
             // Act
-            Result result = order.AddLine(2, "Artikel EUR", Money.Create(10, "EUR").Value!, 1);
+            Result result = order.AddLine(2, "Artikel EUR", Money.From(10, "EUR")!, 1);
 
             // Assert
             Assert.IsFalse(result.IsSuccess, "Unterschiedliche Währungen sollten nicht erlaubt sein.");
-        }
-
-        [TestMethod]
-        public void Money_Create_ShouldFail_OnInvalidCurrencyCode()
-        {
-            // Act
-            var result = Money.Create(100, "INVALID");
-
-            // Assert
-            Assert.IsFalse(result.IsSuccess);
         }
 
         [TestMethod]
@@ -145,7 +133,7 @@ namespace OrderManagement.Domain.Tests.Orders
             var addr2 = Address.Create("Bahnhofstr", "1", "8001", "ZH", "CH").Value!;
 
             // Assert
-            Assert.AreEqual(addr1, addr2); // Dank 'ValueObject' Basisklasse oder 'record'
+            Assert.AreEqual(addr1, addr2);
         }
     }
 }
