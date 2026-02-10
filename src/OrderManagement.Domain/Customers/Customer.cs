@@ -47,7 +47,7 @@ namespace OrderManagement.Domain.Customers
         public CustomerAddress? AddressAt(DateOnly onDate)
             => _addresses
             .OrderByDescending(a => a.ValidFrom)
-            .FirstOrDefault(a => a.IsAciveOn(onDate));
+            .FirstOrDefault(a => a.IsActiveOn(onDate));
 
         public static Result<Customer> Create(
             int id,
