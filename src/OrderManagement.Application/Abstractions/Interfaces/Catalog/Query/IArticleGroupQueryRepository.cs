@@ -3,16 +3,14 @@ using OrderManagement.Domain.Catalog.ValueObjects;
 
 using SharedKernel.SeedWork;
 
-namespace OrderManagement.Application.Abstractions.Interfaces.Catalog
+namespace OrderManagement.Application.Abstractions.Interfaces.Catalog.Query
 {
-    public interface IArticleGroupRepository : IRepository<ArticleGroup, ArticleGroupId>
+    public interface IArticleGroupQueryRepository : IQueryRepository<ArticleGroup, ArticleGroupId>
     {
-        // ArticleGroup-specific queries  
         Task<ArticleGroup?> GetByIdWithChildrenAsync(
             ArticleGroupId id,
             CancellationToken cancellationToken = default);
 
-        // Hierarchy navigation
         Task<IReadOnlyList<ArticleGroup>> GetByParentAsync(
             ArticleGroupId? parentId,
             CancellationToken cancellationToken = default);
