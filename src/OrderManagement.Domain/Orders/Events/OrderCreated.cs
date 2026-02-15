@@ -1,6 +1,10 @@
+using OrderManagement.Domain.Orders.ValueObjects;
+
+using SharedKernel.SeedWork;
+
 namespace OrderManagement.Domain.Orders.Events
 {
-    internal sealed class OrderCreated
-    {
-    }
+
+    public record OrderCreated(OrderId OrderId, DateTime OccurredOnUtc)
+        : DomainEvent(OccurredOnUtc);
 }

@@ -35,19 +35,19 @@ namespace OrderManagement.Domain.Customers
             AddDomainEvent(new CustomerCreated(id, DateTime.UtcNow));
         }
 
-        public CustomerNumber CustomerNumber { get; private set; } = default!;
-        public string LastName { get; private set; } = default!;
-        public string SurName { get; private set; } = default!;
-        public Email Email { get; private set; } = default!;
-        public string? Website { get; private set; } = default!;
-        public string PasswordHash { get; private set; } = default!;
+        public CustomerNumber CustomerNumber { get; private set; }
+        public string LastName { get; private set; }
+        public string SurName { get; private set; }
+        public Email Email { get; private set; }
+        public string? Website { get; private set; }
+        public string PasswordHash { get; private set; }
 
         public IReadOnlyCollection<CustomerAddress> Addresses => _addresses.AsReadOnly();
 
         public CustomerAddress? AddressAt(DateOnly onDate)
             => _addresses
             .OrderByDescending(a => a.ValidFrom)
-            .FirstOrDefault(a => a.IsAciveOn(onDate));
+            .FirstOrDefault(a => a.IsActiveOn(onDate));
 
         public static Result<Customer> Create(
             int id,
