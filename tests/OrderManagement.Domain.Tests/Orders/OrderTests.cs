@@ -1,3 +1,5 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
 
@@ -8,13 +10,13 @@ namespace OrderManagement.Domain.Tests.Orders
     [TestClass]
     public class OrderTests
     {
-        private Address _testAddress;
+        private Address _testAddress = default!;
         private CustomerId _testCustomerId;
 
         [TestInitialize]
         public void Setup()
         {
-            _testAddress = Address.Create("Teststrasse", "1", "8000", "Zürich", "CH").Value!;
+            _testAddress = Address.Create("Teststrasse", "1", "8000", "Zürich", "CH").EnsureValue();
             _testCustomerId = new CustomerId(1);
         }
 
@@ -31,7 +33,7 @@ namespace OrderManagement.Domain.Tests.Orders
             // Assert
             Assert.IsTrue(result.IsSuccess);
             Order order = result.Value!;
-            Assert.AreEqual("ORD-2025-001", order.OrderNumber);
+            Assert.AreEqual("ORD-2025-001", order.OrderNumber.Value);
             Assert.AreEqual(1, order.DomainEvents.Count); // Prüft das OrderCreated Event
         }
 
@@ -39,8 +41,8 @@ namespace OrderManagement.Domain.Tests.Orders
         public void AddLineShouldIncreaseTotalAndAddLine()
         {
             // Arrange
-            Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            Money price = Money.From(50.50m, "CHF")!;
+            Order order = Order.Create(1, "ORD-2025-001", _testCustomerId, _testAddress).Value!;
+            Money price = Money.From(50.50m, "CHF").EnsureValue();
 
             // Act
             Result result = order.AddLine(
@@ -60,9 +62,9 @@ namespace OrderManagement.Domain.Tests.Orders
         public void AddLineWithMultiplePositionsShouldSumUpTotal()
         {
             // Arrange
-            Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            Money price1 = Money.From(10.00m, "CHF")!;
-            Money price2 = Money.From(25.50m, "CHF")!;
+            Order order = Order.Create(1, "ORD-2025-001", _testCustomerId, _testAddress).Value!;
+            Money price1 = Money.From(10.00m, "CHF").EnsureValue();
+            Money price2 = Money.From(25.50m, "CHF").EnsureValue();
 
             // Act
             _ = order.AddLine(1, "Artikel 1", price1, 1);
@@ -77,8 +79,8 @@ namespace OrderManagement.Domain.Tests.Orders
         public void AddLineShouldFailWhenQuantityIsZeroOrNegative()
         {
             // Arrange
-            Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            Money price = Money.From(10.00m, "CHF")!;
+            Order order = Order.Create(1, "ORD-2025-001", _testCustomerId, _testAddress).Value!;
+            Money price = Money.From(10.00m, "CHF").EnsureValue();
 
             // Act
             Result result = order.AddLine(1, "Artikel", price, 0);
@@ -102,11 +104,11 @@ namespace OrderManagement.Domain.Tests.Orders
         public void AddLineShouldFailWhenCurrenciesDoNotMatch()
         {
             // Arrange
-            Order order = Order.Create(1, "ORD-001", _testCustomerId, _testAddress).Value!;
-            _ = order.AddLine(1, "Artikel CHF", Money.From(10, "CHF")!, 1);
+            Order order = Order.Create(1, "ORD-2025-001", _testCustomerId, _testAddress).Value!;
+            _ = order.AddLine(1, "Artikel CHF", Money.From(10, "CHF").EnsureValue(), 1);
 
             // Act
-            Result result = order.AddLine(2, "Artikel EUR", Money.From(10, "EUR")!, 1);
+            Result result = order.AddLine(2, "Artikel EUR", Money.From(10, "EUR").EnsureValue(), 1);
 
             // Assert
             Assert.IsFalse(result.IsSuccess, "Unterschiedliche Währungen sollten nicht erlaubt sein.");

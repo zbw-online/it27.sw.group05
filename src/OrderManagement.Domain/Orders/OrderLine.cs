@@ -22,7 +22,7 @@ namespace OrderManagement.Domain.Orders
             UnitPrice = unitPrice;
             Quantity = quantity;
 
-            LineTotal = Money.From(unitPrice.Amount * quantity, unitPrice.Currency)!;
+            LineTotal = Money.From(unitPrice.Amount * quantity, unitPrice.Currency).EnsureValue();
         }
 
         public int LineNumber { get; private set; }
