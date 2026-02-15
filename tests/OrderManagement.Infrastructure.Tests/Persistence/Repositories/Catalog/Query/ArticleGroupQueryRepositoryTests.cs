@@ -78,7 +78,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Catalog.
             Assert.AreEqual("Electronics", result.Name);
             Assert.AreEqual(2, result.Children.Count);
 
-            List<string> childNames = [.. result.Children.Select(c => c.Name).OrderBy(n => n)];
+            var childNames = result.Children.Select(c => c.Name).OrderBy(n => n).ToList();
             Assert.AreEqual("Computers", childNames[0]);
             Assert.AreEqual("Mobile Devices", childNames[1]);
         }

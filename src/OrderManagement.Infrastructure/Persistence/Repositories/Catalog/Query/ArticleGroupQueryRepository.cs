@@ -38,5 +38,86 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query
                 .AsNoTracking()
                 .Where(g => g.ParentGroupId == parentId)
                 .ToListAsync(cancellationToken);
+
+        public async Task<IReadOnlyList<ArticleGroupHierarchyDto>> GetHierarchyFromRootAsync(
+            ArticleGroupId rootId,
+            CancellationToken cancellationToken = default)
+        {
+            FormattableString sql = $@"
+                WITH ArticleGroupHierarchy AS
+                (
+                    SELECT 
+                        Id,
+                        Name,
+                        ParentGroupId,
+                        0 AS Level,
+                        CAST(Name AS NVARCHAR(4000)) AS Path
+                    FROM ArticleGroups
+                    WHERE Id = {rootId.Value}
+
+                    UNION ALL
+
+                    SELECT 
+                        ag.Id,
+                        ag.Name,
+                        ag.ParentGroupId,
+                        agh.Level + 1,
+                        CAST(agh.Path + ' > ' + ag.Name AS NVARCHAR(4000)) AS Path
+                    FROM ArticleGroups ag
+                    INNER JOIN ArticleGroupHierarchy agh ON ag.ParentGroupId = agh.Id
+                )
+                SELECT 
+                    Id,
+                    Name,
+                    ParentGroupId,
+                    Level,
+                    Path
+                FROM ArticleGroupHierarchy
+                ORDER BY Path";
+
+            return await _context.Database
+                .SqlQuery<ArticleGroupHierarchyDto>(sql)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<ArticleGroupHierarchyDto>> GetFullHierarchyAsync(
+            CancellationToken cancellationToken = default)
+        {
+            FormattableString sql = $@"
+                WITH ArticleGroupHierarchy AS
+                (
+                    SELECT 
+                        Id,
+                        Name,
+                        ParentGroupId,
+                        0 AS Level,
+                        CAST(Name AS NVARCHAR(4000)) AS Path
+                    FROM ArticleGroups
+                    WHERE ParentGroupId IS NULL
+
+                    UNION ALL
+
+                    SELECT 
+                        ag.Id,
+                        ag.Name,
+                        ag.ParentGroupId,
+                        agh.Level + 1,
+                        CAST(agh.Path + ' > ' + ag.Name AS NVARCHAR(4000)) AS Path
+                    FROM ArticleGroups ag
+                    INNER JOIN ArticleGroupHierarchy agh ON ag.ParentGroupId = agh.Id
+                )
+                SELECT 
+                    Id,
+                    Name,
+                    ParentGroupId,
+                    Level,
+                    Path
+                FROM ArticleGroupHierarchy
+                ORDER BY Path";
+
+            return await _context.Database
+                .SqlQuery<ArticleGroupHierarchyDto>(sql)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

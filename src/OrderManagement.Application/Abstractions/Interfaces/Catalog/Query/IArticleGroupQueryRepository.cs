@@ -14,5 +14,19 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Catalog.Query
         Task<IReadOnlyList<ArticleGroup>> GetByParentAsync(
             ArticleGroupId? parentId,
             CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<ArticleGroupHierarchyDto>> GetHierarchyFromRootAsync(
+            ArticleGroupId rootId,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<ArticleGroupHierarchyDto>> GetFullHierarchyAsync(
+            CancellationToken cancellationToken = default);
     }
+
+    public sealed record ArticleGroupHierarchyDto(
+        int Id,
+        string Name,
+        int? ParentGroupId,
+        int Level,
+        string Path);
 }
