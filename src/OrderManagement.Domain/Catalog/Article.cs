@@ -29,7 +29,7 @@ namespace OrderManagement.Domain.Catalog
         public ArticleNumber ArticleNumber { get; private set; } = default!;
         public string Name { get; private set; } = default!;
         public Money Price { get; private set; } = default!;
-        public ArticleGroupId ArticleGroupId { get; private set; } = default!;
+        public ArticleGroupId ArticleGroupId { get; private set; }
         public int Stock { get; private set; }
         public decimal VatRate { get; private set; }
         public string? Description { get; private set; }

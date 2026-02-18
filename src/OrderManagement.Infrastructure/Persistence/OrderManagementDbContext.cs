@@ -13,9 +13,10 @@ namespace OrderManagement.Infrastructure.Persistence
         // DbSets for aggregate roots (optional - Set<T>() works without them)
         public DbSet<Article> Articles { get; set; }
         public DbSet<ArticleGroup> ArticleGroups { get; set; }
-        //public DbSet<Customer> Customers { get; set; }
-
-        //public DbSet<Order> Orders { get; set; }
+        // TODO: Enable when Customer repository is implemented
+        //public DbSet<Domain.Customers.Customer> Customers { get; set; }
+        // TODO: Enable when Order repository is implemented
+        //public DbSet<Domain.Orders.Order> Orders { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
