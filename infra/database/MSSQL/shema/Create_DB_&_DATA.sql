@@ -1,20 +1,20 @@
 /* =========================================================
-   OrderManagement - DB Setup + Seed
+   OrderManagementDemoDemo - DB Setup + Seed
    ========================================================= */
 
 -- 0) (Optional) Drop existing DB (nur wenn du wirklich neu starten willst)
-IF DB_ID('OrderManagement') IS NOT NULL
+IF DB_ID('OrderManagementDemo') IS NOT NULL
 BEGIN
-    ALTER DATABASE OrderManagement SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE OrderManagement;
+    ALTER DATABASE OrderManagementDemo SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE OrderManagementDemo;
 END
 GO
 
 -- 1) Create DB
-CREATE DATABASE OrderManagement;
+CREATE DATABASE OrderManagementDemo;
 GO
 
-USE OrderManagement;
+USE OrderManagementDemo;
 GO
 
 /* =========================================================
