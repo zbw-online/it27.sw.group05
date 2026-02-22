@@ -9,8 +9,8 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Customers.Query
 {
     public interface ICustomerQueryRepository : IQueryRepository<Customer, CustomerId>
     {
-        Task<Customer?> GetByCustomerNumberAsync(CustomerNumber number, CancellationToken cancellationToken = default);
-        Task<Customer?> GetByEmailAsync(Email email, CancellationToken cancellationToken = default);
-        Task<IReadOnlyList<Customer>> SearchByNameAsync(string searchTerm, CancellationToken cancellationToken = default);
+        Task<Customer?> GetByCustomerNumberAsync(CustomerNumber number, CancellationToken ct = default);
+        Task<Customer?> GetByEmailAsync(Email email, CancellationToken ct = default);
+        Task<IReadOnlyList<Customer>> SearchByNameAsync(string searchTerm, CancellationToken ct = default);
     }
 }

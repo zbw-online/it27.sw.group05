@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;
-using OrderManagement.Infrastructure.Persistence.EntityConfigurations;
 
 using SharedKernel.SeedWork;
 
@@ -26,10 +25,7 @@ namespace OrderManagement.Infrastructure.Persistence
             _ = modelBuilder.Ignore<DomainEvent>();
 
             // Auto-discovers IEntityTypeConfiguration classes
-            _ = modelBuilder.ApplyConfigurationsFromAssembly(
-                typeof(ArticleConfiguration).Assembly);
-
-            _ = modelBuilder.ApplyConfigurationsFromAssembly(typeof(CustomerConfiguration).Assembly);
+            _ = modelBuilder.ApplyConfigurationsFromAssembly(typeof(OrderManagementDbContext).Assembly);
 
             base.OnModelCreating(modelBuilder);
         }
