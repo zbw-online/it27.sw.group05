@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+using OrderManagement.Domain.Catalog;
 using OrderManagement.Infrastructure.Persistence;
 
 namespace OrderManagement.Infrastructure.Tests
@@ -36,12 +37,24 @@ namespace OrderManagement.Infrastructure.Tests
             if (DbContext is null) return;
 
             // Clear tables in order (respecting foreign key constraints)
-            // Use ExecuteDeleteAsync to directly delete from database without loading entities
+            // Note: Articles can use ExecuteDeleteAsync (not temporal)
+            // ArticleGroups must use RemoveRange (temporal table)
+
+            // Clear Articles (not temporal - can use ExecuteDeleteAsync)
             _ = await DbContext.Articles.ExecuteDeleteAsync();
-            _ = await DbContext.ArticleGroups.ExecuteDeleteAsync();
+
+            // Load and remove ArticleGroups (temporal table)
+            List<ArticleGroup> articleGroups = await DbContext.ArticleGroups.ToListAsync();
+            DbContext.ArticleGroups.RemoveRange(articleGroups);
+
+            // Save deletions for temporal tables
+            _ = await DbContext.SaveChangesAsync();
+
             // TODO: Add Customers and Orders when implemented
-            // _ = await DbContext.Orders.ExecuteDeleteAsync();
-            // _ = await DbContext.Customers.ExecuteDeleteAsync();
+            // Customers is temporal - use RemoveRange:
+            // var customers = await DbContext.Customers.ToListAsync();
+            // DbContext.Customers.RemoveRange(customers);
+            // await DbContext.SaveChangesAsync();
         }
     }
 }
