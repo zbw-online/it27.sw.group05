@@ -11,7 +11,9 @@ namespace OrderManagement.Infrastructure.Persistence
 
         public OrderManagementDbContextFactory()
             : this(new ConfigurationBuilder()
-                .AddUserSecrets<OrderManagementDbContextFactory>()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: true)
+                .AddUserSecrets<OrderManagementDbContextFactory>(optional: true)
                 .AddEnvironmentVariables()
                 .Build())
         {

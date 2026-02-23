@@ -23,6 +23,10 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Catalog.Query
             CancellationToken cancellationToken = default);
     }
 
+    // ACHTUNG ! DTOs sollten nicht hier gespeichert werden
+    // DTOs sind später vor allem für die Kommunikation zwischen Application und Presentation Layer
+    // DTOs sind ein "Spiegel" der Use Cases oder die Objekte / Information, das Presentation Layer effektiv braucht.  
+    // Leiber die DTOs in dem IntegrationTests einfügen. Dafür sind ja tests da ;)
     public sealed record ArticleGroupHierarchyDto(
         int Id,
         string Name,
