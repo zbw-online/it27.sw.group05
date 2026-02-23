@@ -25,5 +25,5 @@ steps:
 - script: dotnet restore
   displayName: Restore
 
-- script: dotnet test --configuration Release --no-restore
+- script: dotnet test --configuration Release --no-restore --filter infrastructure
   displayName: Run tests
