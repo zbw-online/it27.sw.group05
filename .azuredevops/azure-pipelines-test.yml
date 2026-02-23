@@ -25,5 +25,5 @@ steps:
 - script: dotnet restore
   displayName: Restore
 
-- script: dotnet test --configuration Release --no-restore --filter "FullyQualifiedName!~OrderManagement.Infrastructure.Tests"
+- script: dotnet test --configuration Release --no-restore
   displayName: Run tests
