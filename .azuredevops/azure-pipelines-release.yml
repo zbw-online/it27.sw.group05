@@ -17,19 +17,6 @@ resources:
         - Abgabe_Aufgabe*
 
 # Docker service for integration tests
-services:
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    env:
-      ACCEPT_EULA: Y
-      SA_PASSWORD: YourStrong!Passw0rd
-      MSSQL_PID: Developer
-    ports:
-    - 1433:1433
-
-variables:
-  buildConfiguration: 'Release'
-  DOCKER_SQL_CONNECTION: 'Server=sqlserver;Database=OrderManagementTestDB;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;'
 
 stages:
 # ============================================
