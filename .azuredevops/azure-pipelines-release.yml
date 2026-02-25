@@ -1,0 +1,202 @@
+# Release Pipeline for MusterAG Order Management System
+# Triggers on tags matching: Abgabe_Aufgabe*
+
+trigger: none
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+resources:
+  repositories:
+  - repository: self
+    type: git
+    trigger:
+      tags:
+        include:
+        - Abgabe_Aufgabe*
+
+# Docker service for integration tests
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    env:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: YourStrong!Passw0rd
+      MSSQL_PID: Developer
+    ports:
+    - 1433:1433
+
+variables:
+  buildConfiguration: 'Release'
+  DOCKER_SQL_CONNECTION: 'Server=sqlserver;Database=OrderManagementTestDB;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;'
+
+stages:
+# ============================================
+# STAGE 1: Code Quality & Formatting
+# ============================================
+- stage: Validate
+  displayName: 'Code Quality Check'
+  jobs:
+  - job: FormatCheck
+    displayName: 'Verify Code Formatting'
+    pool:
+        vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+      clean: true
+      fetchDepth: 0
+    
+    - task: UseDotNet@2
+      displayName: 'Install .NET 9 SDK'
+      inputs:
+        packageType: sdk
+        version: 9.x
+    
+    - script: dotnet restore OrderManagement.sln
+      displayName: 'Restore NuGet Packages'
+    
+    - script: dotnet format OrderManagement.sln --verify-no-changes
+      displayName: 'Verify Code Formatting'
+
+# ============================================
+# STAGE 2: Build & Test
+# ============================================
+- stage: Test
+  displayName: 'Build & Test'
+  dependsOn: Validate
+  jobs:
+  - job: BuildAndTest
+    displayName: 'Build Solution & Run Tests'
+    pool:
+        vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+      clean: true
+      fetchDepth: 0
+    
+    - task: UseDotNet@2
+      displayName: 'Install .NET 9 SDK'
+      inputs:
+        packageType: sdk
+        version: 9.x
+    
+    # Restore dependencies
+    - script: dotnet restore OrderManagement.sln
+      displayName: 'Restore Dependencies'
+    
+    # Build the solution
+    - script: dotnet build OrderManagement.sln --configuration $(buildConfiguration) --no-restore
+      displayName: 'Build Solution'
+    
+    # Run all tests (Unit + Integration)
+    - script: |
+        dotnet test OrderManagement.sln \
+          --configuration $(buildConfiguration) \
+          --no-build \
+          --logger trx \
+          --collect:"XPlat Code Coverage" \
+          --results-directory $(Agent.TempDirectory)/TestResults
+      displayName: 'Run All Tests'
+      env:
+        ConnectionStrings__DefaultConnection: $(DOCKER_SQL_CONNECTION)
+        DOTNET_ENVIRONMENT: Test
+    
+    # Publish test results
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(Agent.TempDirectory)/TestResults/**/*.trx'
+        mergeTestResults: true
+        failTaskOnFailedTests: true
+        testRunTitle: 'All Tests - $(Build.SourceBranchName)'
+    
+    # Publish code coverage
+    - task: PublishCodeCoverageResults@2
+      displayName: 'Publish Code Coverage'
+      condition: succeededOrFailed()
+      inputs:
+        codeCoverageTool: 'cobertura'
+        summaryFileLocation: '$(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml'
+        failIfCoverageEmpty: false
+
+# ============================================
+# STAGE 3: GitHub Release
+# ============================================
+- stage: Release
+  displayName: 'Create GitHub Release'
+  dependsOn: Test
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/Abgabe_Aufgabe'))
+  jobs:
+  - job: CreateRelease
+    displayName: 'Publish GitHub Release'
+    steps:
+    - checkout: self
+      fetchDepth: 0
+      fetchTags: true
+    
+    # Get tag information
+    - script: |
+        echo "Tag: $(Build.SourceBranchName)"
+        echo "Commit: $(Build.SourceVersion)"
+        git log -1 --pretty=format:"%s%n%n%b" > $(Agent.TempDirectory)/commit-message.txt
+      displayName: 'Extract Tag Info'
+    
+    # Create release notes
+    - script: |
+        cat > $(Agent.TempDirectory)/release-notes.md << 'EOF'
+        #  $(Build.SourceBranchName)
+        
+        ## MusterAG Order Management System - Assignment Submission
+        
+        ###  Quality Checks Passed
+        -  Code formatting verified
+        -  All unit tests passed
+        -  All integration tests passed
+        -  Build successful
+        
+        ###  Project Components
+        - **Domain Layer**: Core business logic and entities
+        - **Application Layer**: Use cases and interfaces
+        - **Infrastructure Layer**: Data persistence with EF Core
+        - **API Layer**: RESTful endpoints
+        
+        ### ️ Technology Stack
+        - .NET 9.0
+        - Entity Framework Core
+        - SQL Server
+        - Clean Architecture / DDD
+        
+        ###  Build Information
+        - **Build Number**: $(Build.BuildNumber)
+        - **Build Date**: $(Build.QueueTime)
+        - **Commit**: $(Build.SourceVersion)
+        - **Branch**: $(Build.SourceBranchName)
+        
+        ###  Repository
+        https://github.com/zbw-online/it27.sw.group05
+        
+        ---
+        *Generated automatically by Azure Pipelines*
+        EOF
+      displayName: 'Generate Release Notes'
+    
+    # Create GitHub Release
+    - task: GitHubRelease@1
+      displayName: 'Create GitHub Release'
+      inputs:
+        gitHubConnection: 'github.com_MusterAG'  
+        repositoryName: 'zbw-online/it27.sw.group05'
+        action: 'create'
+        target: '$(Build.SourceVersion)'
+        tagSource: 'gitTag'
+        tag: '$(Build.SourceBranchName)'
+        title: ' $(Build.SourceBranchName) - Order Management System'
+        releaseNotesFilePath: '$(Agent.TempDirectory)/release-notes.md'
+        isDraft: false
+        isPreRelease: false
+        addChangeLog: true
+        changeLogCompareToRelease: 'lastFullRelease'
+        changeLogType: 'commitBased'
