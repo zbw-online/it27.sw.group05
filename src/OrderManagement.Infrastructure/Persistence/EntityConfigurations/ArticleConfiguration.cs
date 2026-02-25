@@ -27,7 +27,9 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                        gid => gid.Value,
                        v => new ArticleGroupId(v));
 
-            // Value Object as Owned Type 
+            // Value Object as Owned Type
+            // Note: Temporal tables not enabled for Article because owned entities
+            // sharing the same table have complex temporal configuration requirements
             _ = builder.OwnsOne(a => a.ArticleNumber, nb =>
             {
                 _ = nb.Property(p => p.Value)  // Maps ArticleNumber.Value → varchar(20)

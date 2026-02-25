@@ -10,6 +10,17 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
     {
         public void Configure(EntityTypeBuilder<ArticleGroup> builder)
         {
+            // Table + Temporal (mono-temporal / system time)
+            _ = builder.ToTable("ArticleGroups", tb =>
+            {
+                _ = tb.IsTemporal(ttb =>
+                {
+                    _ = ttb.UseHistoryTable("ArticleGroupsHistory");
+                    _ = ttb.HasPeriodStart("RowValidFrom");
+                    _ = ttb.HasPeriodEnd("RowValidUntil");
+                });
+            });
+
             // Primary key
             _ = builder.HasKey(g => g.Id);
 
