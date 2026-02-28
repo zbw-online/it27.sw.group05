@@ -12,6 +12,9 @@ namespace SharedKernel.Primitives
         public string Value { get; }
         private Email(string value) => Value = value;
 
+        // For EFCore (Not sure if this is the Correct approach)
+        internal static Email FromDb(string value) => new(value);
+
         public static Result<Email> Create(string? input)
         {
             string value = (input ?? string.Empty).Trim();

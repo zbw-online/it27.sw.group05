@@ -15,6 +15,9 @@ namespace OrderManagement.Domain.Customers.ValueObjects
 
         private CustomerNumber(string value) => Value = value;
 
+        // For EFCore (Not sure if this is the Correct approach)
+        internal static CustomerNumber FromDb(string value) => new(value);
+
         public static Result<CustomerNumber> Create(string? input)
         {
             string value = (input ?? string.Empty).Trim().ToUpperInvariant();

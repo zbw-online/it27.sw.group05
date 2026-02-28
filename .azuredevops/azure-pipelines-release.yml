@@ -1,0 +1,92 @@
+trigger:
+  tags:
+    include:
+      - Abgabe_*
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+- group: github-secret-Public-Repository   # must contain secret variable: GITHUB_TOKEN
+
+- name: buildConfiguration
+  value: Release
+
+- name: artifactBaseName
+  value: OrderManagement
+
+- name: githubRepo
+  value: zbw-online/it27.sw.group05
+
+steps:
+- checkout: self
+  clean: true
+
+- task: UseDotNet@2
+  inputs:
+    packageType: sdk
+    version: 9.x
+
+- script: dotnet restore
+  displayName: Restore
+
+- script: dotnet format --verify-no-changes
+  displayName: Verify formatting
+
+- script: dotnet test --configuration $(buildConfiguration) --no-restore
+  displayName: Run tests
+
+- task: ArchiveFiles@2
+  displayName: Create release ZIP
+  inputs:
+    rootFolderOrFile: '$(Build.SourcesDirectory)'
+    includeRootFolder: false
+    archiveType: zip
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
+    replaceExistingArchive: true
+
+- task: PublishBuildArtifacts@1
+  displayName: Publish Azure artifact
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
+    ArtifactName: ReleasePackage
+
+- script: |
+    set -euo pipefail
+
+    ZIP_PATH="$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip"
+    TAG_NAME="$(Build.SourceBranchName)"
+    GH_REPO="$(githubRepo)"
+
+    echo "Repo: $GH_REPO"
+    echo "Tag:  $TAG_NAME"
+    echo "Zip:  $ZIP_PATH"
+
+    # Robust token handling (works whether injected as GH_TOKEN or GITHUB_TOKEN)
+    TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+    if [ -z "$TOKEN" ]; then
+      echo "ERROR: No GitHub token injected. Check variable group linking + pipeline permissions."
+      exit 1
+    fi
+    export GH_TOKEN="$TOKEN"
+    export GITHUB_TOKEN="$TOKEN"
+
+    # Validate access (403/404 => token scope or org permissions)
+    gh api "repos/$GH_REPO" >/dev/null
+
+    # Create release if missing
+    if ! gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
+      gh release create "$TAG_NAME" \
+        --repo "$GH_REPO" \
+        --title "$TAG_NAME" \
+        --notes "Automated release created by Azure DevOps pipeline."
+    fi
+
+    # Upload/replace asset
+    gh release upload "$TAG_NAME" "$ZIP_PATH" --repo "$GH_REPO" --clobber
+  displayName: Create GitHub Release + upload ZIP
+  env:
+    GH_TOKEN: $(GITHUB_TOKEN)
+    GITHUB_TOKEN: $(GITHUB_TOKEN)
