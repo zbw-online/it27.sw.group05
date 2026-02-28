@@ -11,6 +11,10 @@ pr: none
 pool:
   vmImage: ubuntu-latest
 
+variables:
+  buildConfiguration: Release
+  artifactBaseName: OrderManagement
+
 steps:
 - checkout: self
   clean: true
@@ -26,28 +30,26 @@ steps:
 - script: dotnet format --verify-no-changes
   displayName: Verify formatting
 
-- script: dotnet test --configuration Release --no-restore
+- script: dotnet test --configuration $(buildConfiguration) --no-restore
   displayName: Run tests
 
-# Create release folder
+# Clean the workspace BEFORE zipping
 - script: |
-    mkdir release
-    cp -r * release/
-  displayName: Prepare release content
+    rm -rf "$(Build.SourcesDirectory)/.git"
+    find "$(Build.SourcesDirectory)" -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+  displayName: Remove .git, bin, obj
 
-# Optional: convert docx to pdf if needed (Linux needs libreoffice)
-- script: libreoffice --headless --convert-to pdf *.docx
-
-# Zip it
 - task: ArchiveFiles@2
+  displayName: Create release ZIP
   inputs:
-    rootFolderOrFile: 'release'
+    rootFolderOrFile: '$(Build.SourcesDirectory)'
     includeRootFolder: false
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/OrderManagement_$(Build.SourceBranchName).zip'
+    archiveType: zip
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
     replaceExistingArchive: true
 
 - task: PublishBuildArtifacts@1
+  displayName: Publish release artifact
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'ReleasePackage'
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
+    ArtifactName: ReleasePackage
