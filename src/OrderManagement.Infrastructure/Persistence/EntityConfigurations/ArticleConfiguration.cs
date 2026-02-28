@@ -6,61 +6,108 @@ using OrderManagement.Domain.Catalog.ValueObjects;
 
 namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
 {
-    public class ArticleConfiguration : IEntityTypeConfiguration<Article>
+    public sealed class ArticleConfiguration : IEntityTypeConfiguration<Article>
     {
         public void Configure(EntityTypeBuilder<Article> builder)
         {
-            // Primary key
+            _ = builder.ToTable("Articles", tb =>
+            {
+                _ = tb.IsTemporal(ttb =>
+                {
+                    _ = ttb.UseHistoryTable("ArticlesHistory");
+                    _ = ttb.HasPeriodStart("RowValidFrom");
+                    _ = ttb.HasPeriodEnd("RowValidUntil");
+                });
+
+                _ = tb.Property<DateTime>("RowValidFrom").HasColumnName("RowValidFrom");
+                _ = tb.Property<DateTime>("RowValidUntil").HasColumnName("RowValidUntil");
+            });
+
             _ = builder.HasKey(a => a.Id);
 
-            // Map strongly-typed ArticleId to int
             _ = builder.Property(a => a.Id)
-                   .HasConversion(
-                       id => id.Value,
-                       v => new ArticleId(v))
-                   .ValueGeneratedNever();
+                .HasColumnName("ArticleId")
+                .HasConversion(id => id.Value, v => new ArticleId(v))
+                .ValueGeneratedNever();
 
-            // Map strongly-typed ArticleGroupId to int (FK)
             _ = builder.Property(a => a.ArticleGroupId)
-                   .HasColumnName("ArticleGroupId")
-                   .HasConversion(
-                       gid => gid.Value,
-                       v => new ArticleGroupId(v));
+                .HasColumnName("ArticleGroupId")
+                .HasConversion(gid => gid.Value, v => new ArticleGroupId(v))
+                .IsRequired();
 
-            // Value Object as Owned Type
-            // Note: Temporal tables not enabled for Article because owned entities
-            // sharing the same table have complex temporal configuration requirements
+            _ = builder.HasIndex(a => a.ArticleGroupId);
+
+            // ERM: ArticleGroups (1) -> (n) Articles
+            _ = builder.HasOne<ArticleGroup>()
+                .WithMany()
+                .HasForeignKey(a => a.ArticleGroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ArticleNumber VO (temporal workaround)
             _ = builder.OwnsOne(a => a.ArticleNumber, nb =>
             {
-                _ = nb.Property(p => p.Value)  // Maps ArticleNumber.Value → varchar(20)
-                  .HasColumnName("ArticleNumber")
-                  .HasMaxLength(20)
-                  .IsRequired();
+                _ = nb.ToTable("Articles", tb =>
+                {
+                    _ = tb.IsTemporal(ttb =>
+                    {
+                        _ = ttb.UseHistoryTable("ArticlesHistory");
+                        _ = ttb.HasPeriodStart("RowValidFrom");
+                        _ = ttb.HasPeriodEnd("RowValidUntil");
+                    });
+
+                    _ = tb.Property<DateTime>("RowValidFrom").HasColumnName("RowValidFrom");
+                    _ = tb.Property<DateTime>("RowValidUntil").HasColumnName("RowValidUntil");
+                });
+
+                _ = nb.Property(p => p.Value)
+                    .HasColumnName("ArticleNumber")
+                    .HasMaxLength(20)
+                    .IsRequired();
             });
 
-            // Money Value Object
+            // Price Money VO (temporal workaround)
             _ = builder.OwnsOne(a => a.Price, p =>
             {
+                _ = p.ToTable("Articles", tb =>
+                {
+                    _ = tb.IsTemporal(ttb =>
+                    {
+                        _ = ttb.UseHistoryTable("ArticlesHistory");
+                        _ = ttb.HasPeriodStart("RowValidFrom");
+                        _ = ttb.HasPeriodEnd("RowValidUntil");
+                    });
+
+                    _ = tb.Property<DateTime>("RowValidFrom").HasColumnName("RowValidFrom");
+                    _ = tb.Property<DateTime>("RowValidUntil").HasColumnName("RowValidUntil");
+                });
+
                 _ = p.Property(pm => pm.Amount)
-                 .HasColumnName("PriceAmount")
-                 .HasPrecision(18, 2);
+                    .HasColumnName("PriceAmount")
+                    .HasPrecision(18, 2)
+                    .IsRequired();
 
                 _ = p.Property(pm => pm.Currency)
-                 .HasColumnName("PriceCurrency")
-                 .HasMaxLength(3);
+                    .HasColumnName("PriceCurrency")
+                    .HasColumnType("nchar(3)")
+                    .IsRequired();
             });
 
-            // Other properties
             _ = builder.Property(a => a.Name)
-                   .HasMaxLength(200)
-                   .IsRequired();
+                .HasMaxLength(200)
+                .IsRequired();
 
-            _ = builder.Property(a => a.Stock);
+            _ = builder.Property(a => a.Stock).IsRequired();
+
             _ = builder.Property(a => a.VatRate)
-                   .HasPrecision(5, 2);
-            _ = builder.Property(a => a.Status);
+                .HasPrecision(5, 2)
+                .IsRequired();
+
             _ = builder.Property(a => a.Description)
-                   .HasMaxLength(500);
+                .HasColumnType("nvarchar(max)");
+
+            _ = builder.Property(a => a.Status).IsRequired();
+
+            _ = builder.HasIndex(a => a.Name);
         }
     }
 }

@@ -6,35 +6,43 @@ using OrderManagement.Domain.Customers.ValueObjects;
 
 namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
 {
-    // CustomerAddresses Table
-    public class CustomerAddressConfiguration : IEntityTypeConfiguration<CustomerAddress>
+    public sealed class CustomerAddressConfiguration : IEntityTypeConfiguration<CustomerAddress>
     {
         public void Configure(EntityTypeBuilder<CustomerAddress> builder)
         {
-            // Table + Temporal (system time)
             _ = builder.ToTable("CustomerAddresses", tb =>
             {
                 _ = tb.IsTemporal(ttb =>
                 {
-                    _ = ttb.UseHistoryTable("CustomerAddressHistory");
+                    _ = ttb.UseHistoryTable("CustomerAddressesHistory");
                     _ = ttb.HasPeriodStart("RowValidFrom");
                     _ = ttb.HasPeriodEnd("RowValidUntil");
                 });
+
+                _ = tb.Property<DateTime>("RowValidFrom").HasColumnName("RowValidFrom");
+                _ = tb.Property<DateTime>("RowValidUntil").HasColumnName("RowValidUntil");
             });
 
-            // Primary key
             _ = builder.HasKey(x => x.Id);
 
-            // Address id is generated (you create with id: 0)
-            _ = builder.Property(x => x.Id).ValueGeneratedOnAdd();
+            _ = builder.Property(x => x.Id)
+                .HasColumnName("CustomerAddressId")
+                .ValueGeneratedOnAdd();
 
-            // Shadow FK to Cusomer
-            _ = builder.Property<CustomerId>("CustomerId").IsRequired()
+            _ = builder.Property<CustomerId>("CustomerId")
+                .HasColumnName("CustomerId")
                 .HasConversion(id => id.Value, v => new CustomerId(v))
                 .IsRequired();
+
             _ = builder.HasIndex("CustomerId");
 
-            // Application Temporal structure (bi-temporal requirement)
+            // ERM relationship constraint
+            _ = builder.HasOne<Customer>()
+                .WithMany(c => c.Addresses)
+                .HasForeignKey("CustomerId")
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Application temporal (ValidFrom/ValidTo)
             _ = builder.Property(x => x.ValidFrom)
                 .HasColumnType("date")
                 .IsRequired();
@@ -42,9 +50,6 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(x => x.ValidTo)
                 .HasColumnType("date")
                 .IsRequired(false);
-
-
-            // Address Fields
 
             _ = builder.Property(x => x.Street)
                 .HasMaxLength(200)
@@ -65,16 +70,6 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(x => x.CountryCode)
                 .HasColumnType("nchar(2)")
                 .IsRequired();
-
-
-            // System time columns (shadow)
-            _ = builder.Property<DateTime>("RowValidFrom")
-                   .HasColumnName("RowValidFrom")
-                   .ValueGeneratedOnAddOrUpdate();
-
-            _ = builder.Property<DateTime>("RowValidUntil")
-                   .HasColumnName("RowValidUntil")
-                   .ValueGeneratedOnAddOrUpdate();
         }
     }
 }
