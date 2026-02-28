@@ -1,8 +1,4 @@
 trigger:
-  branches:
-    include:
-      - Develop   # TODO: switch to main when you're done testing
-      - Feature*
   tags:
     include:
       - Abgabe_*
@@ -21,7 +17,6 @@ variables:
 - name: artifactBaseName
   value: OrderManagement
 
-# IMPORTANT: set your GitHub repo explicitly (owner/repo)
 - name: githubRepo
   value: zbw-online/it27.sw.group05
 
@@ -58,7 +53,6 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
     ArtifactName: ReleasePackage
 
-# Create GitHub Release (for the tag) + upload the ZIP as asset
 - script: |
     set -euo pipefail
 
@@ -70,13 +64,16 @@ steps:
     echo "Tag:  $TAG_NAME"
     echo "Zip:  $ZIP_PATH"
 
-    # Fail fast if secret not injected
-    if [ -z "${GH_TOKEN:-}" ]; then
-      echo "ERROR: GH_TOKEN is empty. Variable group not linked or not permitted for this pipeline."
+    # Robust token handling (works whether injected as GH_TOKEN or GITHUB_TOKEN)
+    TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+    if [ -z "$TOKEN" ]; then
+      echo "ERROR: No GitHub token injected. Check variable group linking + pipeline permissions."
       exit 1
     fi
+    export GH_TOKEN="$TOKEN"
+    export GITHUB_TOKEN="$TOKEN"
 
-    # Validate access (403/404 here means token/org permission issue)
+    # Validate access (403/404 => token scope or org permissions)
     gh api "repos/$GH_REPO" >/dev/null
 
     # Create release if missing
@@ -92,3 +89,4 @@ steps:
   displayName: Create GitHub Release + upload ZIP
   env:
     GH_TOKEN: $(GITHUB_TOKEN)
+    GITHUB_TOKEN: $(GITHUB_TOKEN)
