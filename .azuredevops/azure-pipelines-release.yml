@@ -1,7 +1,8 @@
 trigger:
   branches:
     include:
-      - Develop   # TODO: switch to main when finished testing
+      - Develop   # TODO: switch to main when you're done testing
+      - Feature*
   tags:
     include:
       - Abgabe_*
@@ -12,7 +13,7 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-- group: github-secret-Public-Repository  # contains secret variable: GITHUB_TOKEN
+- group: github-secret-Public-Repository   # must contain secret variable: GITHUB_TOKEN
 
 - name: buildConfiguration
   value: Release
@@ -57,6 +58,7 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
     ArtifactName: ReleasePackage
 
+# Create GitHub Release (for the tag) + upload the ZIP as asset
 - script: |
     set -euo pipefail
 
@@ -68,16 +70,13 @@ steps:
     echo "Tag:  $TAG_NAME"
     echo "Zip:  $ZIP_PATH"
 
-    # gh is typically already installed on ubuntu-latest, but keep this safe check
-    if ! command -v gh >/dev/null 2>&1; then
-      sudo apt-get update
-      sudo apt-get install -y gh
+    # Fail fast if secret not injected
+    if [ -z "${GH_TOKEN:-}" ]; then
+      echo "ERROR: GH_TOKEN is empty. Variable group not linked or not permitted for this pipeline."
+      exit 1
     fi
 
-    # Authenticate using env var (NOT $(...))
-    printf '%s' "$GITHUB_TOKEN" | gh auth login --with-token
-
-    # Validate access (will fail fast with clear 403/404 if permissions are wrong)
+    # Validate access (403/404 here means token/org permission issue)
     gh api "repos/$GH_REPO" >/dev/null
 
     # Create release if missing
@@ -88,8 +87,8 @@ steps:
         --notes "Automated release created by Azure DevOps pipeline."
     fi
 
-    # Upload (replace if exists)
+    # Upload/replace asset
     gh release upload "$TAG_NAME" "$ZIP_PATH" --repo "$GH_REPO" --clobber
   displayName: Create GitHub Release + upload ZIP
   env:
-    GITHUB_TOKEN: $(GITHUB_TOKEN)
+    GH_TOKEN: $(GITHUB_TOKEN)
