@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - Develop   # switch to main when ready
+      - Develop   # TODO: switch to main when finished testing
   tags:
     include:
       - Abgabe_*
@@ -12,8 +12,17 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  buildConfiguration: Release
-  artifactBaseName: OrderManagement
+- group: github-secret-Public-Repository  # contains secret variable: GITHUB_TOKEN
+
+- name: buildConfiguration
+  value: Release
+
+- name: artifactBaseName
+  value: OrderManagement
+
+# IMPORTANT: set your GitHub repo explicitly (owner/repo)
+- name: githubRepo
+  value: zbw-online/it27.sw.group05
 
 steps:
 - checkout: self
@@ -33,8 +42,6 @@ steps:
 - script: dotnet test --configuration $(buildConfiguration) --no-restore
   displayName: Run tests
 
-# Create ZIP directly from repo (no deleting .git/bin/obj required)
-# If size becomes an issue, we can filter later.
 - task: ArchiveFiles@2
   displayName: Create release ZIP
   inputs:
@@ -44,42 +51,44 @@ steps:
     archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
     replaceExistingArchive: true
 
-# Keep Azure artifact (nice fallback)
 - task: PublishBuildArtifacts@1
   displayName: Publish Azure artifact
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
     ArtifactName: ReleasePackage
 
-# Create GitHub Release + upload the zip as asset
 - script: |
     set -euo pipefail
 
     ZIP_PATH="$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip"
-
-    # For tag builds, Build.SourceBranchName == the tag name, e.g. Abgabe_Aufgabe123
     TAG_NAME="$(Build.SourceBranchName)"
+    GH_REPO="$(githubRepo)"
 
-    # IMPORTANT: set this explicitly to avoid ambiguity
-    # Format: owner/repo
-    GH_REPO="zbw-online/it27.sw.group05"
+    echo "Repo: $GH_REPO"
+    echo "Tag:  $TAG_NAME"
+    echo "Zip:  $ZIP_PATH"
 
-    # Install GitHub CLI
-    sudo apt-get update
-    sudo apt-get install -y gh
+    # gh is typically already installed on ubuntu-latest, but keep this safe check
+    if ! command -v gh >/dev/null 2>&1; then
+      sudo apt-get update
+      sudo apt-get install -y gh
+    fi
 
-    # Authenticate
-    echo "$(GITHUB_TOKEN)" | gh auth login --with-token
+    # Authenticate using env var (NOT $(...))
+    printf '%s' "$GITHUB_TOKEN" | gh auth login --with-token
+
+    # Validate access (will fail fast with clear 403/404 if permissions are wrong)
+    gh api "repos/$GH_REPO" >/dev/null
 
     # Create release if missing
-    if ! gh release view "$TAG_NAME" --repo "$GH_REPO" > /dev/null 2>&1; then
+    if ! gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
       gh release create "$TAG_NAME" \
         --repo "$GH_REPO" \
         --title "$TAG_NAME" \
         --notes "Automated release created by Azure DevOps pipeline."
     fi
 
-    # Upload/replace asset
+    # Upload (replace if exists)
     gh release upload "$TAG_NAME" "$ZIP_PATH" --repo "$GH_REPO" --clobber
   displayName: Create GitHub Release + upload ZIP
   env:
