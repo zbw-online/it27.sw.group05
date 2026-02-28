@@ -1,4 +1,3 @@
-﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,27 +10,27 @@ namespace OrderManagement.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.RenameColumn(
+            _ = migrationBuilder.RenameColumn(
                 name: "Id",
                 table: "Customers",
                 newName: "CustomerId");
 
-            migrationBuilder.RenameColumn(
+            _ = migrationBuilder.RenameColumn(
                 name: "Id",
                 table: "CustomerAddresses",
                 newName: "CustomerAddressId");
 
-            migrationBuilder.RenameColumn(
+            _ = migrationBuilder.RenameColumn(
                 name: "Id",
                 table: "Articles",
                 newName: "ArticleId");
 
-            migrationBuilder.RenameColumn(
+            _ = migrationBuilder.RenameColumn(
                 name: "Id",
                 table: "ArticleGroups",
                 newName: "ArticleGroupId");
 
-            migrationBuilder.AlterTable(
+            _ = migrationBuilder.AlterTable(
                 name: "CustomerAddresses")
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "CustomerAddressesHistory")
@@ -44,7 +43,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "RowValidUntil")
                 .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "RowValidFrom");
 
-            migrationBuilder.AlterTable(
+            _ = migrationBuilder.AlterTable(
                 name: "Articles")
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "ArticlesHistory")
@@ -52,7 +51,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "RowValidUntil")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "RowValidFrom");
 
-            migrationBuilder.AlterColumn<string>(
+            _ = migrationBuilder.AlterColumn<string>(
                 name: "PriceCurrency",
                 table: "Articles",
                 type: "nchar(3)",
@@ -61,7 +60,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 oldType: "nvarchar(3)",
                 oldMaxLength: 3);
 
-            migrationBuilder.AlterColumn<string>(
+            _ = migrationBuilder.AlterColumn<string>(
                 name: "Description",
                 table: "Articles",
                 type: "nvarchar(max)",
@@ -71,7 +70,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 oldMaxLength: 500,
                 oldNullable: true);
 
-            migrationBuilder.AddColumn<DateTime>(
+            _ = migrationBuilder.AddColumn<DateTime>(
                 name: "RowValidFrom",
                 table: "Articles",
                 type: "datetime2",
@@ -79,7 +78,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
                 .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
 
-            migrationBuilder.AddColumn<DateTime>(
+            _ = migrationBuilder.AddColumn<DateTime>(
                 name: "RowValidUntil",
                 table: "Articles",
                 type: "datetime2",
@@ -87,22 +86,22 @@ namespace OrderManagement.Infrastructure.Migrations
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
                 .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
 
-            migrationBuilder.CreateIndex(
+            _ = migrationBuilder.CreateIndex(
                 name: "IX_Orders_CustomerId",
                 table: "Orders",
                 column: "CustomerId");
 
-            migrationBuilder.CreateIndex(
+            _ = migrationBuilder.CreateIndex(
                 name: "IX_OrderLines_ArticleId",
                 table: "OrderLines",
                 column: "ArticleId");
 
-            migrationBuilder.CreateIndex(
+            _ = migrationBuilder.CreateIndex(
                 name: "IX_Articles_Name",
                 table: "Articles",
                 column: "Name");
 
-            migrationBuilder.AddForeignKey(
+            _ = migrationBuilder.AddForeignKey(
                 name: "FK_OrderLines_Articles_ArticleId",
                 table: "OrderLines",
                 column: "ArticleId",
@@ -110,7 +109,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 principalColumn: "ArticleId",
                 onDelete: ReferentialAction.Restrict);
 
-            migrationBuilder.AddForeignKey(
+            _ = migrationBuilder.AddForeignKey(
                 name: "FK_Orders_Customers_CustomerId",
                 table: "Orders",
                 column: "CustomerId",
@@ -122,57 +121,57 @@ namespace OrderManagement.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
+            _ = migrationBuilder.DropForeignKey(
                 name: "FK_OrderLines_Articles_ArticleId",
                 table: "OrderLines");
 
-            migrationBuilder.DropForeignKey(
+            _ = migrationBuilder.DropForeignKey(
                 name: "FK_Orders_Customers_CustomerId",
                 table: "Orders");
 
-            migrationBuilder.DropIndex(
+            _ = migrationBuilder.DropIndex(
                 name: "IX_Orders_CustomerId",
                 table: "Orders");
 
-            migrationBuilder.DropIndex(
+            _ = migrationBuilder.DropIndex(
                 name: "IX_OrderLines_ArticleId",
                 table: "OrderLines");
 
-            migrationBuilder.DropIndex(
+            _ = migrationBuilder.DropIndex(
                 name: "IX_Articles_Name",
                 table: "Articles");
 
-            migrationBuilder.DropColumn(
+            _ = migrationBuilder.DropColumn(
                 name: "RowValidFrom",
                 table: "Articles")
                 .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
 
-            migrationBuilder.DropColumn(
+            _ = migrationBuilder.DropColumn(
                 name: "RowValidUntil",
                 table: "Articles")
                 .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
 
-            migrationBuilder.RenameColumn(
+            _ = migrationBuilder.RenameColumn(
                 name: "CustomerId",
                 table: "Customers",
                 newName: "Id");
 
-            migrationBuilder.RenameColumn(
+            _ = migrationBuilder.RenameColumn(
                 name: "CustomerAddressId",
                 table: "CustomerAddresses",
                 newName: "Id");
 
-            migrationBuilder.RenameColumn(
+            _ = migrationBuilder.RenameColumn(
                 name: "ArticleId",
                 table: "Articles",
                 newName: "Id");
 
-            migrationBuilder.RenameColumn(
+            _ = migrationBuilder.RenameColumn(
                 name: "ArticleGroupId",
                 table: "ArticleGroups",
                 newName: "Id");
 
-            migrationBuilder.AlterTable(
+            _ = migrationBuilder.AlterTable(
                 name: "CustomerAddresses")
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "CustomerAddressHistory")
@@ -185,7 +184,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "RowValidUntil")
                 .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "RowValidFrom");
 
-            migrationBuilder.AlterTable(
+            _ = migrationBuilder.AlterTable(
                 name: "Articles")
                 .OldAnnotation("SqlServer:IsTemporal", true)
                 .OldAnnotation("SqlServer:TemporalHistoryTableName", "ArticlesHistory")
@@ -193,7 +192,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "RowValidUntil")
                 .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "RowValidFrom");
 
-            migrationBuilder.AlterColumn<string>(
+            _ = migrationBuilder.AlterColumn<string>(
                 name: "PriceCurrency",
                 table: "Articles",
                 type: "nvarchar(3)",
@@ -202,7 +201,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 oldClrType: typeof(string),
                 oldType: "nchar(3)");
 
-            migrationBuilder.AlterColumn<string>(
+            _ = migrationBuilder.AlterColumn<string>(
                 name: "Description",
                 table: "Articles",
                 type: "nvarchar(500)",
