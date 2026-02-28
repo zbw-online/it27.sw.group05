@@ -204,7 +204,7 @@ stages:
               echo "================================================"
             displayName: 'Generate Changelog'
 
-          # Create release notes
+          # Create release notes test
           - script: |
               cat > $(Agent.TempDirectory)/release-notes.md << 'RELEASE_NOTES'
               # 🎓 Abgabe Aufgabe $(assignmentNumber) - MusterAG Order Management System
