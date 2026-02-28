@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - Develop
+      - Develop   # switch to main when ready
   tags:
     include:
       - Abgabe_*
@@ -33,12 +33,8 @@ steps:
 - script: dotnet test --configuration $(buildConfiguration) --no-restore
   displayName: Run tests
 
-# Clean the workspace BEFORE zipping
-- script: |
-    rm -rf "$(Build.SourcesDirectory)/.git"
-    find "$(Build.SourcesDirectory)" -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
-  displayName: Remove .git, bin, obj
-
+# Create ZIP directly from repo (no deleting .git/bin/obj required)
+# If size becomes an issue, we can filter later.
 - task: ArchiveFiles@2
   displayName: Create release ZIP
   inputs:
@@ -48,8 +44,43 @@ steps:
     archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
     replaceExistingArchive: true
 
+# Keep Azure artifact (nice fallback)
 - task: PublishBuildArtifacts@1
-  displayName: Publish release artifact
+  displayName: Publish Azure artifact
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
     ArtifactName: ReleasePackage
+
+# Create GitHub Release + upload the zip as asset
+- script: |
+    set -euo pipefail
+
+    ZIP_PATH="$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip"
+
+    # For tag builds, Build.SourceBranchName == the tag name, e.g. Abgabe_Aufgabe123
+    TAG_NAME="$(Build.SourceBranchName)"
+
+    # IMPORTANT: set this explicitly to avoid ambiguity
+    # Format: owner/repo
+    GH_REPO="zbw-online/it27.sw.group05"
+
+    # Install GitHub CLI
+    sudo apt-get update
+    sudo apt-get install -y gh
+
+    # Authenticate
+    echo "$(GITHUB_TOKEN)" | gh auth login --with-token
+
+    # Create release if missing
+    if ! gh release view "$TAG_NAME" --repo "$GH_REPO" > /dev/null 2>&1; then
+      gh release create "$TAG_NAME" \
+        --repo "$GH_REPO" \
+        --title "$TAG_NAME" \
+        --notes "Automated release created by Azure DevOps pipeline."
+    fi
+
+    # Upload/replace asset
+    gh release upload "$TAG_NAME" "$ZIP_PATH" --repo "$GH_REPO" --clobber
+  displayName: Create GitHub Release + upload ZIP
+  env:
+    GITHUB_TOKEN: $(GITHUB_TOKEN)
