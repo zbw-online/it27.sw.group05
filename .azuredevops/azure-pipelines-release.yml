@@ -31,7 +31,7 @@ variables:
 
 stages:
 # ============================================
-# STAGE 1: Validate Release Prerequisites
+# STAGE 1: Validate Release Prerequisites Tests
 # ============================================
 - stage: ValidateRelease
   displayName: '🔍 Validate Release'
