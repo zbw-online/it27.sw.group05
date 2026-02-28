@@ -1,305 +1,92 @@
-# Release Pipeline - GitHub Release Creation
-# Triggers on: Tags matching Abgabe_Aufgabe* on main branch
-# Dependencies: CI - Tests and CI - Formatting must pass
+trigger:
+  tags:
+    include:
+      - Abgabe_*
 
-trigger: none
 pr: none
-
-# Trigger only on tags
-resources:
-  repositories:
-  - repository: self
-    type: github
-    endpoint: zbw-github-connection
-    name: zbw-online/it27.sw.group05
-  
-  # Reference to other pipelines (optional - for tracking only)
-  pipelines:
-  - pipeline: tests
-    source: 'CI - Tests'
-    trigger: none  # ✅ Changed from 'false' to 'none'
-  
-  - pipeline: formatting
-    source: 'CI - Formatting'
-    trigger: none  # ✅ Changed from 'false' to 'none'
 
 pool:
   vmImage: ubuntu-latest
 
 variables:
-  buildConfiguration: 'Release'
+- group: github-secret-Public-Repository   # must contain secret variable: GITHUB_TOKEN
 
-stages:
-# ============================================
-# STAGE 1: Validate Release Prerequisites Tests
-# ============================================
-- stage: ValidateRelease
-  displayName: '🔍 Validate Release'
-  condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/Abgabe_Aufgabe')
-  jobs:
-  - job: CheckPrerequisites
-    displayName: 'Check Prerequisites'
-    steps:
-    - checkout: self
-      fetchDepth: 0
-      fetchTags: true
+- name: buildConfiguration
+  value: Release
 
-    - script: |
-        echo "================================================"
-        echo "Release Validation"
-        echo "================================================"
-        echo "Tag: $(Build.SourceBranchName)"
-        echo "Source Branch: $(Build.SourceBranch)"
-        echo "Commit: $(Build.SourceVersion)"
-        echo "================================================"
-        
-        # Verify tag exists
-        TAG_COMMIT=$(git rev-parse $(Build.SourceBranchName) 2>/dev/null || echo "")
-        if [ -z "$TAG_COMMIT" ]; then
-          echo "##vso[task.logissue type=error]Tag $(Build.SourceBranchName) not found!"
-          exit 1
-        fi
-        
-        # Check if tag is on main branch
-        git branch -r --contains $TAG_COMMIT | grep -q "origin/main"
-        if [ $? -ne 0 ]; then
-          echo "##vso[task.logissue type=warning]Tag is not on main branch"
-          echo "Tag commit: $TAG_COMMIT"
-        else
-          echo "✅ Tag is on main branch"
-        fi
-        
-        echo "✅ Prerequisites validated"
-      displayName: 'Verify Tag on Main Branch'
-      failOnStderr: false
+- name: artifactBaseName
+  value: OrderManagement
 
-# ============================================
-# STAGE 2: Quality Gate (Re-run checks)
-# ============================================
-- stage: QualityGate
-  displayName: '🛡️ Quality Gate'
-  dependsOn: ValidateRelease
-  jobs:
-  - job: FormatCheck
-    displayName: 'Verify Formatting'
-    steps:
-    - checkout: self
-      clean: true
+- name: githubRepo
+  value: zbw-online/it27.sw.group05
 
-    - task: UseDotNet@2
-      displayName: 'Install .NET 9 SDK'
-      inputs:
-        packageType: sdk
-        version: 9.x
+steps:
+- checkout: self
+  clean: true
 
-    - script: dotnet restore OrderManagement.sln
-      displayName: 'Restore Packages'
+- task: UseDotNet@2
+  inputs:
+    packageType: sdk
+    version: 9.x
 
-    - script: dotnet format OrderManagement.sln --verify-no-changes
-      displayName: 'Verify Code Formatting'
+- script: dotnet restore
+  displayName: Restore
 
-  - job: RunTests
-    displayName: 'Run All Tests'
-    dependsOn: FormatCheck
-    steps:
-    - checkout: self
-      clean: true
+- script: dotnet format --verify-no-changes
+  displayName: Verify formatting
 
-    - task: UseDotNet@2
-      displayName: 'Install .NET 9 SDK'
-      inputs:
-        packageType: sdk
-        version: 9.x
+- script: dotnet test --configuration $(buildConfiguration) --no-restore
+  displayName: Run tests
 
-    - script: dotnet restore OrderManagement.sln
-      displayName: 'Restore Dependencies'
+- task: ArchiveFiles@2
+  displayName: Create release ZIP
+  inputs:
+    rootFolderOrFile: '$(Build.SourcesDirectory)'
+    includeRootFolder: false
+    archiveType: zip
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
+    replaceExistingArchive: true
 
-    - script: dotnet build OrderManagement.sln --configuration $(buildConfiguration) --no-restore
-      displayName: 'Build Solution'
+- task: PublishBuildArtifacts@1
+  displayName: Publish Azure artifact
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
+    ArtifactName: ReleasePackage
 
-    # Unit Tests
-    - script: |
-        dotnet test tests/OrderManagement.Domain.Tests/OrderManagement.Domain.Tests.csproj \
-          --configuration $(buildConfiguration) \
-          --no-build \
-          --logger trx \
-          --results-directory $(Agent.TempDirectory)/TestResults/Unit
-      displayName: 'Run Domain Tests'
+- script: |
+    set -euo pipefail
 
-    - script: |
-        dotnet test tests/SharedKernel.Tests/SharedKernel.Tests.csproj \
-          --configuration $(buildConfiguration) \
-          --no-build \
-          --logger trx \
-          --results-directory $(Agent.TempDirectory)/TestResults/Unit
-      displayName: 'Run SharedKernel Tests'
+    ZIP_PATH="$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip"
+    TAG_NAME="$(Build.SourceBranchName)"
+    GH_REPO="$(githubRepo)"
 
-    # Integration Tests
-    - script: |
-        dotnet test tests/OrderManagement.Infrastructure.Tests/OrderManagement.Infrastructure.Tests.csproj \
-          --configuration $(buildConfiguration) \
-          --no-build \
-          --logger trx \
-          --results-directory $(Agent.TempDirectory)/TestResults/Integration
-      displayName: 'Run Infrastructure Tests (Testcontainers)'
-      env:
-        DOCKER_HOST: unix:///var/run/docker.sock
+    echo "Repo: $GH_REPO"
+    echo "Tag:  $TAG_NAME"
+    echo "Zip:  $ZIP_PATH"
 
-    - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
-      condition: succeededOrFailed()
-      inputs:
-        testResultsFormat: 'VSTest'
-        testResultsFiles: '$(Agent.TempDirectory)/TestResults/**/*.trx'
-        mergeTestResults: true
-        failTaskOnFailedTests: true
-        testRunTitle: 'Release Quality Gate - All Tests'
+    # Robust token handling (works whether injected as GH_TOKEN or GITHUB_TOKEN)
+    TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+    if [ -z "$TOKEN" ]; then
+      echo "ERROR: No GitHub token injected. Check variable group linking + pipeline permissions."
+      exit 1
+    fi
+    export GH_TOKEN="$TOKEN"
+    export GITHUB_TOKEN="$TOKEN"
 
-# ============================================
-# STAGE 3: Create GitHub Release
-# ============================================
-- stage: Release
-  displayName: '🚀 GitHub Release'
-  dependsOn: QualityGate
-  condition: succeeded()
-  jobs:
-  - deployment: CreateRelease
-    displayName: 'Publish to GitHub'
-    environment: 'Production-Release'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - checkout: self
-            fetchDepth: 0
-            fetchTags: true
+    # Validate access (403/404 => token scope or org permissions)
+    gh api "repos/$GH_REPO" >/dev/null
 
-          # Extract assignment number
-          - script: |
-              TAG_NAME=$(Build.SourceBranchName)
-              ASSIGNMENT_NUM=$(echo $TAG_NAME | sed 's/Abgabe_Aufgabe_//' | sed 's/Abgabe_Aufgabe/1/')
-              echo "Tag: $TAG_NAME"
-              echo "Assignment Number: $ASSIGNMENT_NUM"
-              echo "##vso[task.setvariable variable=assignmentNumber]$ASSIGNMENT_NUM"
-            displayName: 'Extract Assignment Number'
+    # Create release if missing
+    if ! gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
+      gh release create "$TAG_NAME" \
+        --repo "$GH_REPO" \
+        --title "$TAG_NAME" \
+        --notes "Automated release created by Azure DevOps pipeline."
+    fi
 
-          # Generate changelog
-          - script: |
-              LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-              
-              if [ -z "$LAST_TAG" ]; then
-                echo "No previous tag found, using all commits"
-                CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges HEAD)
-              else
-                echo "Generating changelog since $LAST_TAG"
-                CHANGELOG=$(git log $LAST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
-              fi
-              
-              echo "$CHANGELOG" > $(Agent.TempDirectory)/changelog.txt
-              
-              echo "================================================"
-              echo "Changelog:"
-              echo "================================================"
-              cat $(Agent.TempDirectory)/changelog.txt
-              echo "================================================"
-            displayName: 'Generate Changelog'
-
-          # Create release notes test
-          - script: |
-              cat > $(Agent.TempDirectory)/release-notes.md << 'RELEASE_NOTES'
-              # 🎓 Abgabe Aufgabe $(assignmentNumber) - MusterAG Order Management System
-              
-              ## 📋 Assignment Submission
-              
-              **Course**: Advanced Software Development  
-              **Team**: Group 05  
-              **Repository**: https://github.com/zbw-online/it27.sw.group05  
-              **Submission Date**: $(Build.QueueTime)
-              
-              ---
-              
-              ## ✅ Quality Assurance - All Gates Passed
-              
-              This release has passed all quality checks:
-              
-              ### 🔍 Code Quality
-              - ✔️ **Code Formatting**: Verified with `dotnet format`
-              - ✔️ **Build**: Clean compilation in Release mode
-              
-              ### 🧪 Testing
-              - ✔️ **Unit Tests**: Domain and SharedKernel tests passed
-              - ✔️ **Integration Tests**: Infrastructure tests with SQL Server passed
-              
-              ### 🏗️ CI/CD Pipeline
-              - ✔️ **CI - Formatting** pipeline: ✅ Passed
-              - ✔️ **CI - Tests** pipeline: ✅ Passed
-              - ✔️ **Release** pipeline: ✅ All stages completed
-              
-              ---
-              
-              ## 📦 Project Architecture
-              
-              **Clean Architecture / Domain-Driven Design**
-              
-              - **Domain Layer**: Customer, Article, ArticleGroup aggregates
-              - **Application Layer**: Repository interfaces (CQRS)
-              - **Infrastructure Layer**: EF Core 9, SQL Server
-              - **Testing**: MSTest with Testcontainers
-              
-              ---
-              
-              ## 🛠️ Technology Stack
-              
-              - .NET 9.0
-              - C# 13.0
-              - Entity Framework Core 9
-              - SQL Server 2022
-              - Testcontainers
-              
-              ---
-              
-              ## 📊 Changes in This Release
-              
-              $(cat $(Agent.TempDirectory)/changelog.txt)
-              
-              ---
-              
-              ## 🔧 Build Information
-              
-              - **Build Number**: $(Build.BuildNumber)
-              - **Commit**: $(Build.SourceVersion)
-              - **Tag**: $(Build.SourceBranchName)
-              - **Build Date**: $(Build.QueueTime)
-              
-              ---
-              
-              *Automatically generated by Azure Pipelines*
-              RELEASE_NOTES
-            displayName: 'Create Release Notes'
-
-          # Create GitHub Release
-          - task: GitHubRelease@1
-            displayName: 'Create GitHub Release'
-            inputs:
-              gitHubConnection: 'zbw-github-connection'
-              repositoryName: 'zbw-online/it27.sw.group05'
-              action: 'create'
-              target: '$(Build.SourceVersion)'
-              tagSource: 'gitTag'
-              tag: '$(Build.SourceBranchName)'
-              title: '🎓 Abgabe Aufgabe $(assignmentNumber) - Order Management System'
-              releaseNotesFilePath: '$(Agent.TempDirectory)/release-notes.md'
-              isDraft: false
-              isPreRelease: false
-              addChangeLog: true
-
-          # Success notification
-          - script: |
-              echo "================================================"
-              echo "✅ RELEASE SUCCESSFUL"
-              echo "================================================"
-              echo "Tag: $(Build.SourceBranchName)"
-              echo "Release: Abgabe Aufgabe $(assignmentNumber)"
-              echo "GitHub: https://github.com/zbw-online/it27.sw.group05/releases/tag/$(Build.SourceBranchName)"
-              echo "================================================"
-            displayName: 'Release Summary'
+    # Upload/replace asset
+    gh release upload "$TAG_NAME" "$ZIP_PATH" --repo "$GH_REPO" --clobber
+  displayName: Create GitHub Release + upload ZIP
+  env:
+    GH_TOKEN: $(GITHUB_TOKEN)
+    GITHUB_TOKEN: $(GITHUB_TOKEN)
