@@ -1,3 +1,4 @@
+using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders.Events;
 using OrderManagement.Domain.Orders.ValueObjects;
@@ -10,7 +11,6 @@ namespace OrderManagement.Domain.Orders
     public sealed class Order : AggregateRoot<OrderId>
     {
         private readonly List<OrderLine> _lines = [];
-        private int _lineIdSeq;
 
         private Order() : base(new OrderId(0)) { }
 
@@ -33,11 +33,11 @@ namespace OrderManagement.Domain.Orders
             // If your event only takes id: AddDomainEvent(new OrderCreated(id));
         }
 
-        public OrderNumber OrderNumber { get; private set; } = default!;
+        public OrderNumber OrderNumber { get; private set; }
         public DateTime OrderDate { get; private set; }
-        public CustomerId CustomerId { get; private set; } = default!;
-        public Address DeliveryAddress { get; private set; } = default!;
-        public Money Total { get; private set; } = default!;
+        public CustomerId CustomerId { get; private set; }
+        public Address DeliveryAddress { get; private set; }
+        public Money Total { get; private set; }
         public IReadOnlyCollection<OrderLine> Lines => _lines.AsReadOnly();
 
         public static Result<Order> Create(
@@ -71,12 +71,10 @@ namespace OrderManagement.Domain.Orders
             if (_lines.Count != 0 && _lines[0].UnitPrice.Currency != unitPrice.Currency)
                 return Result.Fail($"Invalid currency. Expected {_lines[0].UnitPrice.Currency} but got {unitPrice.Currency}.");
 
-            _lineIdSeq++;
-
             var line = new OrderLine(
-                new OrderLineId(_lineIdSeq),
+                new OrderLineId(0),
                 _lines.Count + 1,
-                articleId,
+                new ArticleId(articleId),
                 articleName,
                 unitPrice,
                 quantity);

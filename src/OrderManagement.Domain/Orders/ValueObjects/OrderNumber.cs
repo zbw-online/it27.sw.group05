@@ -14,6 +14,9 @@ namespace OrderManagement.Domain.Orders.ValueObjects
 
         private OrderNumber(string value) => Value = value;
 
+        // For EFCore (Not sure if this is the Correct approach)
+        internal static OrderNumber FromDb(string value) => new(value);
+
         public static Result<OrderNumber> Create(string? input)
         {
             string value = (input ?? string.Empty).Trim().ToUpperInvariant();
