@@ -47,18 +47,18 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query
                 WITH ArticleGroupHierarchy AS
                 (
                     SELECT 
-                        Id,
+                        ArticleGroupId AS Id,
                         Name,
                         ParentGroupId,
                         0 AS Level,
                         CAST(Name AS NVARCHAR(4000)) AS Path
                     FROM ArticleGroups
-                    WHERE Id = {rootId.Value}
+                    WHERE ArticleGroupId = {rootId.Value}
 
                     UNION ALL
 
                     SELECT 
-                        ag.Id,
+                        ag.ArticleGroupId AS Id,
                         ag.Name,
                         ag.ParentGroupId,
                         agh.Level + 1,
@@ -87,7 +87,7 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query
                 WITH ArticleGroupHierarchy AS
                 (
                     SELECT 
-                        Id,
+                        ArticleGroupId,
                         Name,
                         ParentGroupId,
                         0 AS Level,
@@ -98,16 +98,16 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query
                     UNION ALL
 
                     SELECT 
-                        ag.Id,
+                        ag.ArticleGroupId,
                         ag.Name,
                         ag.ParentGroupId,
                         agh.Level + 1,
                         CAST(agh.Path + ' > ' + ag.Name AS NVARCHAR(4000)) AS Path
                     FROM ArticleGroups ag
-                    INNER JOIN ArticleGroupHierarchy agh ON ag.ParentGroupId = agh.Id
+                    INNER JOIN ArticleGroupHierarchy agh ON ag.ParentGroupId = agh.ArticleGroupId
                 )
                 SELECT 
-                    Id,
+                    ArticleGroupId AS Id,
                     Name,
                     ParentGroupId,
                     Level,
