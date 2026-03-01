@@ -58,7 +58,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Customer
 
             string suffix = Guid.NewGuid().ToString("N")[..8];
 
-            int[] ids = new[] { 30010, 30011, 30012, 30013, 30014 };
+            int[] ids = [30010, 30011, 30012, 30013, 30014];
 
             foreach (int id in ids)
             {
