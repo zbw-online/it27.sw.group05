@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;
+using OrderManagement.Domain.Orders;
 
 using SharedKernel.SeedWork;
 
@@ -15,8 +16,10 @@ namespace OrderManagement.Infrastructure.Persistence
         public DbSet<ArticleGroup> ArticleGroups { get; set; }
         public DbSet<Customer> Customers { get; set; }
         public DbSet<CustomerAddress> CustomerAddresses { get; set; }
-        // TODO: Enable when Order repository is implemented
-        //public DbSet<Domain.Orders.Order> Orders { get; set; }
+
+        public DbSet<Order> Orders { get; set; }
+
+        public DbSet<OrderLine> OrderLines { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

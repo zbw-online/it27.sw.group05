@@ -4,14 +4,17 @@ namespace SharedKernel.Primitives
 {
     public sealed class Money : ValueObject
     {
-        public decimal Amount { get; }
-        public string Currency { get; }
+        public decimal Amount { get; private set; }
+        public string Currency { get; private set; }
 
         private Money(decimal amount, string currency)
         {
             Amount = decimal.Round(amount, 2, MidpointRounding.AwayFromZero);
             Currency = currency;
         }
+
+        // For EFCore (Not sure if this is the Correct approach)
+        private Money() { }
 
         public static Result<Money> From(decimal amount, string currency)
         {

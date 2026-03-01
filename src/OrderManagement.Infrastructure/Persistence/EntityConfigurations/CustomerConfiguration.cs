@@ -7,13 +7,11 @@ using OrderManagement.Domain.Customers.ValueObjects;
 using SharedKernel.Primitives;
 
 namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
-{        // Customer Table
-    public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
+{
+    public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
     {
         public void Configure(EntityTypeBuilder<Customer> builder)
         {
-
-            // Table + Temporal (mono-temporal / system time)
             _ = builder.ToTable("Customers", tb =>
             {
                 _ = tb.IsTemporal(ttb =>
@@ -22,24 +20,25 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                     _ = ttb.HasPeriodStart("RowValidFrom");
                     _ = ttb.HasPeriodEnd("RowValidUntil");
                 });
+
+                _ = tb.Property<DateTime>("RowValidFrom").HasColumnName("RowValidFrom");
+                _ = tb.Property<DateTime>("RowValidUntil").HasColumnName("RowValidUntil");
             });
 
-            // Primary Key
             _ = builder.HasKey(x => x.Id);
 
-            // Map strongly-typed CustomerId to int
             _ = builder.Property(x => x.Id)
+                .HasColumnName("CustomerId")
                 .HasConversion(id => id.Value, v => new CustomerId(v))
                 .ValueGeneratedNever();
 
-            // Single-value Value Objects -> map as scalar columns via converters (avoids temporal table-splitting issues)
             _ = builder.Property(x => x.CustomerNumber)
                 .HasConversion(v => v.Value, v => CustomerNumber.FromDb(v))
                 .HasColumnName("CustomerNumber")
                 .HasMaxLength(7)
                 .IsRequired();
 
-            _ = builder.HasIndex("CustomerNumber").IsUnique();
+            _ = builder.HasIndex(x => x.CustomerNumber).IsUnique();
 
             _ = builder.Property(x => x.LastName)
                 .HasMaxLength(100)
@@ -65,25 +64,15 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .HasMaxLength(500)
                 .IsRequired();
 
-            //CustomerAddress
-            // Backing field mapping
-            builder.Metadata
-                .FindNavigation(nameof(Customer.Addresses))!
+            // Backing field mapping for Addresses
+            builder.Metadata.FindNavigation(nameof(Customer.Addresses))!
                 .SetPropertyAccessMode(PropertyAccessMode.Field);
 
+            // ERM: Customer (1) -> (n) CustomerAddresses
             _ = builder.HasMany(c => c.Addresses)
                 .WithOne()
                 .HasForeignKey("CustomerId")
                 .OnDelete(DeleteBehavior.Cascade);
-
-            // System time columns (shadow) - SQL Server populates
-            _ = builder.Property<DateTime>("RowValidFrom")
-                .HasColumnName("RowValidFrom")
-                .ValueGeneratedOnAddOrUpdate();
-
-            _ = builder.Property<DateTime>("RowValidUntil")
-                .HasColumnName("RowValidUntil")
-                .ValueGeneratedOnAddOrUpdate();
         }
     }
 }
