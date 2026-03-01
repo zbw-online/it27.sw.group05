@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using OrderManagement.Domain.Customers;
@@ -32,6 +33,7 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .HasColumnName("OrderId")
                 .HasConversion(id => id.Value, v => new OrderId(v))
                 .ValueGeneratedOnAdd();
+
 
             _ = builder.Property(o => o.OrderNumber)
                 .HasConversion(v => v.Value, v => OrderNumber.FromDb(v))
