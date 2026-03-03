@@ -44,7 +44,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Invoices
 
             if (!addOldAddress.IsSuccess) Assert.Fail(addOldAddress.Error ?? "Address change failed");
 
-            _ = DbContext.Customers.Add(customer.EnsureValue());
+            _ = DbContext!.Customers.Add(customer.EnsureValue());
             _ = await DbContext.SaveChangesAsync();
 
             // erste Bestellung mit alter Adresse
@@ -144,7 +144,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Invoices
                 "CH");
             if (!addr2.IsSuccess) Assert.Fail(addr2.Error);
 
-            DbContext.Customers.AddRange(customer1.EnsureValue(), customer2.EnsureValue());
+            DbContext!.Customers.AddRange(customer1.EnsureValue(), customer2.EnsureValue());
             _ = await DbContext.SaveChangesAsync();
 
             Address addr = Address.Create("Test", "1", "1000", "City", "CH").Value!;
@@ -177,7 +177,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Invoices
             Result<Customer> customer = Customer.Create(300, "C-00300", "Test", "Firma", "test@test.ch", null, "hash");
             if (!customer.IsSuccess) Assert.Fail(customer.Error);
 
-            Result addr = customer.Value!.ChangeAddress(
+            Result addr = customer.EnsureValue().ChangeAddress(
                 DateOnly.FromDateTime(new DateTime(2017, 1, 1)),
                 "Test Str",
                 "1",
@@ -186,34 +186,34 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Invoices
                 "CH");
             if (!addr.IsSuccess) Assert.Fail(addr.Error);
 
-            _ = DbContext.Customers.Add(customer.Value);
+            _ = DbContext!.Customers.Add(customer.EnsureValue());
             _ = await DbContext.SaveChangesAsync();
 
             Address deliveryAddr = Address.Create("Test", "1", "3000", "City", "CH").Value!;
 
-            Result<Order> order1 = Order.Create(4010, "ORD-2017-010", customer.Value.Id, deliveryAddr);
-            Result<Order> order2 = Order.Create(4020, "ORD-2017-020", customer.Value.Id, deliveryAddr);
-            Result<Order> order3 = Order.Create(4030, "ORD-2017-030", customer.Value.Id, deliveryAddr);
+            Result<Order> order1 = Order.Create(4010, "ORD-2017-010", customer.EnsureValue().Id, deliveryAddr);
+            Result<Order> order2 = Order.Create(4020, "ORD-2017-020", customer.EnsureValue().Id, deliveryAddr);
+            Result<Order> order3 = Order.Create(4030, "ORD-2017-030", customer.EnsureValue().Id, deliveryAddr);
 
             if (!order1.IsSuccess) Assert.Fail(order1.Error);
             if (!order2.IsSuccess) Assert.Fail(order2.Error);
             if (!order3.IsSuccess) Assert.Fail(order3.Error);
 
-            typeof(Order).GetProperty("OrderDate")!.SetValue(order1.Value, new DateTime(2017, 1, 15, 0, 0, 0, DateTimeKind.Utc));
-            typeof(Order).GetProperty("OrderDate")!.SetValue(order2.Value, new DateTime(2017, 6, 15, 0, 0, 0, DateTimeKind.Utc));
-            typeof(Order).GetProperty("OrderDate")!.SetValue(order3.Value, new DateTime(2017, 12, 15, 0, 0, 0, DateTimeKind.Utc));
+            typeof(Order).GetProperty("OrderDate")!.SetValue(order1.EnsureValue(), new DateTime(2017, 1, 15, 0, 0, 0, DateTimeKind.Utc));
+            typeof(Order).GetProperty("OrderDate")!.SetValue(order2.EnsureValue(), new DateTime(2017, 6, 15, 0, 0, 0, DateTimeKind.Utc));
+            typeof(Order).GetProperty("OrderDate")!.SetValue(order3.EnsureValue(), new DateTime(2017, 12, 15, 0, 0, 0, DateTimeKind.Utc));
 
-            _ = DbContext.Orders.Add(order1.Value!);
+            _ = DbContext.Orders.Add(order1.EnsureValue());
             _ = await DbContext.SaveChangesAsync();
-            DbContext.Entry(order1.Value!).State = EntityState.Detached;
+            DbContext.Entry(order1.EnsureValue()).State = EntityState.Detached;
 
-            _ = DbContext.Orders.Add(order2.Value!);
+            _ = DbContext.Orders.Add(order2.EnsureValue());
             _ = await DbContext.SaveChangesAsync();
-            DbContext.Entry(order2.Value!).State = EntityState.Detached;
+            DbContext.Entry(order2.EnsureValue()).State = EntityState.Detached;
 
-            _ = DbContext.Orders.Add(order3.Value!);
+            _ = DbContext.Orders.Add(order3.EnsureValue());
             _ = await DbContext.SaveChangesAsync();
-            DbContext.Entry(order3.Value!).State = EntityState.Detached;
+            DbContext.Entry(order3.EnsureValue()).State = EntityState.Detached;
 
             // Act
             var fromDate = new DateTime(2017, 3, 1, 0, 0, 0, DateTimeKind.Utc);
