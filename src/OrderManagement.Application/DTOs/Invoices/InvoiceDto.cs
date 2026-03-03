@@ -2,7 +2,7 @@ namespace OrderManagement.Application.DTOs.Invoices
 {
     public sealed class InvoiceDto
     {
-        public int Kundennummer { get; init; }
+        public string Kundennummer { get; init; } = default!;
         public string Name { get; init; } = default!;
         public string Strasse { get; init; } = default!;
         public string PLZ { get; init; } = default!;

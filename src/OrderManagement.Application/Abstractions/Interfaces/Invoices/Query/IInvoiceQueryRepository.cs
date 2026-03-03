@@ -7,7 +7,7 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Invoices.Query
         Task<IReadOnlyList<InvoiceDto>> GetOrdersWithHistoricalAddressAsync(
             DateTime? fromDate = null,
             DateTime? toDate = null,
-            int? customerId = null,
+            string? customerNumber = null,
             CancellationToken ct = default);
     }
 }
