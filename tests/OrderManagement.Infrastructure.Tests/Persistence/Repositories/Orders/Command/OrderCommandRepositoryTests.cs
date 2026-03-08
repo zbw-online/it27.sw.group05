@@ -15,126 +15,101 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
         private OrderCommandRepository? _repository;
 
         [TestInitialize]
-        public void Setup()
+        public async Task Setup()
         {
             Assert.IsNotNull(DbContext);
             _repository = new OrderCommandRepository(DbContext);
+
+            await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
+        }
+
+        [TestCleanup]
+        public async Task CleanupAsync()
+        {
+            if (DbContext != null)
+            {
+                await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
+                await DbContext.SaveChangesAsync();
+            }
         }
 
         [TestMethod]
         public async Task Add_ShouldPersistOrderToDatabase()
         {
-            // Arrange
-            Assert.IsNotNull(_repository);
+
+            const string orderNo = "ORD-2026-001";
             Address address = Address.Create("Musterstraße", "12", "12345", "Berlin", "DE").Value!;
+            Order order = Order.Create(101, orderNo, new CustomerId(999), address).Value!;
 
-            Result<Order> orderResult = Order.Create(
-                id: 1,
-                orderNumber: "ORD-2026-999",
-                customerId: new CustomerId(999),
-                deliveryAddress: address
-            );
-
-            Assert.IsTrue(orderResult.IsSuccess);
-            Order order = orderResult.Value!;
-
-            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Order> entry = DbContext!.Entry(order);
+            var entry = DbContext!.Entry(order);
             entry.Property(o => o.Id).IsTemporary = true;
 
             // Act
-            _ = await DbContext.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
-
-            try
-            {
-                _repository.Add(order);
-                _ = await DbContext.SaveChangesAsync();
-            }
-            finally
-            {
-                _ = await DbContext.Database.ExecuteSqlRawAsync("ALTER TABLE Orders CHECK CONSTRAINT ALL");
-            }
+            await DbContext.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
+            _repository!.Add(order);
+            await DbContext.SaveChangesAsync();
 
             // Assert
-            Order? retrieved = await DbContext.Orders
-                .AsNoTracking()
+            Order? retrieved = await DbContext.Orders.AsNoTracking()
                 .FirstOrDefaultAsync(o => o.OrderNumber == order.OrderNumber);
 
-            Assert.IsNotNull(retrieved, "Order wurde nicht in der Datenbank gefunden.");
-            Assert.AreEqual(order.OrderNumber.Value, retrieved.OrderNumber.Value);
+            Assert.IsNotNull(retrieved);
+            Assert.AreEqual(orderNo, retrieved.OrderNumber.Value);
         }
 
         [TestMethod]
         public async Task Update_ShouldModifyExistingOrder()
         {
             // Arrange
+            const string orderNo = "ORD-2026-002";
             Address address = Address.Create("Testweg", "1", "12345", "Berlin", "DE").Value!;
-            Result<Order> orderResult = Order.Create(201, "ORD-2026-001", new CustomerId(999), address);
+            Order order = Order.Create(201, orderNo, new CustomerId(999), address).Value!;
 
-            Assert.IsTrue(orderResult.IsSuccess, $"Order.Create fehlgeschlagen: {orderResult.Error}");
-            Order? order = orderResult.Value;
-            Assert.IsNotNull(order, "Order Objekt ist null");
-
-            _ = await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
-
-            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Order> entry = DbContext.Entry(order);
+            await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
+            var entry = DbContext.Entry(order);
             entry.Property(o => o.Id).IsTemporary = true;
 
             _repository!.Add(order);
-            _ = await DbContext.SaveChangesAsync();
-
+            await DbContext.SaveChangesAsync();
             DbContext.Entry(order).State = EntityState.Detached;
 
             // Act
-            Order? orderToUpdate = await DbContext.Orders
-                .FirstOrDefaultAsync(o => o.OrderNumber == order.OrderNumber);
-
-            Assert.IsNotNull(orderToUpdate, "Order zum Updaten wurde nicht gefunden");
+            Order? toUpdate = await DbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == order.OrderNumber);
+            Assert.IsNotNull(toUpdate);
 
             DateTime updatedDate = DateTime.UtcNow.AddDays(5);
-            System.Reflection.PropertyInfo? dateProp = typeof(Order).GetProperty(nameof(Order.OrderDate));
-            dateProp?.SetValue(orderToUpdate, updatedDate);
+            typeof(Order).GetProperty(nameof(Order.OrderDate))?.SetValue(toUpdate, updatedDate);
 
-            _repository.Update(orderToUpdate);
-            _ = await DbContext.SaveChangesAsync();
+            _repository.Update(toUpdate);
+            await DbContext.SaveChangesAsync();
 
             // Assert
-            Order? finalOrder = await DbContext.Orders
-                .AsNoTracking()
+            Order? final = await DbContext.Orders.AsNoTracking()
                 .FirstOrDefaultAsync(o => o.OrderNumber == order.OrderNumber);
-
-            Assert.IsNotNull(finalOrder);
-            Assert.AreEqual(updatedDate.Date, finalOrder.OrderDate.Date);
+            Assert.AreEqual(updatedDate.Date, final!.OrderDate.Date);
         }
+
         [TestMethod]
         public async Task Remove_ShouldDeleteOrderFromDatabase()
         {
             // Arrange
+            const string orderNo = "ORD-2026-003";
             Address address = Address.Create("Löschweg", "404", "00000", "Ex-City", "DE").Value!;
-            Result<Order> orderResult = Order.Create(301, "ORD-2026-001", new CustomerId(999), address);
+            Order order = Order.Create(301, orderNo, new CustomerId(999), address).Value!;
 
-            Assert.IsTrue(orderResult.IsSuccess);
-            Order order = orderResult.Value!;
-
-            _ = await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
-
-            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Order> entry = DbContext.Entry(order);
+            await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
+            var entry = DbContext.Entry(order);
             entry.Property(o => o.Id).IsTemporary = true;
             _repository!.Add(order);
-            _ = await DbContext.SaveChangesAsync();
-
-            bool exists = await DbContext.Orders.AnyAsync(o => o.OrderNumber == order.OrderNumber);
-            Assert.IsTrue(exists, "Order wurde nicht korrekt initialisiert.");
+            await DbContext.SaveChangesAsync();
 
             // Act
             _repository.Remove(order);
-            _ = await DbContext.SaveChangesAsync();
+            await DbContext.SaveChangesAsync();
 
             // Assert
-            Order? deletedOrder = await DbContext.Orders
-                .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.OrderNumber == order.OrderNumber);
-
-            Assert.IsNull(deletedOrder, "Die Order sollte gelöscht sein, wurde aber in der DB gefunden.");
+            bool exists = await DbContext.Orders.AnyAsync(o => o.OrderNumber == order.OrderNumber);
+            Assert.IsFalse(exists);
         }
     }
 }

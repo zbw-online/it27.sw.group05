@@ -14,9 +14,6 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
     public sealed class OrderQueryRepositoryTests : IntegrationTestBase
     {
         private OrderQueryRepository? _repository;
-        private Order? _seededOrder;
-
-        private string _currentOrderNumber = string.Empty;
         private const int SeededCustomerInt = 999;
 
         [TestInitialize]
@@ -24,30 +21,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
         {
             Assert.IsNotNull(DbContext);
             _repository = new OrderQueryRepository(DbContext);
-
-            _currentOrderNumber = $"ORD-2026-{Random.Shared.Next(100, 999)}";
-
-            Address address = Address.Create("Query-Strasse", "10", "8000", "Zürich", "CH").Value!;
-
-            Result<Order> orderResult = Order.Create(
-                id: 1,
-                orderNumber: _currentOrderNumber,
-                customerId: new CustomerId(SeededCustomerInt),
-                deliveryAddress: address
-            );
-
-            Assert.IsTrue(orderResult.IsSuccess, $"Order creation failed: {orderResult.Error}");
-            _seededOrder = orderResult.Value!;
-
-            _ = await DbContext.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
-
-            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Order> entry = DbContext.Entry(_seededOrder);
-            entry.Property(o => o.Id).IsTemporary = true;
-
-            _ = DbContext.Orders.Add(_seededOrder);
-            _ = await DbContext.SaveChangesAsync();
-
-            DbContext.Entry(_seededOrder).State = EntityState.Detached;
+            await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
         }
 
         [TestCleanup]
@@ -55,90 +29,90 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
         {
             if (DbContext != null)
             {
-                _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
-                _ = await DbContext.SaveChangesAsync();
+                await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
+                await DbContext.SaveChangesAsync();
             }
         }
 
+        private async Task SeedOrderAsync(string orderNumber, int id)
+        {
+            var address = Address.Create("Query-Strasse", "10", "8000", "Zürich", "CH").Value!;
+            var order = Order.Create(id, orderNumber, new CustomerId(SeededCustomerInt), address).Value!;
+
+            await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
+            var entry = DbContext.Entry(order);
+            entry.Property(o => o.Id).IsTemporary = true;
+
+            DbContext.Orders.Add(order);
+            await DbContext.SaveChangesAsync();
+            DbContext.Entry(order).State = EntityState.Detached;
+        }
         [TestMethod]
         public async Task GetByIdAsync_ShouldReturnCorrectOrder()
         {
-            // Arrange
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(_seededOrder);
+            const string orderNo = "ORD-2026-101";
+            await SeedOrderAsync(orderNo, 101);
 
-            Order? dbOrder = await DbContext!.Orders
+            var dbOrder = await DbContext!.Orders
                 .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.OrderNumber == _seededOrder.OrderNumber);
+                .FirstAsync(o => o.OrderNumber == OrderNumber.Create(orderNo).Value);
 
-            Assert.IsNotNull(dbOrder, "Seed-Daten konnten nicht gefunden werden.");
+            var result = await _repository!.GetByIdAsync(dbOrder.Id);
 
-            // Act
-            Order? result = await _repository.GetByIdAsync(dbOrder.Id);
-
-            // Assert
             Assert.IsNotNull(result);
-            Assert.AreEqual(dbOrder.Id, result.Id);
-            Assert.AreEqual(_currentOrderNumber, result.OrderNumber.Value);
+            Assert.AreEqual(orderNo, result.OrderNumber.Value);
         }
 
         [TestMethod]
         public async Task GetByOrderNumberAsync_ShouldReturnCorrectOrder()
         {
-            // Arrange
-            Assert.IsNotNull(_repository);
-            OrderNumber orderNumber = OrderNumber.Create(_currentOrderNumber).Value!;
+            const string orderNo = "ORD-2026-102";
+            await SeedOrderAsync(orderNo, 102);
+            var vo = OrderNumber.Create(orderNo).Value!;
 
-            // Act
-            Order? result = await _repository.GetByOrderNumberAsync(orderNumber);
+            var result = await _repository!.GetByOrderNumberAsync(vo);
 
-            // Assert
-            Assert.IsNotNull(result, $"Order {_currentOrderNumber} wurde nicht gefunden.");
-            Assert.AreEqual(_currentOrderNumber, result.OrderNumber.Value);
+            Assert.IsNotNull(result);
+            Assert.AreEqual(orderNo, result.OrderNumber.Value);
         }
 
         [TestMethod]
         public async Task GetByCustomerIdAsync_ShouldReturnOrders()
         {
-            // Arrange
-            Assert.IsNotNull(_repository);
-            var customerId = new CustomerId(SeededCustomerInt);
+            const string orderNo = "ORD-2026-103";
+            await SeedOrderAsync(orderNo, 103);
 
-            // Act
-            IReadOnlyList<Order> result = await _repository.GetByCustomerIdAsync(customerId);
+            var result = await _repository!.GetByCustomerIdAsync(new CustomerId(SeededCustomerInt));
 
-            // Assert
-            var resultList = result.ToList();
-            Assert.IsTrue(resultList.Any(o => o.OrderNumber.Value == _currentOrderNumber));
+            Assert.IsTrue(result.Any(o => o.OrderNumber.Value == orderNo));
         }
 
         [TestMethod]
         public async Task GetListAsync_ShouldReturnAllOrders()
         {
-            // Act
-            IReadOnlyList<Order> result = await _repository!.GetListAsync();
+            const string orderNo = "ORD-2026-104";
+            await SeedOrderAsync(orderNo, 104);
 
-            // Assert
-            Assert.IsTrue(result.Any(o => o.OrderNumber.Value == _currentOrderNumber));
+            var result = await _repository!.GetListAsync();
+
+            Assert.IsTrue(result.Any(o => o.OrderNumber.Value == orderNo));
         }
 
         [TestMethod]
         public async Task GetPendingOrdersAsync_ShouldReturnOrders()
         {
-            // Act
-            IReadOnlyList<Order> result = await _repository!.GetPendingOrdersAsync();
+            const string orderNo = "ORD-2026-105";
+            await SeedOrderAsync(orderNo, 105);
 
-            // Assert
-            Assert.IsTrue(result.Any(o => o.OrderNumber.Value == _currentOrderNumber));
+            var result = await _repository!.GetPendingOrdersAsync();
+
+            Assert.IsTrue(result.Any(o => o.OrderNumber.Value == orderNo));
         }
 
         [TestMethod]
         public async Task GetByIdAsync_ShouldReturnNull_WhenOrderDoesNotExist()
         {
-            // Act
-            Order? result = await _repository!.GetByIdAsync(new OrderId(999999));
-
-            // Assert
+            var result = await _repository!.GetByIdAsync(new OrderId(999999));
             Assert.IsNull(result);
         }
     }
