@@ -23,8 +23,8 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
             _repository = new OrderQueryRepository(DbContext);
 
             // Cleanup & Seed Customer
-            await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
-            await DbContext.Database.ExecuteSqlRawAsync(
+            _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
+            _ = await DbContext.Database.ExecuteSqlRawAsync(
                 "IF NOT EXISTS (SELECT 1 FROM Customers WHERE CustomerId = {0}) " +
                 "INSERT INTO Customers (CustomerId, CustomerNumber, LastName, SurName, Email, PasswordHash) " +
                 "VALUES ({0}, 'C-999', 'Query', 'User', 'q@test.com', 'hash')", TestCustomerId);
@@ -34,11 +34,11 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
         {
             string orderNr = $"ORD-2026-{sequence:D3}";
 
-            var address = Address.Create("Query St", "10", "8000", "Zurich", "CH").Value!;
-            var order = Order.Create(id, orderNr, new CustomerId(TestCustomerId), address).Value!;
+            Address address = Address.Create("Query St", "10", "8000", "Zurich", "CH").Value!;
+            Order order = Order.Create(id, orderNr, new CustomerId(TestCustomerId), address).Value!;
 
-            DbContext!.Orders.Add(order);
-            await DbContext.SaveChangesAsync();
+            _ = DbContext!.Orders.Add(order);
+            _ = await DbContext.SaveChangesAsync();
 
             DbContext.ChangeTracker.Clear();
         }
@@ -51,7 +51,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
             await SeedOrderAsync(id, 1);
 
             // Act
-            var result = await _repository!.GetByIdAsync(new OrderId(id));
+            Order? result = await _repository!.GetByIdAsync(new OrderId(id));
 
             // Assert
             Assert.IsNotNull(result, "Repository hat null zurückgegeben.");
@@ -64,10 +64,10 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
             // Arrange
             int id = 50002;
             await SeedOrderAsync(id, 2);
-            var vo = OrderNumber.Create("ORD-2026-002").Value!;
+            OrderNumber vo = OrderNumber.Create("ORD-2026-002").Value!;
 
             // Act
-            var result = await _repository!.GetByOrderNumberAsync(vo);
+            Order? result = await _repository!.GetByOrderNumberAsync(vo);
 
             // Assert
             Assert.IsNotNull(result);
@@ -81,10 +81,9 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
             await SeedOrderAsync(id, 3);
 
             // Act
-            var result = await _repository!.GetByCustomerIdAsync(new CustomerId(TestCustomerId));
+            IReadOnlyList<Order> result = await _repository!.GetByCustomerIdAsync(new CustomerId(TestCustomerId));
 
             // Assert
-            Assert.IsNotNull(result);
             var list = result.ToList();
             Assert.IsTrue(list.Any(o => o.Id == new OrderId(id)), "Die geseedete Order wurde für den Kunden nicht gefunden.");
         }
@@ -97,10 +96,9 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
             await SeedOrderAsync(50005, 5);
 
             // Act
-            var result = await _repository!.GetListAsync();
+            IReadOnlyList<Order> result = await _repository!.GetListAsync();
 
             // Assert
-            Assert.IsNotNull(result);
             Assert.IsTrue(result.Count >= 2, "Es sollten mindestens die zwei geseedeten Orders zurückgegeben werden.");
         }
 
@@ -108,7 +106,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Q
         public async Task GetById_ShouldReturnNull_WhenOrderDoesNotExist()
         {
             // Act
-            var result = await _repository!.GetByIdAsync(new OrderId(999999));
+            Order? result = await _repository!.GetByIdAsync(new OrderId(999999));
 
             // Assert
             Assert.IsNull(result, "Repository sollte null für eine nicht existierende ID zurückgeben.");

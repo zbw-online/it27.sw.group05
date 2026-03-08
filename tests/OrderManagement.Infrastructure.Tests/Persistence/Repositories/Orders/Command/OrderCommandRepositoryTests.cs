@@ -22,10 +22,10 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
             Assert.IsNotNull(DbContext);
             _repository = new OrderCommandRepository(DbContext);
 
-            await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
-            await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Customers");
+            _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
+            _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Customers");
 
-            await DbContext.Database.ExecuteSqlRawAsync(
+            _ = await DbContext.Database.ExecuteSqlRawAsync(
                 "INSERT INTO Customers (CustomerId, CustomerNumber, LastName, SurName, Email, PasswordHash) " +
                 "VALUES ({0}, 'C-999', 'System', 'Seed', 'seed@test.local', 'hash')", SharedCustomerId);
         }
@@ -37,7 +37,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
             const int id = 20_001;
             const string orderNr = "ORD-2026-001";
 
-            var address = Address.Create("Main St", "1", "8000", "Zurich", "CH").Value!;
+            Address address = Address.Create("Main St", "1", "8000", "Zurich", "CH").Value!;
 
             Order order = Order.Create(
                 id: id,
@@ -48,7 +48,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
 
             // Act
             _repository!.Add(order);
-            await DbContext.SaveChangesAsync();
+            _ = await DbContext.SaveChangesAsync();
 
             // Assert
             Order? retrieved = await DbContext.Orders
@@ -64,22 +64,22 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
         {
             // Arrange
             const int id = 20_002;
-            var address = Address.Create("Test St", "2", "8000", "Zurich", "CH").Value!;
+            Address address = Address.Create("Test St", "2", "8000", "Zurich", "CH").Value!;
             Order order = Order.Create(id, "ORD-2026-002", new CustomerId(SharedCustomerId), address).Value!;
 
-            DbContext!.Orders.Add(order);
-            await DbContext.SaveChangesAsync();
+            _ = DbContext!.Orders.Add(order);
+            _ = await DbContext.SaveChangesAsync();
             DbContext.Entry(order).State = EntityState.Detached;
 
             // Act
             Order? tracked = await DbContext.Orders.FirstOrDefaultAsync(o => o.Id == new OrderId(id));
             Assert.IsNotNull(tracked);
 
-            var newDate = DateTime.UtcNow.AddDays(10);
+            DateTime newDate = DateTime.UtcNow.AddDays(10);
             typeof(Order).GetProperty(nameof(Order.OrderDate))?.SetValue(tracked, newDate);
 
             _repository!.Update(tracked);
-            await DbContext.SaveChangesAsync();
+            _ = await DbContext.SaveChangesAsync();
 
             // Assert
             Order? updated = await DbContext.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == new OrderId(id));
@@ -92,15 +92,15 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
         {
             // Arrange
             const int id = 20_003;
-            var address = Address.Create("Delete St", "3", "8000", "Zurich", "CH").Value!;
+            Address address = Address.Create("Delete St", "3", "8000", "Zurich", "CH").Value!;
             Order order = Order.Create(id, "ORD-2026-003", new CustomerId(SharedCustomerId), address).Value!;
 
-            DbContext!.Orders.Add(order);
-            await DbContext.SaveChangesAsync();
+            _ = DbContext!.Orders.Add(order);
+            _ = await DbContext.SaveChangesAsync();
 
             // Act
             _repository!.Remove(order);
-            await DbContext.SaveChangesAsync();
+            _ = await DbContext.SaveChangesAsync();
 
             // Assert
             Order? deleted = await DbContext.Orders.FirstOrDefaultAsync(o => o.Id == new OrderId(id));
