@@ -14,8 +14,7 @@ namespace OrderManagement.Infrastructure.Migrations
                 name: "Orders",
                 columns: table => new
                 {
-                    OrderId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OrderId = table.Column<int>(type: "int", nullable: false),
                     OrderNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     OrderDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CustomerId = table.Column<int>(type: "int", nullable: false),

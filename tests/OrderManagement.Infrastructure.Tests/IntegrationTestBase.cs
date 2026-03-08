@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Domain.Catalog;
+using OrderManagement.Domain.Customers;
+using OrderManagement.Domain.Orders;
 using OrderManagement.Infrastructure.Persistence;
 
 namespace OrderManagement.Infrastructure.Tests
@@ -36,9 +38,27 @@ namespace OrderManagement.Infrastructure.Tests
         {
             if (DbContext is null) return;
 
-            // Clear tables in order (respecting foreign key constraints)
-            // Note: Articles can use ExecuteDeleteAsync (not temporal)
-            // ArticleGroups must use RemoveRange (temporal table)
+            // Clear in order respecting foreign keys
+
+            // Clear OrderLines first (if they exist as a separate table)
+            List<OrderLine> orderLines = await DbContext.OrderLines.ToListAsync();
+            DbContext.OrderLines.RemoveRange(orderLines);
+            _ = await DbContext.SaveChangesAsync();
+
+            // Clear Orders (temporal - must use RemoveRange)
+            List<Order> orders = await DbContext.Orders.ToListAsync();
+            DbContext.Orders.RemoveRange(orders);
+            _ = await DbContext.SaveChangesAsync();
+
+            // Clear CustomerAddresses
+            List<CustomerAddress> addresses = await DbContext.CustomerAddresses.ToListAsync();
+            DbContext.CustomerAddresses.RemoveRange(addresses);
+            _ = await DbContext.SaveChangesAsync();
+
+            // Clear Customers (temporal - must use RemoveRange)
+            List<Customer> customers = await DbContext.Customers.ToListAsync();
+            DbContext.Customers.RemoveRange(customers);
+            _ = await DbContext.SaveChangesAsync();
 
             // Clear Articles (not temporal - can use ExecuteDeleteAsync)
             _ = await DbContext.Articles.ExecuteDeleteAsync();
@@ -46,15 +66,7 @@ namespace OrderManagement.Infrastructure.Tests
             // Load and remove ArticleGroups (temporal table)
             List<ArticleGroup> articleGroups = await DbContext.ArticleGroups.ToListAsync();
             DbContext.ArticleGroups.RemoveRange(articleGroups);
-
-            // Save deletions for temporal tables
             _ = await DbContext.SaveChangesAsync();
-
-            // TODO: Add Customers and Orders when implemented
-            // Customers is temporal - use RemoveRange:
-            // var customers = await DbContext.Customers.ToListAsync();
-            // DbContext.Customers.RemoveRange(customers);
-            // await DbContext.SaveChangesAsync();
         }
     }
 }

@@ -102,9 +102,13 @@ SELECT CASE WHEN OBJECT_ID('dbo.Orders','U') IS NOT NULL THEN 1 ELSE 0 END;");
 
                     string orderNumber = $"CT-{year}-Q{q}";
 
+                    // Generate unique OrderId for each order
+                    int orderId = (year * 100) + (q * 10);
+
                     _ = await DbContext.Database.ExecuteSqlInterpolatedAsync($@"
 INSERT INTO dbo.Orders
 (
+    OrderId,
     OrderNumber,
     CustomerId,
     OrderDate,
@@ -118,6 +122,7 @@ INSERT INTO dbo.Orders
 )
 VALUES
 (
+    {orderId},
     {orderNumber},
     {customerId},
     {date},
