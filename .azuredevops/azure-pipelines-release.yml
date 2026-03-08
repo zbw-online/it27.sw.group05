@@ -9,7 +9,7 @@ pool:
   vmImage: ubuntu-24.04
 
 variables:
-- group: github-secret-Public-Repository   # must contain secret variable: GITHUB_TOKEN
+- group: github-secret-Public-Repository
 
 - name: buildConfiguration
   value: Release
