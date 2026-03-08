@@ -20,7 +20,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
             Assert.IsNotNull(DbContext);
             _repository = new OrderCommandRepository(DbContext);
 
-            await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
+            _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
         }
 
         [TestCleanup]
@@ -28,8 +28,8 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
         {
             if (DbContext != null)
             {
-                await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
-                await DbContext.SaveChangesAsync();
+                _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
+                _ = await DbContext.SaveChangesAsync();
             }
         }
 
@@ -41,13 +41,13 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
             Address address = Address.Create("Musterstraße", "12", "12345", "Berlin", "DE").Value!;
             Order order = Order.Create(101, orderNo, new CustomerId(999), address).Value!;
 
-            var entry = DbContext!.Entry(order);
+            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Order> entry = DbContext!.Entry(order);
             entry.Property(o => o.Id).IsTemporary = true;
 
             // Act
-            await DbContext.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
+            _ = await DbContext.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
             _repository!.Add(order);
-            await DbContext.SaveChangesAsync();
+            _ = await DbContext.SaveChangesAsync();
 
             // Assert
             Order? retrieved = await DbContext.Orders.AsNoTracking()
@@ -65,12 +65,12 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
             Address address = Address.Create("Testweg", "1", "12345", "Berlin", "DE").Value!;
             Order order = Order.Create(201, orderNo, new CustomerId(999), address).Value!;
 
-            await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
-            var entry = DbContext.Entry(order);
+            _ = await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
+            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Order> entry = DbContext.Entry(order);
             entry.Property(o => o.Id).IsTemporary = true;
 
             _repository!.Add(order);
-            await DbContext.SaveChangesAsync();
+            _ = await DbContext.SaveChangesAsync();
             DbContext.Entry(order).State = EntityState.Detached;
 
             // Act
@@ -81,7 +81,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
             typeof(Order).GetProperty(nameof(Order.OrderDate))?.SetValue(toUpdate, updatedDate);
 
             _repository.Update(toUpdate);
-            await DbContext.SaveChangesAsync();
+            _ = await DbContext.SaveChangesAsync();
 
             // Assert
             Order? final = await DbContext.Orders.AsNoTracking()
@@ -97,15 +97,15 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
             Address address = Address.Create("Löschweg", "404", "00000", "Ex-City", "DE").Value!;
             Order order = Order.Create(301, orderNo, new CustomerId(999), address).Value!;
 
-            await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
-            var entry = DbContext.Entry(order);
+            _ = await DbContext!.Database.ExecuteSqlRawAsync("ALTER TABLE Orders NOCHECK CONSTRAINT ALL");
+            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Order> entry = DbContext.Entry(order);
             entry.Property(o => o.Id).IsTemporary = true;
             _repository!.Add(order);
-            await DbContext.SaveChangesAsync();
+            _ = await DbContext.SaveChangesAsync();
 
             // Act
             _repository.Remove(order);
-            await DbContext.SaveChangesAsync();
+            _ = await DbContext.SaveChangesAsync();
 
             // Assert
             bool exists = await DbContext.Orders.AnyAsync(o => o.OrderNumber == order.OrderNumber);
