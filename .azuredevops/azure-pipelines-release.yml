@@ -1,24 +1,31 @@
 trigger:
+  branches:
+    include:
+      - 'main'
+
   tags:
     include:
-      - Abgabe_*
+      - 'Abgabe_*'
 
 pr: none
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: ubuntu-24.04
 
 variables:
-- group: github-secret-Public-Repository   # must contain secret variable: GITHUB_TOKEN
+- group: github-secret-Public-Repository
 
 - name: buildConfiguration
   value: Release
 
-- name: artifactBaseName
-  value: OrderManagement
-
 - name: githubRepo
   value: zbw-online/it27.sw.group05
+
+- name: docsFolder
+  value: '$(Build.SourcesDirectory)/docs'
+
+- name: pdfOutputFolder
+  value: '$(Build.ArtifactStagingDirectory)/pdf'
 
 steps:
 - checkout: self
@@ -38,33 +45,53 @@ steps:
 - script: dotnet test --configuration $(buildConfiguration) --no-restore
   displayName: Run tests
 
-- task: ArchiveFiles@2
-  displayName: Create release ZIP
-  inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)'
-    includeRootFolder: false
-    archiveType: zip
-    archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
-    replaceExistingArchive: true
+- script: |
+    set -euo pipefail
 
-- task: PublishBuildArtifacts@1
-  displayName: Publish Azure artifact
+    sudo apt-get update
+    sudo apt-get install -y libreoffice
+
+    mkdir -p "$(pdfOutputFolder)"
+
+    if [ ! -d "$(docsFolder)" ]; then
+      echo "ERROR: Docs folder not found: $(docsFolder)"
+      exit 1
+    fi
+
+    mapfile -d '' files < <(find "$(docsFolder)" -type f -iname "*.docx" -print0)
+
+    if [ ${#files[@]} -eq 0 ]; then
+      echo "ERROR: No .docx files found in $(docsFolder)"
+      exit 1
+    fi
+
+    for file in "${files[@]}"; do
+      echo "Converting: $file"
+      libreoffice --headless --convert-to pdf --outdir "$(pdfOutputFolder)" "$file"
+    done
+
+    echo "Generated PDFs:"
+    ls -la "$(pdfOutputFolder)"
+  displayName: Convert DOCX to PDF
+
+- task: PublishPipelineArtifact@1
+  displayName: Publish PDF artifact
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip'
-    ArtifactName: ReleasePackage
+    targetPath: '$(pdfOutputFolder)'
+    artifact: 'PdfFiles'
+    publishLocation: 'pipeline'
 
 - script: |
     set -euo pipefail
 
-    ZIP_PATH="$(Build.ArtifactStagingDirectory)/$(artifactBaseName)_$(Build.SourceBranchName)_$(Build.BuildNumber).zip"
-    TAG_NAME="$(Build.SourceBranchName)"
+    TAG_NAME="$(Build.SourceTagName)"
     GH_REPO="$(githubRepo)"
+    PDF_DIR="$(pdfOutputFolder)"
 
     echo "Repo: $GH_REPO"
     echo "Tag:  $TAG_NAME"
-    echo "Zip:  $ZIP_PATH"
+    echo "PDFs: $PDF_DIR"
 
-    # Robust token handling (works whether injected as GH_TOKEN or GITHUB_TOKEN)
     TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
     if [ -z "$TOKEN" ]; then
       echo "ERROR: No GitHub token injected. Check variable group linking + pipeline permissions."
@@ -73,20 +100,25 @@ steps:
     export GH_TOKEN="$TOKEN"
     export GITHUB_TOKEN="$TOKEN"
 
-    # Validate access (403/404 => token scope or org permissions)
     gh api "repos/$GH_REPO" >/dev/null
 
-    # Create release if missing
     if ! gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
       gh release create "$TAG_NAME" \
         --repo "$GH_REPO" \
         --title "$TAG_NAME" \
-        --notes "Automated release created by Azure DevOps pipeline."
+        --notes "Automated PDF release created by Azure DevOps pipeline."
     fi
 
-    # Upload/replace asset
-    gh release upload "$TAG_NAME" "$ZIP_PATH" --repo "$GH_REPO" --clobber
-  displayName: Create GitHub Release + upload ZIP
+    shopt -s nullglob
+    pdfs=("$PDF_DIR"/*.pdf)
+
+    if [ ${#pdfs[@]} -eq 0 ]; then
+      echo "ERROR: No PDF files found in $PDF_DIR"
+      exit 1
+    fi
+
+    gh release upload "$TAG_NAME" "${pdfs[@]}" --repo "$GH_REPO" --clobber
+  displayName: Create GitHub Release + upload PDFs
   env:
     GH_TOKEN: $(GITHUB_TOKEN)
     GITHUB_TOKEN: $(GITHUB_TOKEN)
