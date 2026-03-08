@@ -1,8 +1,8 @@
 trigger:
   branches:
-    exclude:
-      - 'main'
-      - 'Develop'
+    include:
+      - 'Feature*'
+
   tags:
     include:
       - 'Abgabe_*'
