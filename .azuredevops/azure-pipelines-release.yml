@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - 'Feature*'
+      - 'main'
 
   tags:
     include:
@@ -84,7 +84,7 @@ steps:
 - script: |
     set -euo pipefail
 
-    TAG_NAME="$(Build.SourceBranchName)"
+    TAG_NAME="$(Build.SourceTagName)"
     GH_REPO="$(githubRepo)"
     PDF_DIR="$(pdfOutputFolder)"
 
