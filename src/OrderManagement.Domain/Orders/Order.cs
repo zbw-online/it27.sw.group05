@@ -28,9 +28,7 @@ namespace OrderManagement.Domain.Orders
 
             Total = Money.From(0, "CHF").EnsureValue();
 
-            // IMPORTANT: match constructor signature of your event
             AddDomainEvent(new OrderCreated(id, DateTime.UtcNow));
-            // If your event only takes id: AddDomainEvent(new OrderCreated(id));
         }
 
         public OrderNumber OrderNumber { get; private set; }
@@ -53,7 +51,6 @@ namespace OrderManagement.Domain.Orders
             if (!nr.IsSuccess)
                 return Results.Fail<Order>(nr.Error!);
 
-            // You can add additional rules here (e.g., deliveryAddress not null)
 
             var order = new Order(
                 new OrderId(id),
