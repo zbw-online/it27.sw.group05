@@ -84,7 +84,7 @@ steps:
 - script: |
     set -euo pipefail
 
-    TAG_NAME="$(Build.SourceTagName)"
+    TAG_NAME="$(Build.SourceBranchName)"
     GH_REPO="$(githubRepo)"
     PDF_DIR="$(pdfOutputFolder)"
 
