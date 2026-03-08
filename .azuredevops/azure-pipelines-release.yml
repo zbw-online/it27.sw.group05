@@ -1,8 +1,12 @@
 trigger:
   branches:
+    exclude:
+      - 'main'
+      - 'Develop'
+  tags:
     include:
-      - main
-      - Feature*
+      - 'Abgabe_*'
+
 pr: none
 
 pool:
