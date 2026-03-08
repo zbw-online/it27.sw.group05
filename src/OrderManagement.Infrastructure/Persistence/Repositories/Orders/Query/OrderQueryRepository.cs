@@ -32,7 +32,7 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Orders.Query
                 .Where(o => o.CustomerId == customerId)
                 .ToListAsync(cancellationToken);
 
-        public async Task<IReadOnlyList<Order>> GetPendingOrdersAsync(CancellationToken ct = default)
-            => await GetListAsync(ct);
+        public async Task<IReadOnlyList<Order>> GetPendingOrdersAsync(CancellationToken cancellationToken = default)
+            => await GetListAsync(cancellationToken);
     }
 }
