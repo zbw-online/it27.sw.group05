@@ -1,12 +1,12 @@
 trigger:
-  tags:
+  branches:
     include:
-      - Abgabe_*
-
+      - main
+      - Feature*
 pr: none
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: ubuntu-24.04
 
 variables:
 - group: github-secret-Public-Repository   # must contain secret variable: GITHUB_TOKEN
@@ -19,6 +19,14 @@ variables:
 
 - name: githubRepo
   value: zbw-online/it27.sw.group05
+
+# Folder containing your .docx files
+- name: docsFolder
+  value: '$(Build.SourcesDirectory)/docs'
+
+# Output folder for generated PDFs
+- name: pdfOutputFolder
+  value: '$(Build.SourcesDirectory)/generated-pdf'
 
 steps:
 - checkout: self
@@ -37,6 +45,35 @@ steps:
 
 - script: dotnet test --configuration $(buildConfiguration) --no-restore
   displayName: Run tests
+
+- script: |
+    set -euo pipefail
+
+    sudo apt-get update
+    sudo apt-get install -y libreoffice
+
+    mkdir -p "$(pdfOutputFolder)"
+
+    if [ ! -d "$(docsFolder)" ]; then
+      echo "Docs folder not found: $(docsFolder)"
+      exit 1
+    fi
+
+    mapfile -d '' files < <(find "$(docsFolder)" -type f \( -iname "*.docx" \) -print0)
+
+    if [ ${#files[@]} -eq 0 ]; then
+      echo "No .docx files found in $(docsFolder)"
+      exit 1
+    fi
+
+    for file in "${files[@]}"; do
+      echo "Converting: $file"
+      libreoffice --headless --convert-to pdf --outdir "$(pdfOutputFolder)" "$file"
+    done
+
+    echo "Generated PDFs:"
+    ls -la "$(pdfOutputFolder)"
+  displayName: Convert DOCX to PDF
 
 - task: ArchiveFiles@2
   displayName: Create release ZIP
@@ -64,7 +101,6 @@ steps:
     echo "Tag:  $TAG_NAME"
     echo "Zip:  $ZIP_PATH"
 
-    # Robust token handling (works whether injected as GH_TOKEN or GITHUB_TOKEN)
     TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
     if [ -z "$TOKEN" ]; then
       echo "ERROR: No GitHub token injected. Check variable group linking + pipeline permissions."
@@ -73,10 +109,8 @@ steps:
     export GH_TOKEN="$TOKEN"
     export GITHUB_TOKEN="$TOKEN"
 
-    # Validate access (403/404 => token scope or org permissions)
     gh api "repos/$GH_REPO" >/dev/null
 
-    # Create release if missing
     if ! gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
       gh release create "$TAG_NAME" \
         --repo "$GH_REPO" \
@@ -84,7 +118,6 @@ steps:
         --notes "Automated release created by Azure DevOps pipeline."
     fi
 
-    # Upload/replace asset
     gh release upload "$TAG_NAME" "$ZIP_PATH" --repo "$GH_REPO" --clobber
   displayName: Create GitHub Release + upload ZIP
   env:
