@@ -31,7 +31,7 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(o => o.Id)
                 .HasColumnName("OrderId")
                 .HasConversion(id => id.Value, v => new OrderId(v))
-                .ValueGeneratedOnAdd();
+                .ValueGeneratedNever();
 
             _ = builder.Property(o => o.OrderNumber)
                 .HasConversion(v => v.Value, v => OrderNumber.FromDb(v))

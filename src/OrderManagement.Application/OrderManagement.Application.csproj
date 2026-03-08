@@ -9,6 +9,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="DTOs\Customer\" />
+    <Folder Include="DTOs\Catalog\" />
+    <Folder Include="DTOs\Orders\" />
     <Folder Include="Features\" />
   </ItemGroup>
 
