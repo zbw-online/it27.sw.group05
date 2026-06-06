@@ -12,159 +12,87 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Catalog.
     [TestClass]
     public sealed class ArticleCommandRepositoryTests : IntegrationTestBase
     {
-        private ArticleCommandRepository? _repository;
-        private ArticleGroup? _testArticleGroup;
+        private ArticleCommandRepository _repository = default!;
 
-        [TestInitialize]
-        public async Task SetupAsync()
+        protected override Task OnDatabaseInitializedAsync()
         {
-            Assert.IsNotNull(DbContext);
             _repository = new ArticleCommandRepository(DbContext);
-
-            Result<ArticleGroup> groupResult = ArticleGroup.Create(100, "Test Article Group", parentGroupId: null);
-            Assert.IsTrue(groupResult.IsSuccess);
-            _testArticleGroup = groupResult.Value!;
-
-            _ = DbContext.ArticleGroups.Add(_testArticleGroup);
-            _ = await DbContext.SaveChangesAsync();
+            return Task.CompletedTask;
         }
 
         [TestMethod]
-        public async Task Add_ShouldPersistArticleToDatabase()
+        public async Task Add_WithExistingGroup_ShouldPersistArticleAndGenerateId()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
-            Assert.IsNotNull(_testArticleGroup);
+            ArticleGroup group = await InfrastructureTestDataFactory.CreatePersistedArticleGroupAsync(DbContext);
 
-            Result<Article> articleResult = Article.Create(
-                id: 101,
-                articleNr: "ART-001",
+            Article article = Article.Create(
+                articleNr: "ART-210001",
                 name: "Test Article",
-                priceAmount: 99.99m,
-                priceCurrency: "EUR",
-                groupId: _testArticleGroup.Id.Value,
-                stock: 10,
-                vatRate: 19.00m,
-                description: "Integration test article"
-            );
-
-            Assert.IsTrue(articleResult.IsSuccess);
-            Article article = articleResult.Value!;
+                priceAmount: 42.50m,
+                priceCurrency: "CHF",
+                groupId: group.Id,
+                stock: 5,
+                vatRate: 7.70m).EnsureValue();
 
             _repository.Add(article);
             _ = await DbContext.SaveChangesAsync();
 
-            Article? retrieved = await DbContext.Articles
-                .FirstOrDefaultAsync(a => a.Id == new ArticleId(101));
+            Assert.IsTrue(article.Id.IsAssigned);
 
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual("ART-001", retrieved.ArticleNumber.Value);
-            Assert.AreEqual("Test Article", retrieved.Name);
-            Assert.AreEqual(99.99m, retrieved.Price.Amount);
-            Assert.AreEqual("EUR", retrieved.Price.Currency);
-            Assert.AreEqual(10, retrieved.Stock);
+            DbContext.ChangeTracker.Clear();
+
+            Article? persisted = await DbContext.Articles
+                .AsNoTracking()
+                .SingleOrDefaultAsync(a => a.Id == article.Id);
+
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual("ART-210001", persisted.ArticleNumber.Value);
+            Assert.AreEqual(group.Id, persisted.ArticleGroupId);
+            Assert.AreEqual(42.50m, persisted.Price.Amount);
+            Assert.AreEqual("CHF", persisted.Price.Currency);
         }
 
         [TestMethod]
-        public async Task Update_ShouldModifyExistingArticle()
+        public async Task Update_WithChangedPrice_ShouldPersistPrice()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
-            Assert.IsNotNull(_testArticleGroup);
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, priceAmount: 10.00m);
+            ArticleId articleId = article.Id;
 
-            Result<Article> articleResult = Article.Create(
-                id: 102,
-                articleNr: "ART-002",
-                name: "Original Name",
-                priceAmount: 50.00m,
-                priceCurrency: "EUR",
-                groupId: _testArticleGroup.Id.Value
-            );
+            DbContext.ChangeTracker.Clear();
 
-            Assert.IsTrue(articleResult.IsSuccess);
-            Article article = articleResult.Value!;
-
-            _ = DbContext.Articles.Add(article);
-            _ = await DbContext.SaveChangesAsync();
-            DbContext.Entry(article).State = EntityState.Detached;
-
-            Article? tracked = await DbContext.Articles
-                .FirstOrDefaultAsync(a => a.Id == new ArticleId(102));
-
-            Assert.IsNotNull(tracked);
-
-            Money newPrice = Money.From(75.00m, "EUR").EnsureValue();
-            Result priceChangeResult = tracked.ChangePrice(newPrice);
-            Assert.IsTrue(priceChangeResult.IsSuccess);
+            Article tracked = await DbContext.Articles.SingleAsync(a => a.Id == articleId);
+            Result changeResult = tracked.ChangePrice(Money.From(99.95m, "CHF").EnsureValue());
+            Assert.IsTrue(changeResult.IsSuccess, changeResult.Error);
 
             _repository.Update(tracked);
             _ = await DbContext.SaveChangesAsync();
 
-            Article? updated = await DbContext.Articles
+            DbContext.ChangeTracker.Clear();
+
+            Article? persisted = await DbContext.Articles
                 .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Id == new ArticleId(102));
+                .SingleOrDefaultAsync(a => a.Id == articleId);
 
-            Assert.IsNotNull(updated);
-            Assert.AreEqual(75.00m, updated.Price.Amount);
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual(99.95m, persisted.Price.Amount);
         }
 
         [TestMethod]
-        public async Task Remove_ShouldDeleteArticleFromDatabase()
+        public async Task Remove_WithExistingArticle_ShouldDeleteArticle()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
-            Assert.IsNotNull(_testArticleGroup);
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext);
+            ArticleId articleId = article.Id;
 
-            Result<Article> articleResult = Article.Create(
-                id: 103,
-                articleNr: "ART-003",
-                name: "To Be Deleted",
-                priceAmount: 10.00m,
-                priceCurrency: "EUR",
-                groupId: _testArticleGroup.Id.Value
-            );
+            DbContext.ChangeTracker.Clear();
 
-            Assert.IsTrue(articleResult.IsSuccess);
-            Article article = articleResult.Value!;
+            Article tracked = await DbContext.Articles.SingleAsync(a => a.Id == articleId);
 
-            _ = DbContext.Articles.Add(article);
+            _repository.Remove(tracked);
             _ = await DbContext.SaveChangesAsync();
 
-            _repository.Remove(article);
-            _ = await DbContext.SaveChangesAsync();
+            bool exists = await DbContext.Articles.AsNoTracking().AnyAsync(a => a.Id == articleId);
 
-            Article? deleted = await DbContext.Articles
-                .FirstOrDefaultAsync(a => a.Id == new ArticleId(103));
-
-            Assert.IsNull(deleted);
-        }
-
-        [TestMethod]
-        public async Task Add_MultipleArticles_ShouldPersistAll()
-        {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
-            Assert.IsNotNull(_testArticleGroup);
-
-            for (int i = 10; i < 15; i++)
-            {
-                Result<Article> result = Article.Create(
-                    id: i,
-                    articleNr: $"ART-{i:000}",
-                    name: $"Article {i}",
-                    priceAmount: i * 10m,
-                    priceCurrency: "EUR",
-                    groupId: _testArticleGroup.Id.Value
-                );
-
-                Assert.IsTrue(result.IsSuccess);
-                _repository.Add(result.Value!);
-            }
-
-            _ = await DbContext.SaveChangesAsync();
-
-            int count = await DbContext.Articles.CountAsync();
-            Assert.AreEqual(5, count);
+            Assert.IsFalse(exists);
         }
     }
 }

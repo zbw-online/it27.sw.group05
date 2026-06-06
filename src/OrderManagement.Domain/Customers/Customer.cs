@@ -13,26 +13,26 @@ namespace OrderManagement.Domain.Customers
 
         private readonly List<CustomerAddress> _addresses = [];
 
-        private Customer() : base(new CustomerId(0)) { }
+        private Customer() : base(CustomerId.Empty)
+        {
+            // Required by EF Core.
+        }
         private Customer(
-            CustomerId id,
-            CustomerNumber number,
+            CustomerNumber customerNumber,
             string lastName,
             string surName,
             Email email,
-            string? website,
-            string passwordHash
-            ) : base(id)
+            string? website
+            ) : base(CustomerId.Empty)
         {
 
-            CustomerNumber = number;
+            CustomerNumber = customerNumber;
             LastName = lastName;
             SurName = surName;
             Email = email;
             Website = website;
-            PasswordHash = passwordHash;
 
-            AddDomainEvent(new CustomerCreated(id, DateTime.UtcNow));
+            AddDomainEvent(new CustomerCreated(customerNumber, DateTime.UtcNow));
         }
 
         public CustomerNumber CustomerNumber { get; private set; }
@@ -40,7 +40,6 @@ namespace OrderManagement.Domain.Customers
         public string SurName { get; private set; }
         public Email Email { get; private set; }
         public string? Website { get; private set; }
-        public string PasswordHash { get; private set; }
 
         public IReadOnlyCollection<CustomerAddress> Addresses => _addresses.AsReadOnly();
 
@@ -50,21 +49,15 @@ namespace OrderManagement.Domain.Customers
             .FirstOrDefault(a => a.IsActiveOn(onDate));
 
         public static Result<Customer> Create(
-            int id,
             string customerNr,
             string lastName,
             string surName,
             string email,
-            string? website,
-            string passwordHash
+            string? website
             )
         {
-
-            // ID and CustomerNr Rules
-            if (id <= 0) return Results.Fail<Customer>("Customer id must be positive.");
-
+            // CustomerNumber Rules
             Result<CustomerNumber> nr = CustomerNumber.Create(customerNr);
-
             if (!nr.IsSuccess) return Results.Fail<Customer>(nr.Error!);
 
             // E-Mail Rules
@@ -91,20 +84,12 @@ namespace OrderManagement.Domain.Customers
                 w = websiteTrim;
             }
 
-            // PasswordHash Rules
-            if (string.IsNullOrWhiteSpace(passwordHash))
-            {
-                return Results.Fail<Customer>("PasswordHash is required.");
-            }
-
             var customer = new Customer(
-                new CustomerId(id),
                 nr.Value!,
                 ln,
                 sn,
                 em.Value!,
-                w,
-                passwordHash
+                w
                 );
 
             return Results.Success(customer);
@@ -140,7 +125,6 @@ namespace OrderManagement.Domain.Customers
             }
 
             _addresses.Add(new CustomerAddress(
-                id: 0,
                 validFrom: validFrom,
                 validTo: null,
                 street: street.Trim(),
@@ -150,7 +134,7 @@ namespace OrderManagement.Domain.Customers
                 countryCode: countryCode.Trim().ToUpperInvariant()
                 ));
 
-            AddDomainEvent(new CustomerAddressChanged(Id, DateTime.UtcNow));
+            AddDomainEvent(new CustomerAddressChanged(CustomerNumber, DateTime.UtcNow));
             return Result.Success();
         }
 
@@ -172,17 +156,5 @@ namespace OrderManagement.Domain.Customers
             Website = w;
             return Result.Success();
         }
-
-        public Result SetPasswordHash(string encodedHash)
-        {
-            if (string.IsNullOrWhiteSpace(encodedHash))
-            {
-                return Result.Fail("Password hash is required."); ;
-            }
-
-            PasswordHash = encodedHash.Trim();
-            return Result.Success();
-        }
-
     }
 }

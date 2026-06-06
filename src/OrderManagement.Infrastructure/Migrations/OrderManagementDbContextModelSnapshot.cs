@@ -25,8 +25,11 @@ namespace OrderManagement.Infrastructure.Migrations
             modelBuilder.Entity("OrderManagement.Domain.Catalog.Article", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasColumnName("ArticleId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ArticleGroupId")
                         .HasColumnType("int")
@@ -90,8 +93,11 @@ namespace OrderManagement.Infrastructure.Migrations
             modelBuilder.Entity("OrderManagement.Domain.Catalog.ArticleGroup", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasColumnName("ArticleGroupId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -151,8 +157,11 @@ namespace OrderManagement.Infrastructure.Migrations
             modelBuilder.Entity("OrderManagement.Domain.Customers.Customer", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasColumnName("CustomerId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("CustomerNumber")
                         .IsRequired()
@@ -170,11 +179,6 @@ namespace OrderManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime>("RowValidFrom")
                         .ValueGeneratedOnAddOrUpdate()
@@ -198,10 +202,12 @@ namespace OrderManagement.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerNumber")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_CustomerNumber");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_Email");
 
                     b.ToTable("Customers", null, t =>
                         {
@@ -340,7 +346,8 @@ namespace OrderManagement.Infrastructure.Migrations
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("OrderNumber")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Orders_OrderNumber");
 
                     b.ToTable("Orders", null, t =>
                         {
@@ -515,6 +522,10 @@ namespace OrderManagement.Infrastructure.Migrations
                                 .HasColumnName("ArticleNumber");
 
                             b1.HasKey("ArticleId");
+
+                            b1.HasIndex("Value")
+                                .IsUnique()
+                                .HasDatabaseName("IX_Articles_ArticleNumber");
 
                             b1.ToTable("Articles", null, t =>
                                 {

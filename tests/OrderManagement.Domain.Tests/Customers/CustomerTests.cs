@@ -14,20 +14,17 @@ namespace OrderManagement.Domain.Tests.Customers
         // Helpers
         // -----------------------------
         private static Result<Customer> CreateValidCustomer(
-            int id = 1,
             string customerNr = "C-00001",
             string lastName = "Mueller",
             string surName = "Edi",
             string email = "edi.mueller@example.com",
-            string? website = null,
-            string passwordHash = "hash") => Customer.Create(
-                id: id,
+            string? website = null
+            ) => Customer.Create(
                 customerNr: customerNr,
                 lastName: lastName,
                 surName: surName,
                 email: email,
-                website: website,
-                passwordHash: passwordHash);
+                website: website);
 
         private static string Repeat(char c, int count) => new(c, count);
 
@@ -46,14 +43,6 @@ namespace OrderManagement.Domain.Tests.Customers
             Assert.IsTrue(c.DomainEvents.Count >= 1);
         }
 
-        [TestMethod]
-        public void CreateInvalidIdNegativeShouldFail()
-        {
-            // ECP: Invalid id class (id < 0)
-            Result<Customer> r = CreateValidCustomer(id: -1);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
 
         [TestMethod]
         public void CreateLastNameWhitespaceOnlyShouldFail()
@@ -78,15 +67,6 @@ namespace OrderManagement.Domain.Tests.Customers
         {
             // ECP: Invalid email class
             Result<Customer> r = CreateValidCustomer(email: "not-an-email");
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreatePasswordHashEmptyShouldFail()
-        {
-            // ECP: Invalid password hash class (null/whitespace (here empty))
-            Result<Customer> r = CreateValidCustomer(passwordHash: "");
 
             Assert.IsFalse(r.IsSuccess);
         }
@@ -163,7 +143,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressValidInputsFirstAddressShouldSucceed()
         {
             // ECP: Valid address change class (first address)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -181,7 +161,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressInvalidCountryCodeLength3ShouldFail()
         {
             // ECP: Invalid country code class (length != 2)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -198,7 +178,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressStreetWhitespaceOnlyShouldFail()
         {
             // ECP: Invalid street class
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -219,7 +199,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressCountryCodeLengthBoundary2ShouldSucceed()
         {
             // BVA: country code length = 2 (valid boundary)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -236,7 +216,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressCountryCodeLengthBoundary1ShouldFail()
         {
             // BVA: country code length = 1 (just below boundary)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -253,7 +233,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressCountryCodeLengthBoundary3ShouldFail()
         {
             // BVA: country code length = 3 (just above boundary)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -274,7 +254,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressOverlapBoundaryCloseDateEqualsValidFromMinusOneShouldSucceedAndClosePrevious()
         {
             // This tests the boundary where the previous address is closed exactly the day before the new one starts.
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r1 = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -308,7 +288,7 @@ namespace OrderManagement.Domain.Tests.Customers
             // BVA: closeDate < active.ValidFrom should fail (overlap invalid)
             // active.ValidFrom = 2025-01-10
             // new validFrom = 2025-01-05 => closeDate = 2025-01-04 which is < 2025-01-10 => invalid
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r1 = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 10),

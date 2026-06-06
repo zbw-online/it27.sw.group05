@@ -1,115 +1,88 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using OrderManagement.Domain.Customers.ValueObjects;
+using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Domain.Orders.ValueObjects;
 using OrderManagement.Infrastructure.Persistence.Repositories.Orders.Query;
-
-using SharedKernel.Primitives;
 
 namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.Query
 {
     [TestClass]
     public sealed class OrderQueryRepositoryTests : IntegrationTestBase
     {
-        private OrderQueryRepository? _repository;
-        private const int TestCustomerId = 999;
+        private OrderQueryRepository _repository = default!;
 
-        [TestInitialize]
-        public async Task Setup()
+        protected override Task OnDatabaseInitializedAsync()
         {
-            Assert.IsNotNull(DbContext);
             _repository = new OrderQueryRepository(DbContext);
-
-            // Cleanup & Seed Customer
-            _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
-            _ = await DbContext.Database.ExecuteSqlRawAsync(
-                "IF NOT EXISTS (SELECT 1 FROM Customers WHERE CustomerId = {0}) " +
-                "INSERT INTO Customers (CustomerId, CustomerNumber, LastName, SurName, Email, PasswordHash) " +
-                "VALUES ({0}, 'C-999', 'Query', 'User', 'q@test.com', 'hash')", TestCustomerId);
+            return Task.CompletedTask;
         }
 
-        private async Task SeedOrderAsync(int id, int sequence)
+        [TestMethod]
+        public async Task GetByIdAsync_WithExistingOrder_ShouldReturnOrder()
         {
-            string orderNr = $"ORD-2026-{sequence:D3}";
+            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, orderNumber: "ORD-2026-301");
+            DbContext.ChangeTracker.Clear();
 
-            Address address = Address.Create("Query St", "10", "8000", "Zurich", "CH").Value!;
-            Order order = Order.Create(id, orderNr, new CustomerId(TestCustomerId), address).Value!;
+            Order? result = await _repository.GetByIdAsync(order.Id);
 
-            _ = DbContext!.Orders.Add(order);
-            _ = await DbContext.SaveChangesAsync();
+            Assert.IsNotNull(result);
+            Assert.AreEqual(order.Id, result.Id);
+            Assert.AreEqual("ORD-2026-301", result.OrderNumber.Value);
+        }
+
+        [TestMethod]
+        public async Task GetByOrderNumberAsync_WithExistingOrderNumber_ShouldReturnOrder()
+        {
+            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, orderNumber: "ORD-2026-302");
+            OrderNumber number = OrderNumber.Create("ORD-2026-302").EnsureValue();
 
             DbContext.ChangeTracker.Clear();
-        }
 
-        [TestMethod]
-        public async Task GetById_ShouldReturnCorrectOrder()
-        {
-            // Arrange
-            int id = 50001;
-            await SeedOrderAsync(id, 1);
+            Order? result = await _repository.GetByOrderNumberAsync(number);
 
-            // Act
-            Order? result = await _repository!.GetByIdAsync(new OrderId(id));
-
-            // Assert
-            Assert.IsNotNull(result, "Repository hat null zurückgegeben.");
-            Assert.AreEqual("ORD-2026-001", result.OrderNumber.Value);
-        }
-
-        [TestMethod]
-        public async Task GetByOrderNumber_ShouldReturnCorrectOrder()
-        {
-            // Arrange
-            int id = 50002;
-            await SeedOrderAsync(id, 2);
-            OrderNumber vo = OrderNumber.Create("ORD-2026-002").Value!;
-
-            // Act
-            Order? result = await _repository!.GetByOrderNumberAsync(vo);
-
-            // Assert
             Assert.IsNotNull(result);
-            Assert.AreEqual(id, result.Id.Value);
-        }
-        [TestMethod]
-        public async Task GetByCustomerId_ShouldReturnOrdersForSpecificCustomer()
-        {
-            // Arrange
-            int id = 50003;
-            await SeedOrderAsync(id, 3);
-
-            // Act
-            IReadOnlyList<Order> result = await _repository!.GetByCustomerIdAsync(new CustomerId(TestCustomerId));
-
-            // Assert
-            var list = result.ToList();
-            Assert.IsTrue(list.Any(o => o.Id == new OrderId(id)), "Die geseedete Order wurde für den Kunden nicht gefunden.");
+            Assert.AreEqual(order.Id, result.Id);
         }
 
         [TestMethod]
-        public async Task GetListAsync_ShouldReturnAllOrders()
+        public async Task GetByCustomerIdAsync_WithExistingOrders_ShouldReturnOnlyOrdersOfCustomer()
         {
-            // Arrange
-            await SeedOrderAsync(50004, 4);
-            await SeedOrderAsync(50005, 5);
+            Customer customer1 = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
+            Customer customer2 = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
 
-            // Act
-            IReadOnlyList<Order> result = await _repository!.GetListAsync();
+            Order order1 = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, customer1.Id, "ORD-2026-303");
+            Order order2 = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, customer1.Id, "ORD-2026-304");
+            _ = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, customer2.Id, "ORD-2026-305");
 
-            // Assert
-            Assert.IsTrue(result.Count >= 2, "Es sollten mindestens die zwei geseedeten Orders zurückgegeben werden.");
+            DbContext.ChangeTracker.Clear();
+
+            IReadOnlyList<Order> result = await _repository.GetByCustomerIdAsync(customer1.Id);
+
+            CollectionAssert.AreEquivalent(
+                new[] { order1.Id, order2.Id },
+                result.Select(o => o.Id).ToArray());
         }
 
         [TestMethod]
-        public async Task GetById_ShouldReturnNull_WhenOrderDoesNotExist()
+        public async Task GetListAsync_WithOrders_ShouldReturnAllOrders()
         {
-            // Act
-            Order? result = await _repository!.GetByIdAsync(new OrderId(999999));
+            _ = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, orderNumber: "ORD-2026-306");
+            _ = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, orderNumber: "ORD-2026-307");
 
-            // Assert
-            Assert.IsNull(result, "Repository sollte null für eine nicht existierende ID zurückgeben.");
+            DbContext.ChangeTracker.Clear();
+
+            IReadOnlyList<Order> result = await _repository.GetListAsync();
+
+            Assert.AreEqual(2, result.Count);
+        }
+
+        [TestMethod]
+        public async Task GetByIdAsync_WithMissingOrder_ShouldReturnNull()
+        {
+            Order? result = await _repository.GetByIdAsync(new OrderId(999_999));
+
+            Assert.IsNull(result);
         }
     }
 }

@@ -12,48 +12,47 @@ namespace OrderManagement.Domain.Orders
     {
         private readonly List<OrderLine> _lines = [];
 
-        private Order() : base(new OrderId(0)) { }
+        private Order() : base(OrderId.Empty)
+        {
+            // EF Core
+        }
 
         private Order(
-            OrderId id,
             OrderNumber number,
             CustomerId customerId,
             Address deliveryAddress)
-            : base(id)
+            : base(OrderId.Empty)
         {
             OrderNumber = number;
             OrderDate = DateTime.UtcNow;
             CustomerId = customerId;
             DeliveryAddress = deliveryAddress;
-
             Total = Money.From(0, "CHF").EnsureValue();
 
-            AddDomainEvent(new OrderCreated(id, DateTime.UtcNow));
+            AddDomainEvent(new OrderCreated(number, DateTime.UtcNow));
         }
 
-        public OrderNumber OrderNumber { get; private set; }
+        public OrderNumber OrderNumber { get; private set; } = default!;
         public DateTime OrderDate { get; private set; }
         public CustomerId CustomerId { get; private set; }
-        public Address DeliveryAddress { get; private set; }
-        public Money Total { get; private set; }
+        public Address DeliveryAddress { get; private set; } = default!;
+        public Money Total { get; private set; } = default!;
         public IReadOnlyCollection<OrderLine> Lines => _lines.AsReadOnly();
 
         public static Result<Order> Create(
-            int id,
             string orderNumber,
             CustomerId customerId,
             Address deliveryAddress)
         {
-            if (id <= 0)
-                return Results.Fail<Order>("Order ID must be positive.");
-
             Result<OrderNumber> nr = OrderNumber.Create(orderNumber);
             if (!nr.IsSuccess)
                 return Results.Fail<Order>(nr.Error!);
 
+            if (!customerId.IsAssigned)
+                return Results.Fail<Order>("CustomerId must be assigned before creating an order.");
+
 
             var order = new Order(
-                new OrderId(id),
                 nr.Value!,
                 customerId,
                 deliveryAddress);
@@ -61,18 +60,29 @@ namespace OrderManagement.Domain.Orders
             return Results.Success(order);
         }
 
-        public Result AddLine(int articleId, string articleName, Money unitPrice, int quantity)
+        public Result AddLine(
+            ArticleId articleId,
+            string articleName,
+            Money unitPrice,
+            int quantity)
         {
-            if (quantity <= 0) return Result.Fail("Quantity must be positive.");
+            if (!articleId.IsAssigned)
+                return Result.Fail("ArticleId must be assigned");
+
+            if (string.IsNullOrWhiteSpace(articleName))
+                return Result.Fail("ArticleName is required.");
+
+            if (quantity <= 0)
+                return Result.Fail("Quantity must be positive.");
 
             if (_lines.Count != 0 && _lines[0].UnitPrice.Currency != unitPrice.Currency)
                 return Result.Fail($"Invalid currency. Expected {_lines[0].UnitPrice.Currency} but got {unitPrice.Currency}.");
 
             var line = new OrderLine(
-                new OrderLineId(0),
+                OrderLineId.Empty,
                 _lines.Count + 1,
-                new ArticleId(articleId),
-                articleName,
+                articleId,
+                articleName.Trim(),
                 unitPrice,
                 quantity);
 
@@ -86,6 +96,7 @@ namespace OrderManagement.Domain.Orders
         {
             decimal totalAmount = _lines.Sum(x => x.LineTotal.Amount);
             string currency = _lines.FirstOrDefault()?.LineTotal.Currency ?? "CHF";
+
             Total = Money.From(totalAmount, currency).EnsureValue();
         }
     }

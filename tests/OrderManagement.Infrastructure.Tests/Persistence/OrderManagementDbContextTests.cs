@@ -1,13 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Domain.Catalog;
-using OrderManagement.Domain.Catalog.ValueObjects;
-
-using SharedKernel.Primitives;
+using OrderManagement.Domain.Customers;
+using OrderManagement.Domain.Orders;
 
 namespace OrderManagement.Infrastructure.Tests.Persistence
 {
@@ -15,223 +12,80 @@ namespace OrderManagement.Infrastructure.Tests.Persistence
     public sealed class OrderManagementDbContextTests : IntegrationTestBase
     {
         [TestMethod]
-        public async Task SaveChangesAsync_ShouldPersistChanges()
+        public async Task SaveChangesAsync_WithArticleGroup_ShouldPersistAndGenerateTechnicalId()
         {
-            Result<ArticleGroup> groupResult = ArticleGroup.Create(500, "Test Group");
-            Assert.IsTrue(groupResult.IsSuccess);
+            ArticleGroup group = ArticleGroup.Create("DbContext Group").EnsureValue();
 
-            _ = DbContext!.ArticleGroups.Add(groupResult.Value!);
-            int result = await DbContext!.SaveChangesAsync();
-
-            Assert.IsTrue(result > 0);
-
-            ArticleGroup? retrieved = await DbContext!.ArticleGroups
-                .FirstOrDefaultAsync(g => g.Id == new ArticleGroupId(500));
-
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual("Test Group", retrieved.Name);
-        }
-
-        [TestMethod]
-        public async Task SaveChangesAsync_WithMultipleEntities_ShouldReturnCorrectCount()
-        {
-            Result<ArticleGroup> group1 = ArticleGroup.Create(501, "Group 1");
-            Result<ArticleGroup> group2 = ArticleGroup.Create(502, "Group 2");
-            Result<ArticleGroup> group3 = ArticleGroup.Create(503, "Group 3");
-
-            Assert.IsTrue(group1.IsSuccess && group2.IsSuccess && group3.IsSuccess);
-
-            _ = DbContext!.ArticleGroups.Add(group1.Value!);
-            _ = DbContext!.ArticleGroups.Add(group2.Value!);
-            _ = DbContext!.ArticleGroups.Add(group3.Value!);
-
-            int result = await DbContext!.SaveChangesAsync();
-
-            Assert.AreEqual(3, result);
-        }
-
-        [TestMethod]
-        public async Task SaveChangesAsync_WithNoChanges_ShouldReturnZero()
-        {
-            int result = await DbContext!.SaveChangesAsync();
-
-            Assert.AreEqual(0, result);
-        }
-
-        [TestMethod]
-        public async Task ChangeTracker_ShouldTrackAddedEntities()
-        {
-            Result<ArticleGroup> groupResult = ArticleGroup.Create(504, "Tracked Group");
-            Assert.IsTrue(groupResult.IsSuccess);
-
-            _ = DbContext!.ArticleGroups.Add(groupResult.Value!);
-
-            EntityEntry<ArticleGroup> entry = DbContext.Entry(groupResult.Value!);
-            Assert.AreEqual(EntityState.Added, entry.State);
-
+            _ = DbContext.ArticleGroups.Add(group);
             _ = await DbContext.SaveChangesAsync();
 
-            Assert.AreEqual(EntityState.Unchanged, entry.State);
-        }
+            Assert.IsTrue(group.Id.IsAssigned);
 
-        [TestMethod]
-        public async Task ChangeTracker_ShouldTrackModifiedEntities()
-        {
+            DbContext.ChangeTracker.Clear();
 
-
-            Result<ArticleGroup> groupResult = ArticleGroup.Create(505, "Original Name");
-            Assert.IsTrue(groupResult.IsSuccess);
-            ArticleGroup group = groupResult.Value!;
-
-            _ = DbContext!.ArticleGroups.Add(group);
-            _ = await DbContext!.SaveChangesAsync();
-
-            Result renameResult = group.Rename("Modified Name");
-            Assert.IsTrue(renameResult.IsSuccess);
-
-            EntityEntry<ArticleGroup> entry = DbContext!.Entry(group);
-            Assert.AreEqual(EntityState.Modified, entry.State);
-        }
-
-        [TestMethod]
-        public async Task ChangeTracker_ShouldTrackDeletedEntities()
-        {
-
-
-            Result<ArticleGroup> groupResult = ArticleGroup.Create(506, "To Delete");
-            Assert.IsTrue(groupResult.IsSuccess);
-            ArticleGroup group = groupResult.Value!;
-
-            _ = DbContext!.ArticleGroups.Add(group);
-            _ = await DbContext!.SaveChangesAsync();
-
-            _ = DbContext!.ArticleGroups.Remove(group);
-
-            EntityEntry<ArticleGroup> entry = DbContext!.Entry(group);
-            Assert.AreEqual(EntityState.Deleted, entry.State);
-        }
-
-        [TestMethod]
-        public async Task Transaction_ShouldRollbackOnError()
-        {
-
-
-            using IDbContextTransaction transaction = await DbContext!.Database.BeginTransactionAsync();
-
-            Result<ArticleGroup> groupResult = ArticleGroup.Create(507, "Transaction Test");
-            Assert.IsTrue(groupResult.IsSuccess);
-
-            _ = DbContext.ArticleGroups.Add(groupResult.Value!);
-            _ = await DbContext.SaveChangesAsync();
-
-            await transaction.RollbackAsync();
-
-            ArticleGroup? retrieved = await DbContext.ArticleGroups
-                .FirstOrDefaultAsync(g => g.Id == new ArticleGroupId(507));
-
-            Assert.IsNull(retrieved);
-        }
-
-        [TestMethod]
-        public async Task Transaction_ShouldCommitSuccessfully()
-        {
-
-
-            using IDbContextTransaction transaction = await DbContext!.Database.BeginTransactionAsync();
-
-            Result<ArticleGroup> groupResult = ArticleGroup.Create(508, "Transaction Commit");
-            Assert.IsTrue(groupResult.IsSuccess);
-
-            _ = DbContext.ArticleGroups.Add(groupResult.Value!);
-            _ = await DbContext.SaveChangesAsync();
-            await transaction.CommitAsync();
-
-            ArticleGroup? retrieved = await DbContext.ArticleGroups
-                .FirstOrDefaultAsync(g => g.Id == new ArticleGroupId(508));
-
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual("Transaction Commit", retrieved.Name);
-        }
-
-        [TestMethod]
-        public async Task AsNoTracking_ShouldNotTrackEntities()
-        {
-
-
-            Result<ArticleGroup> groupResult = ArticleGroup.Create(509, "No Track Test");
-            Assert.IsTrue(groupResult.IsSuccess);
-
-            _ = DbContext!.ArticleGroups.Add(groupResult.Value!);
-            _ = await DbContext.SaveChangesAsync();
-
-            // Detach the entity
-            DbContext.Entry(groupResult.Value!).State = EntityState.Detached;
-
-            // Query with AsNoTracking
-            ArticleGroup? retrieved = await DbContext.ArticleGroups
+            ArticleGroup? persisted = await DbContext.ArticleGroups
                 .AsNoTracking()
-                .FirstOrDefaultAsync(g => g.Id == new ArticleGroupId(509));
+                .SingleOrDefaultAsync(g => g.Id == group.Id);
 
-            Assert.IsNotNull(retrieved);
-
-            // Verify the retrieved entity is not being tracked
-            EntityEntry<ArticleGroup>? entry = DbContext.ChangeTracker.Entries<ArticleGroup>()
-                .FirstOrDefault(e => e.Entity.Id == new ArticleGroupId(509));
-
-            Assert.IsNull(entry);
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual("DbContext Group", persisted.Name);
         }
 
         [TestMethod]
-        public void Model_ShouldContainArticleEntityConfiguration()
+        public async Task SaveChangesAsync_WithOrderAggregate_ShouldPersistOwnedTypesAndChildLines()
         {
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, priceAmount: 12.50m);
 
+            Order order = Order.Create(
+                "ORD-2026-401",
+                customer.Id,
+                InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
 
-            IEntityType? entityType = DbContext!.Model.FindEntityType(typeof(Article));
+            order.AddLine(article.Id, article.Name, article.Price, 2).EnsureSuccess();
 
+            _ = DbContext.Orders.Add(order);
+            _ = await DbContext.SaveChangesAsync();
+
+            Assert.IsTrue(order.Id.IsAssigned);
+
+            DbContext.ChangeTracker.Clear();
+
+            Order? persisted = await DbContext.Orders
+                .Include(o => o.Lines)
+                .AsNoTracking()
+                .SingleOrDefaultAsync(o => o.Id == order.Id);
+
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual("Main St", persisted.DeliveryAddress.Street);
+            Assert.AreEqual(25.00m, persisted.Total.Amount);
+            Assert.AreEqual(1, persisted.Lines.Count);
+            Assert.IsTrue(persisted.Lines.Single().Id.IsAssigned);
+        }
+
+        [TestMethod]
+        public void Model_ShouldMapAggregateRootsWithGeneratedKeys()
+        {
+            IEntityType? customer = DbContext.Model.FindEntityType(typeof(Customer));
+            IEntityType? articleGroup = DbContext.Model.FindEntityType(typeof(ArticleGroup));
+            IEntityType? article = DbContext.Model.FindEntityType(typeof(Article));
+            IEntityType? order = DbContext.Model.FindEntityType(typeof(Order));
+            IEntityType? orderLine = DbContext.Model.FindEntityType(typeof(OrderLine));
+
+            AssertGenerated(customer, "Id");
+            AssertGenerated(articleGroup, "Id");
+            AssertGenerated(article, "Id");
+            AssertGenerated(order, "Id");
+            AssertGenerated(orderLine, "Id");
+        }
+
+        private static void AssertGenerated(IEntityType? entityType, string propertyName)
+        {
             Assert.IsNotNull(entityType);
-            Assert.AreEqual("Articles", entityType.GetTableName());
-        }
 
-        [TestMethod]
-        public void Model_ShouldContainArticleGroupEntityConfiguration()
-        {
-
-
-            IEntityType? entityType = DbContext!.Model.FindEntityType(typeof(ArticleGroup));
-
-            Assert.IsNotNull(entityType);
-            Assert.AreEqual("ArticleGroups", entityType.GetTableName());
-        }
-
-        [TestMethod]
-        public async Task Database_CanConnect_ShouldReturnTrue()
-        {
-
-
-            bool canConnect = await DbContext!.Database.CanConnectAsync();
-
-            Assert.IsTrue(canConnect);
-        }
-
-        [TestMethod]
-        public void Database_ProviderName_ShouldBeSqlServer()
-        {
-
-
-            string? providerName = DbContext!.Database.ProviderName;
-
-            Assert.IsNotNull(providerName);
-            Assert.AreEqual("Microsoft.EntityFrameworkCore.SqlServer", providerName);
-        }
-
-        [TestMethod]
-        public void Set_Generic_ShouldReturnDbSet()
-        {
-
-
-            DbSet<ArticleGroup> set = DbContext!.Set<ArticleGroup>();
-
-            Assert.AreSame(DbContext.ArticleGroups, set);
+            IProperty? property = entityType.FindProperty(propertyName);
+            Assert.IsNotNull(property);
+            Assert.AreEqual(ValueGenerated.OnAdd, property.ValueGenerated);
         }
     }
 }

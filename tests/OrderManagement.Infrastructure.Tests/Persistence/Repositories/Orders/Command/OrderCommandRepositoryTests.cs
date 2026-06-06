@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+using OrderManagement.Domain.Catalog;
+using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Domain.Orders.ValueObjects;
@@ -13,98 +15,157 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Orders.C
     [TestClass]
     public sealed class OrderCommandRepositoryTests : IntegrationTestBase
     {
-        private OrderCommandRepository? _repository;
-        private const int SharedCustomerId = 999;
+        private OrderCommandRepository _repository = default!;
 
-        [TestInitialize]
-        public async Task Setup()
+        protected override Task OnDatabaseInitializedAsync()
         {
-            Assert.IsNotNull(DbContext);
             _repository = new OrderCommandRepository(DbContext);
-
-            _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Orders");
-            _ = await DbContext.Database.ExecuteSqlRawAsync("DELETE FROM Customers");
-
-            _ = await DbContext.Database.ExecuteSqlRawAsync(
-                "INSERT INTO Customers (CustomerId, CustomerNumber, LastName, SurName, Email, PasswordHash) " +
-                "VALUES ({0}, 'C-999', 'System', 'Seed', 'seed@test.local', 'hash')", SharedCustomerId);
+            return Task.CompletedTask;
         }
 
         [TestMethod]
-        public async Task Add_ShouldPersistOrderWithDetails()
+        public async Task Add_WithExistingCustomer_ShouldPersistOrderAndGenerateTechnicalId()
         {
-            // Arrange
-            const int id = 20_001;
-            const string orderNr = "ORD-2026-001";
-
-            Address address = Address.Create("Main St", "1", "8000", "Zurich", "CH").Value!;
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
 
             Order order = Order.Create(
-                id: id,
-                orderNumber: orderNr,
-                customerId: new CustomerId(SharedCustomerId),
-                deliveryAddress: address
-            ).Value!;
+                orderNumber: "ORD-2026-201",
+                customerId: customer.Id,
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
 
-            // Act
-            _repository!.Add(order);
+            _repository.Add(order);
             _ = await DbContext.SaveChangesAsync();
 
-            // Assert
-            Order? retrieved = await DbContext.Orders
+            OrderId orderId = order.Id;
+            Assert.IsTrue(orderId.IsAssigned);
+
+            DbContext.ChangeTracker.Clear();
+
+            Order? persisted = await DbContext.Orders
                 .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == new OrderId(id));
+                .SingleOrDefaultAsync(o => o.Id == orderId);
 
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual(orderNr, retrieved.OrderNumber.Value);
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual("ORD-2026-201", persisted.OrderNumber.Value);
+            Assert.AreEqual(customer.Id, persisted.CustomerId);
+            Assert.AreEqual(0m, persisted.Total.Amount);
+            Assert.AreEqual("CHF", persisted.Total.Currency);
         }
 
         [TestMethod]
-        public async Task Update_ShouldModifyOrderDate()
+        public async Task Add_WithOrderLine_ShouldPersistCompleteAggregateAndGenerateLineId()
         {
-            // Arrange
-            const int id = 20_002;
-            Address address = Address.Create("Test St", "2", "8000", "Zurich", "CH").Value!;
-            Order order = Order.Create(id, "ORD-2026-002", new CustomerId(SharedCustomerId), address).Value!;
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, priceAmount: 12.50m);
 
-            _ = DbContext!.Orders.Add(order);
-            _ = await DbContext.SaveChangesAsync();
-            DbContext.Entry(order).State = EntityState.Detached;
+            Order order = Order.Create(
+                orderNumber: "ORD-2026-202",
+                customerId: customer.Id,
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
 
-            // Act
-            Order? tracked = await DbContext.Orders.FirstOrDefaultAsync(o => o.Id == new OrderId(id));
-            Assert.IsNotNull(tracked);
+            Result addLineResult = order.AddLine(article.Id, article.Name, article.Price, quantity: 2);
+            Assert.IsTrue(addLineResult.IsSuccess, addLineResult.Error);
 
-            DateTime newDate = DateTime.UtcNow.AddDays(10);
-            typeof(Order).GetProperty(nameof(Order.OrderDate))?.SetValue(tracked, newDate);
-
-            _repository!.Update(tracked);
+            _repository.Add(order);
             _ = await DbContext.SaveChangesAsync();
 
-            // Assert
-            Order? updated = await DbContext.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == new OrderId(id));
+            OrderId orderId = order.Id;
+            DbContext.ChangeTracker.Clear();
+
+            Order? persisted = await DbContext.Orders
+                .Include(o => o.Lines)
+                .AsNoTracking()
+                .SingleOrDefaultAsync(o => o.Id == orderId);
+
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual(1, persisted.Lines.Count);
+            Assert.AreEqual(25.00m, persisted.Total.Amount);
+
+            OrderLine line = persisted.Lines.Single();
+            Assert.IsTrue(line.Id.IsAssigned);
+            Assert.AreEqual(article.Id, line.ArticleId);
+            Assert.AreEqual(25.00m, line.LineTotal.Amount);
+            Assert.AreEqual("CHF", line.LineTotal.Currency);
+        }
+
+        [TestMethod]
+        public async Task Update_WithDetachedAggregateAndNewLine_ShouldPersistLineAndRecalculatedTotal()
+        {
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, priceAmount: 12.50m);
+
+            Order order = Order.Create(
+                orderNumber: "ORD-2026-203",
+                customerId: customer.Id,
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
+
+            _repository.Add(order);
+            _ = await DbContext.SaveChangesAsync();
+
+            OrderId orderId = order.Id;
+            DbContext.ChangeTracker.Clear();
+
+            Order detached = await DbContext.Orders
+                .Include(o => o.Lines)
+                .AsNoTracking()
+                .SingleAsync(o => o.Id == orderId);
+
+            Result addLineResult = detached.AddLine(article.Id, article.Name, article.Price, quantity: 2);
+            Assert.IsTrue(addLineResult.IsSuccess, addLineResult.Error);
+
+            _repository.Update(detached);
+            _ = await DbContext.SaveChangesAsync();
+
+            DbContext.ChangeTracker.Clear();
+
+            Order? updated = await DbContext.Orders
+                .Include(o => o.Lines)
+                .AsNoTracking()
+                .SingleOrDefaultAsync(o => o.Id == orderId);
+
             Assert.IsNotNull(updated);
-            Assert.AreEqual(newDate.Date, updated.OrderDate.Date);
+            Assert.AreEqual(1, updated.Lines.Count);
+            Assert.AreEqual(25.00m, updated.Total.Amount);
         }
 
         [TestMethod]
-        public async Task Remove_ShouldDeleteOrder()
+        public async Task Remove_WithExistingOrderContainingLines_ShouldDeleteOrderAndCascadeDeleteLines()
         {
-            // Arrange
-            const int id = 20_003;
-            Address address = Address.Create("Delete St", "3", "8000", "Zurich", "CH").Value!;
-            Order order = Order.Create(id, "ORD-2026-003", new CustomerId(SharedCustomerId), address).Value!;
+            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderWithLineAsync(DbContext);
+            OrderId orderId = order.Id;
 
-            _ = DbContext!.Orders.Add(order);
+            DbContext.ChangeTracker.Clear();
+
+            Order tracked = await DbContext.Orders
+                .Include(o => o.Lines)
+                .SingleAsync(o => o.Id == orderId);
+
+            OrderLineId lineId = tracked.Lines.Single().Id;
+
+            _repository.Remove(tracked);
             _ = await DbContext.SaveChangesAsync();
 
-            // Act
-            _repository!.Remove(order);
-            _ = await DbContext.SaveChangesAsync();
+            DbContext.ChangeTracker.Clear();
 
-            // Assert
-            Order? deleted = await DbContext.Orders.FirstOrDefaultAsync(o => o.Id == new OrderId(id));
-            Assert.IsNull(deleted);
+            bool orderExists = await DbContext.Orders.AsNoTracking().AnyAsync(o => o.Id == orderId);
+            bool lineExists = await DbContext.OrderLines.AsNoTracking().AnyAsync(l => l.Id == lineId);
+
+            Assert.IsFalse(orderExists);
+            Assert.IsFalse(lineExists);
+        }
+
+        [TestMethod]
+        public async Task Add_WithUnknownCustomerId_ShouldFailBecauseForeignKeyIsEnforced()
+        {
+            Order order = Order.Create(
+                orderNumber: "ORD-2026-204",
+                customerId: new CustomerId(999_999),
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
+
+            _repository.Add(order);
+
+            _ = await Assert.ThrowsExceptionAsync<DbUpdateException>(
+                async () => await DbContext.SaveChangesAsync());
         }
     }
 }
