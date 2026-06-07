@@ -28,7 +28,8 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(a => a.Id)
                 .HasColumnName("ArticleId")
                 .HasConversion(id => id.Value, v => new ArticleId(v))
-                .ValueGeneratedNever();
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn();
 
             _ = builder.Property(a => a.ArticleGroupId)
                 .HasColumnName("ArticleGroupId")
@@ -63,6 +64,10 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                     .HasColumnName("ArticleNumber")
                     .HasMaxLength(20)
                     .IsRequired();
+
+                _ = nb.HasIndex(p => p.Value)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Articles_ArticleNumber");
             });
 
             // Price Money VO (temporal workaround)

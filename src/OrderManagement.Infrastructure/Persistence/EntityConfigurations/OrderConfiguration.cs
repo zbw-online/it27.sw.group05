@@ -31,7 +31,8 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(o => o.Id)
                 .HasColumnName("OrderId")
                 .HasConversion(id => id.Value, v => new OrderId(v))
-                .ValueGeneratedNever();
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn();
 
 
             _ = builder.Property(o => o.OrderNumber)
@@ -40,7 +41,9 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .HasMaxLength(20)
                 .IsRequired();
 
-            _ = builder.HasIndex(o => o.OrderNumber).IsUnique();
+            _ = builder.HasIndex(o => o.OrderNumber).IsUnique()
+                .HasDatabaseName("IX_Orders_OrderNumber");
+
 
             _ = builder.Property(o => o.CustomerId)
                 .HasColumnName("CustomerId")

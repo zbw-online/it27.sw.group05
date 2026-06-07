@@ -30,7 +30,8 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(x => x.Id)
                 .HasColumnName("CustomerId")
                 .HasConversion(id => id.Value, v => new CustomerId(v))
-                .ValueGeneratedNever();
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn();
 
             _ = builder.Property(x => x.CustomerNumber)
                 .HasConversion(v => v.Value, v => CustomerNumber.FromDb(v))
@@ -38,7 +39,8 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .HasMaxLength(7)
                 .IsRequired();
 
-            _ = builder.HasIndex(x => x.CustomerNumber).IsUnique();
+            _ = builder.HasIndex(x => x.CustomerNumber).IsUnique()
+                .HasDatabaseName("IX_Customers_CustomerNumber");
 
             _ = builder.Property(x => x.LastName)
                 .HasMaxLength(100)
@@ -54,15 +56,12 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .HasMaxLength(255)
                 .IsRequired();
 
-            _ = builder.HasIndex("Email").IsUnique();
+            _ = builder.HasIndex("Email").IsUnique()
+                .HasDatabaseName("IX_Customers_Email");
 
             _ = builder.Property(x => x.Website)
                 .HasMaxLength(255)
                 .IsRequired(false);
-
-            _ = builder.Property(x => x.PasswordHash)
-                .HasMaxLength(500)
-                .IsRequired();
 
             // Backing field mapping for Addresses
             builder.Metadata.FindNavigation(nameof(Customer.Addresses))!

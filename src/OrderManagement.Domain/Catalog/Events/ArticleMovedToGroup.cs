@@ -5,7 +5,7 @@ using SharedKernel.SeedWork;
 namespace OrderManagement.Domain.Catalog.Events
 {
     public sealed record ArticleMovedToGroup(
-        ArticleId ArticleId,
+        ArticleNumber ArticleNumber,
         ArticleGroupId OldGroupId,
         ArticleGroupId NewGroupId,
         DateTime OccuredOnUtc

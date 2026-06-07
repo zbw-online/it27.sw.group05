@@ -5,6 +5,9 @@ using SharedKernel.SeedWork;
 namespace OrderManagement.Domain.Orders.Events
 {
 
-    public record OrderCreated(OrderId OrderId, DateTime OccurredOnUtc)
+    public record OrderCreated(
+        OrderNumber OrderNumber,
+        DateTime OccurredOnUtc
+        )
         : DomainEvent(OccurredOnUtc);
 }

@@ -12,8 +12,8 @@ using OrderManagement.Infrastructure.Persistence;
 namespace OrderManagement.Infrastructure.Migrations
 {
     [DbContext(typeof(OrderManagementDbContext))]
-    [Migration("20260228150311_AddOrdersTemporal")]
-    partial class AddOrdersTemporal
+    [Migration("20260606153021_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -28,20 +28,33 @@ namespace OrderManagement.Infrastructure.Migrations
             modelBuilder.Entity("OrderManagement.Domain.Catalog.Article", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("ArticleId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ArticleGroupId")
                         .HasColumnType("int")
                         .HasColumnName("ArticleGroupId");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("RowValidFrom")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("RowValidFrom");
+
+                    b.Property<DateTime>("RowValidUntil")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("RowValidUntil");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -57,13 +70,37 @@ namespace OrderManagement.Infrastructure.Migrations
 
                     b.HasIndex("ArticleGroupId");
 
-                    b.ToTable("Articles");
+                    b.HasIndex("Name");
+
+                    b.ToTable("Articles", null, t =>
+                        {
+                            t.Property("RowValidFrom")
+                                .HasColumnName("RowValidFrom");
+
+                            t.Property("RowValidUntil")
+                                .HasColumnName("RowValidUntil");
+                        });
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("ArticlesHistory");
+                                ttb
+                                    .HasPeriodStart("RowValidFrom")
+                                    .HasColumnName("RowValidFrom");
+                                ttb
+                                    .HasPeriodEnd("RowValidUntil")
+                                    .HasColumnName("RowValidUntil");
+                            }));
                 });
 
             modelBuilder.Entity("OrderManagement.Domain.Catalog.ArticleGroup", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("ArticleGroupId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -99,7 +136,14 @@ namespace OrderManagement.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("ArticleGroups", (string)null);
+                    b.ToTable("ArticleGroups", null, t =>
+                        {
+                            t.Property("RowValidFrom")
+                                .HasColumnName("RowValidFrom");
+
+                            t.Property("RowValidUntil")
+                                .HasColumnName("RowValidUntil");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -116,7 +160,11 @@ namespace OrderManagement.Infrastructure.Migrations
             modelBuilder.Entity("OrderManagement.Domain.Customers.Customer", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("CustomerId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("CustomerNumber")
                         .IsRequired()
@@ -134,11 +182,6 @@ namespace OrderManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime>("RowValidFrom")
                         .ValueGeneratedOnAddOrUpdate()
@@ -162,12 +205,21 @@ namespace OrderManagement.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerNumber")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_CustomerNumber");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_Email");
 
-                    b.ToTable("Customers", (string)null);
+                    b.ToTable("Customers", null, t =>
+                        {
+                            t.Property("RowValidFrom")
+                                .HasColumnName("RowValidFrom");
+
+                            t.Property("RowValidUntil")
+                                .HasColumnName("RowValidUntil");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
@@ -185,7 +237,8 @@ namespace OrderManagement.Infrastructure.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("CustomerAddressId");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
@@ -199,7 +252,8 @@ namespace OrderManagement.Infrastructure.Migrations
                         .HasColumnType("nchar(2)");
 
                     b.Property<int>("CustomerId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("CustomerId");
 
                     b.Property<string>("HouseNumber")
                         .IsRequired()
@@ -236,11 +290,18 @@ namespace OrderManagement.Infrastructure.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.ToTable("CustomerAddresses", (string)null);
+                    b.ToTable("CustomerAddresses", null, t =>
+                        {
+                            t.Property("RowValidFrom")
+                                .HasColumnName("RowValidFrom");
+
+                            t.Property("RowValidUntil")
+                                .HasColumnName("RowValidUntil");
+                        });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
-                                ttb.UseHistoryTable("CustomerAddressHistory");
+                                ttb.UseHistoryTable("CustomerAddressesHistory");
                                 ttb
                                     .HasPeriodStart("RowValidFrom")
                                     .HasColumnName("RowValidFrom");
@@ -285,8 +346,11 @@ namespace OrderManagement.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CustomerId");
+
                     b.HasIndex("OrderNumber")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Orders_OrderNumber");
 
                     b.ToTable("Orders", null, t =>
                         {
@@ -352,6 +416,8 @@ namespace OrderManagement.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ArticleId");
+
                     b.HasIndex("OrderId");
 
                     b.HasIndex("OrderId", "LineNumber")
@@ -398,13 +464,40 @@ namespace OrderManagement.Infrastructure.Migrations
 
                             b1.Property<string>("Currency")
                                 .IsRequired()
-                                .HasMaxLength(3)
-                                .HasColumnType("nvarchar(3)")
+                                .HasColumnType("nchar(3)")
                                 .HasColumnName("PriceCurrency");
+
+                            b1.Property<DateTime>("RowValidFrom")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("RowValidFrom");
+
+                            b1.Property<DateTime>("RowValidUntil")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("RowValidUntil");
 
                             b1.HasKey("ArticleId");
 
-                            b1.ToTable("Articles");
+                            b1.ToTable("Articles", null, t =>
+                                {
+                                    t.Property("RowValidFrom")
+                                        .HasColumnName("RowValidFrom");
+
+                                    t.Property("RowValidUntil")
+                                        .HasColumnName("RowValidUntil");
+                                });
+
+                            b1.ToTable(tb => tb.IsTemporal(ttb =>
+                                    {
+                                        ttb.UseHistoryTable("ArticlesHistory");
+                                        ttb
+                                            .HasPeriodStart("RowValidFrom")
+                                            .HasColumnName("RowValidFrom");
+                                        ttb
+                                            .HasPeriodEnd("RowValidUntil")
+                                            .HasColumnName("RowValidUntil");
+                                    }));
 
                             b1.WithOwner()
                                 .HasForeignKey("ArticleId");
@@ -415,6 +508,16 @@ namespace OrderManagement.Infrastructure.Migrations
                             b1.Property<int>("ArticleId")
                                 .HasColumnType("int");
 
+                            b1.Property<DateTime>("RowValidFrom")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("RowValidFrom");
+
+                            b1.Property<DateTime>("RowValidUntil")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("RowValidUntil");
+
                             b1.Property<string>("Value")
                                 .IsRequired()
                                 .HasMaxLength(20)
@@ -423,7 +526,29 @@ namespace OrderManagement.Infrastructure.Migrations
 
                             b1.HasKey("ArticleId");
 
-                            b1.ToTable("Articles");
+                            b1.HasIndex("Value")
+                                .IsUnique()
+                                .HasDatabaseName("IX_Articles_ArticleNumber");
+
+                            b1.ToTable("Articles", null, t =>
+                                {
+                                    t.Property("RowValidFrom")
+                                        .HasColumnName("RowValidFrom");
+
+                                    t.Property("RowValidUntil")
+                                        .HasColumnName("RowValidUntil");
+                                });
+
+                            b1.ToTable(tb => tb.IsTemporal(ttb =>
+                                    {
+                                        ttb.UseHistoryTable("ArticlesHistory");
+                                        ttb
+                                            .HasPeriodStart("RowValidFrom")
+                                            .HasColumnName("RowValidFrom");
+                                        ttb
+                                            .HasPeriodEnd("RowValidUntil")
+                                            .HasColumnName("RowValidUntil");
+                                    }));
 
                             b1.WithOwner()
                                 .HasForeignKey("ArticleId");
@@ -455,6 +580,12 @@ namespace OrderManagement.Infrastructure.Migrations
 
             modelBuilder.Entity("OrderManagement.Domain.Orders.Order", b =>
                 {
+                    b.HasOne("OrderManagement.Domain.Customers.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.OwnsOne("SharedKernel.Primitives.Money", "Total", b1 =>
                         {
                             b1.Property<int>("OrderId")
@@ -585,6 +716,12 @@ namespace OrderManagement.Infrastructure.Migrations
 
             modelBuilder.Entity("OrderManagement.Domain.Orders.OrderLine", b =>
                 {
+                    b.HasOne("OrderManagement.Domain.Catalog.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("OrderManagement.Domain.Orders.Order", null)
                         .WithMany("Lines")
                         .HasForeignKey("OrderId")

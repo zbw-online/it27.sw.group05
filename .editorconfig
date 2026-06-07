@@ -10,8 +10,9 @@ indent_size = 4
 tab_width = 4
 
 # =====================================================
-# C# FORMATTING (NO SEVERITIES ALLOWED HERE)
+# C# FORMATTING
 # =====================================================
+
 [*.cs]
 
 # --- Allman brace style ---
@@ -24,7 +25,7 @@ csharp_new_line_before_finally = true
 csharp_indent_labels = one_less_than_current
 
 # =====================================================
-# C# STYLE RULES (SEVERITIES OK)
+# C# STYLE RULES
 # =====================================================
 
 # Allow single-line if without braces
@@ -54,9 +55,37 @@ dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = true
 dotnet_diagnostic.IDE0005.severity = warning
 
+# Disable namespace/folder matching.
+# Reason: IDE0130 currently causes dotnet format to fail with:
+# "Changing document properties is not supported"
+dotnet_diagnostic.IDE0130.severity = none
+
+# =====================================================
+# .NET STYLE RULES
+# =====================================================
+
+dotnet_style_operator_placement_when_wrapping = beginning_of_line
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+dotnet_style_prefer_auto_properties = true:silent
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = true:silent
+dotnet_style_prefer_conditional_expression_over_return = true:silent
+dotnet_style_explicit_tuple_names = true:suggestion
+
+# =====================================================
+# ANALYZER BASELINE
+# =====================================================
+
+dotnet_analyzer_diagnostic.severity = warning
+
 # =====================================================
 # NAMING RULES
 # =====================================================
+
 [*.{cs,vb}]
 
 # Interfaces start with I
@@ -91,22 +120,6 @@ dotnet_naming_style.begins_with_i.capitalization = pascal_case
 dotnet_naming_style.pascal_case.capitalization = pascal_case
 
 # =====================================================
-# .NET ANALYZER BASELINE
-# =====================================================
-dotnet_analyzer_diagnostic.severity = warning
-dotnet_style_operator_placement_when_wrapping = beginning_of_line
-dotnet_style_coalesce_expression = true:suggestion
-dotnet_style_null_propagation = true:suggestion
-dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
-dotnet_style_prefer_auto_properties = true:silent
-dotnet_style_object_initializer = true:suggestion
-dotnet_style_collection_initializer = true:suggestion
-dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
-dotnet_style_prefer_conditional_expression_over_assignment = true:silent
-dotnet_style_prefer_conditional_expression_over_return = true:silent
-dotnet_style_explicit_tuple_names = true:suggestion
-
-# =====================================================
 # TEST PROJECT CONVENTIONS
 # =====================================================
 
@@ -115,3 +128,14 @@ dotnet_diagnostic.CA1707.severity = none
 
 [SharedKernel.Tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+# =====================================================
+# EF CORE MIGRATIONS
+# =====================================================
+
+[**/Migrations/**/*.cs]
+
+# EF migrations are generated infrastructure code.
+# Keep them formatted, but avoid analyzer noise.
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

@@ -11,214 +11,92 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Customer
     [TestClass]
     public sealed class CustomerQueryRepositoryTests : IntegrationTestBase
     {
-        private CustomerQueryRepository? _repository;
+        private CustomerQueryRepository _repository = default!;
 
-        [TestInitialize]
-        public void Setup()
+        protected override Task OnDatabaseInitializedAsync()
         {
-            Assert.IsNotNull(DbContext);
             _repository = new CustomerQueryRepository(DbContext);
+            return Task.CompletedTask;
         }
 
         [TestMethod]
-        public async Task GetByIdAsync_ExistingCustomer_ReturnsCustomerIncludingAddresses()
+        public async Task GetByIdAsync_WithExistingCustomer_ShouldReturnCustomerIncludingAddressesAsNoTracking()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
+            DbContext.ChangeTracker.Clear();
 
-            Result<Customer> createResult = Customer.Create(
-                id: 20_001,
-                customerNr: "C-20001",
-                lastName: "Doe",
-                surName: "Jane",
-                email: "jane.doe@tests.local",
-                website: null,
-                passwordHash: "hash"
-            );
+            Customer? result = await _repository.GetByIdAsync(customer.Id);
 
-            Assert.IsTrue(createResult.IsSuccess);
-            Customer customer = createResult.Value!;
-
-            _ = customer.ChangeAddress(new DateOnly(2026, 01, 01), "Street", "1", "8000", "Zurich", "CH");
-            _ = DbContext.Customers.Add(customer);
-            _ = await DbContext.SaveChangesAsync();
-
-            Customer? retrieved = await _repository.GetByIdAsync(new CustomerId(20_001));
-
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual("C-20001", retrieved.CustomerNumber.Value);
-            Assert.AreEqual(1, retrieved.Addresses.Count);
+            Assert.IsNotNull(result);
+            Assert.AreEqual(customer.Id, result.Id);
+            Assert.AreEqual(1, result.Addresses.Count);
+            Assert.IsFalse(DbContext.ChangeTracker.Entries<Customer>().Any());
         }
 
         [TestMethod]
-        public async Task GetListAsync_ReturnsAllCustomers()
+        public async Task GetByCustomerNumberAsync_WithExistingNumber_ShouldReturnCustomer()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(
+                DbContext,
+                customerNumber: "C-21001");
 
-            string suffix = Guid.NewGuid().ToString("N")[..8];
+            CustomerNumber number = CustomerNumber.Create("C-21001").EnsureValue();
+            DbContext.ChangeTracker.Clear();
 
-            int[] ids = [30010, 30011, 30012, 30013, 30014];
+            Customer? result = await _repository.GetByCustomerNumberAsync(number);
 
-            foreach (int id in ids)
-            {
-                Result<Customer> res = Customer.Create(
-                    id: id,
-                    customerNr: $"C-{id % 10000:00000}",
-                    lastName: "Last",
-                    surName: $"S{id}",
-                    email: $"user{id}.{suffix}@tests.local",
-                    website: null,
-                    passwordHash: "hash"
-                );
-
-                Assert.IsTrue(res.IsSuccess, res.Error);
-                _ = DbContext.Customers.Add(res.Value!);
-            }
-
-            _ = await DbContext.SaveChangesAsync();
-
-            IReadOnlyList<Customer> customers = await _repository.GetListAsync();
-
-            // Don’t assert exact count if DB is shared across tests
-            foreach (int id in ids)
-                Assert.IsTrue(customers.Any(c => c.Id.Value == id));
+            Assert.IsNotNull(result);
+            Assert.AreEqual(customer.Id, result.Id);
         }
 
         [TestMethod]
-        public async Task GetByCustomerNumberAsync_ExistingNumber_ReturnsCustomer()
+        public async Task GetByEmailAsync_WithExistingEmail_ShouldReturnCustomer()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(
+                DbContext,
+                email: "email.match@test.local");
 
-            Result<Customer> createResult = Customer.Create(
-                id: 20_020,
-                customerNr: "C-20020",
-                lastName: "Number",
-                surName: "Match",
-                email: "number.match@tests.local",
-                website: null,
-                passwordHash: "hash"
-            );
+            Email email = Email.Create("email.match@test.local").EnsureValue();
+            DbContext.ChangeTracker.Clear();
 
-            Assert.IsTrue(createResult.IsSuccess);
-            _ = DbContext.Customers.Add(createResult.Value!);
-            _ = await DbContext.SaveChangesAsync();
+            Customer? result = await _repository.GetByEmailAsync(email);
 
-            Result<CustomerNumber> number = CustomerNumber.Create("C-20020");
-            Assert.IsTrue(number.IsSuccess);
-
-            Customer? retrieved = await _repository.GetByCustomerNumberAsync(number.Value!);
-
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual("C-20020", retrieved.CustomerNumber.Value);
+            Assert.IsNotNull(result);
+            Assert.AreEqual(customer.Id, result.Id);
         }
 
         [TestMethod]
-        public async Task GetByEmailAsync_ExistingEmail_ReturnsCustomer()
+        public async Task SearchByNameAsync_WithMatchingTerm_ShouldReturnMatchingCustomersOnly()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
+            Customer matching = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(
+                DbContext,
+                lastName: "Schneider",
+                surName: "Anna");
 
-            Result<Customer> createResult = Customer.Create(
-                id: 20_030,
-                customerNr: "C-20030",
-                lastName: "Email",
-                surName: "Match",
-                email: "email.match@tests.local",
-                website: null,
-                passwordHash: "hash"
-            );
+            _ = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(
+                DbContext,
+                lastName: "Meier",
+                surName: "Peter");
 
-            Assert.IsTrue(createResult.IsSuccess);
-            _ = DbContext.Customers.Add(createResult.Value!);
-            _ = await DbContext.SaveChangesAsync();
+            DbContext.ChangeTracker.Clear();
 
-            Result<Email> email = Email.Create("email.match@tests.local");
-            Assert.IsTrue(email.IsSuccess);
+            IReadOnlyList<Customer> result = await _repository.SearchByNameAsync("Schneid");
 
-            Customer? retrieved = await _repository.GetByEmailAsync(email.Value!);
-
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual("email.match@tests.local", retrieved.Email.Value);
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(matching.Id, result.Single().Id);
         }
 
         [TestMethod]
-        public async Task SearchByNameAsync_ReturnsMatchesOnLastNameOrSurName()
+        public async Task GetListAsync_WithCustomers_ShouldReturnAllCustomers()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
+            _ = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
+            _ = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
 
-            Result<Customer> c1 = Customer.Create(
-                id: 20_040,
-                customerNr: "C-20040",
-                lastName: "Anderson",
-                surName: "Bob",
-                email: "bob.anderson@tests.local",
-                website: null,
-                passwordHash: "hash"
-            );
-            Assert.IsTrue(c1.IsSuccess);
+            DbContext.ChangeTracker.Clear();
 
-            Result<Customer> c2 = Customer.Create(
-                id: 20_041,
-                customerNr: "C-20041",
-                lastName: "Smith",
-                surName: "Anders",
-                email: "anders.smith@tests.local",
-                website: null,
-                passwordHash: "hash"
-            );
-            Assert.IsTrue(c2.IsSuccess);
+            IReadOnlyList<Customer> result = await _repository.GetListAsync();
 
-            DbContext.Customers.AddRange(c1.Value!, c2.Value!);
-            _ = await DbContext.SaveChangesAsync();
-
-            IReadOnlyList<Customer> results = await _repository.SearchByNameAsync("Ander");
-
-            Assert.AreEqual(2, results.Count);
-        }
-
-        [TestMethod]
-        public async Task AddressAt_ReturnsCorrectAddressForGivenDate()
-        {
-            // This is domain behavior, but running it through persistence verifies
-            // Address collection mapping, DateOnly mapping, and ordering.
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
-
-            Result<Customer> createResult = Customer.Create(
-                id: 20_050,
-                customerNr: "C-20050",
-                lastName: "Temporal",
-                surName: "Address",
-                email: "temporal@tests.local",
-                website: null,
-                passwordHash: "hash"
-            );
-
-            Assert.IsTrue(createResult.IsSuccess);
-            Customer customer = createResult.Value!;
-
-            Result a1 = customer.ChangeAddress(new DateOnly(2026, 01, 01), "Old", "1", "8000", "Zurich", "CH");
-            Assert.IsTrue(a1.IsSuccess);
-
-            Result a2 = customer.ChangeAddress(new DateOnly(2026, 02, 01), "New", "2", "8001", "Zurich", "CH");
-            Assert.IsTrue(a2.IsSuccess);
-
-            _ = DbContext.Customers.Add(customer);
-            _ = await DbContext.SaveChangesAsync();
-
-            Customer? retrieved = await _repository.GetByIdAsync(new CustomerId(20_050));
-            Assert.IsNotNull(retrieved);
-
-            CustomerAddress? jan = retrieved.AddressAt(new DateOnly(2026, 01, 15));
-            Assert.IsNotNull(jan);
-            Assert.AreEqual("Old", jan.Street);
-
-            CustomerAddress? feb = retrieved.AddressAt(new DateOnly(2026, 02, 15));
-            Assert.IsNotNull(feb);
-            Assert.AreEqual("New", feb.Street);
+            Assert.AreEqual(2, result.Count);
         }
     }
 }

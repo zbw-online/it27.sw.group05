@@ -8,13 +8,9 @@ namespace OrderManagement.Domain.Orders
 {
     public sealed class OrderLine : Entity<OrderLineId>
     {
-
-        // EF Core only (materialization)
-        private OrderLine() : base(default!)
+        private OrderLine() : base(OrderLineId.Empty)
         {
-            ArticleName = null!;
-            UnitPrice = null!;
-            LineTotal = null!;
+            // EF Core
         }
 
         internal OrderLine(
@@ -30,15 +26,14 @@ namespace OrderManagement.Domain.Orders
             ArticleName = articleName;
             UnitPrice = unitPrice;
             Quantity = quantity;
-
             LineTotal = Money.From(unitPrice.Amount * quantity, unitPrice.Currency).EnsureValue();
         }
 
         public int LineNumber { get; private set; }
         public ArticleId ArticleId { get; private set; }
-        public string ArticleName { get; private set; }
-        public Money UnitPrice { get; private set; }
+        public string ArticleName { get; private set; } = default!;
+        public Money UnitPrice { get; private set; } = default!;
         public int Quantity { get; private set; }
-        public Money LineTotal { get; private set; }
+        public Money LineTotal { get; private set; } = default!;
     }
 }

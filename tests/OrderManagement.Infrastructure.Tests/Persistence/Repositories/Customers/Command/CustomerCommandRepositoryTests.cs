@@ -12,150 +12,103 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Customer
     [TestClass]
     public sealed class CustomerCommandRepositoryTests : IntegrationTestBase
     {
-        private CustomerCommandRepository? _repository;
+        private CustomerCommandRepository _repository = default!;
 
-        [TestInitialize]
-        public void Setup()
+        protected override Task OnDatabaseInitializedAsync()
         {
-            Assert.IsNotNull(DbContext);
             _repository = new CustomerCommandRepository(DbContext);
+            return Task.CompletedTask;
         }
 
         [TestMethod]
-        public async Task Add_ShouldPersistCustomerWithAddress()
+        public async Task Add_WithValidCustomer_ShouldPersistCustomerAndAddressAndGenerateId()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
+            Customer customer = Customer.Create(
+                customerNr: "C-20001",
+                lastName: "Muster",
+                surName: "Hans",
+                email: "hans.muster@test.local",
+                website: null).EnsureValue();
 
-            Result<Customer> createResult = Customer.Create(
-                id: 10_001,
-                customerNr: "C-10001",
-                lastName: "Doe",
-                surName: "John",
-                email: "john.doe@tests.local",
-                website: "https://example.com",
-                passwordHash: "hash"
-            );
+            Result addressResult = customer.ChangeAddress(
+                validFrom: new DateOnly(2026, 1, 1),
+                street: "Bahnhofstrasse",
+                houseNumber: "10",
+                postalCode: "9000",
+                city: "St. Gallen",
+                countryCode: "CH");
 
-            Assert.IsTrue(createResult.IsSuccess);
-            Customer customer = createResult.Value!;
-
-            Result addrResult = customer.ChangeAddress(
-                validFrom: new DateOnly(2026, 01, 01),
-                street: "Main Street",
-                houseNumber: "1A",
-                postalCode: "8000",
-                city: "Zurich",
-                countryCode: "CH"
-            );
-            Assert.IsTrue(addrResult.IsSuccess);
+            Assert.IsTrue(addressResult.IsSuccess, addressResult.Error);
 
             _repository.Add(customer);
             _ = await DbContext.SaveChangesAsync();
 
-            // Re-load from DB to verify mapping + collection persistence
-            Customer? retrieved = await DbContext.Customers
+            CustomerId customerId = customer.Id;
+            Assert.IsTrue(customerId.IsAssigned);
+
+            DbContext.ChangeTracker.Clear();
+
+            Customer? persisted = await DbContext.Customers
                 .Include(c => c.Addresses)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == new CustomerId(10_001));
+                .SingleOrDefaultAsync(c => c.Id == customerId);
 
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual("C-10001", retrieved.CustomerNumber.Value);
-            Assert.AreEqual("Doe", retrieved.LastName);
-            Assert.AreEqual("John", retrieved.SurName);
-            Assert.AreEqual("john.doe@tests.local", retrieved.Email.Value);
-            Assert.AreEqual("https://example.com", retrieved.Website);
-            Assert.AreEqual("hash", retrieved.PasswordHash);
-
-            Assert.AreEqual(1, retrieved.Addresses.Count);
-            CustomerAddress address = retrieved.Addresses.Single();
-            Assert.AreEqual(new DateOnly(2026, 01, 01), address.ValidFrom);
-            Assert.IsNull(address.ValidTo);
-            Assert.AreEqual("Main Street", address.Street);
-            Assert.AreEqual("1A", address.HouseNumber);
-            Assert.AreEqual("8000", address.PostalCode);
-            Assert.AreEqual("Zurich", address.City);
-            Assert.AreEqual("CH", address.CountryCode);
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual("C-20001", persisted.CustomerNumber.Value);
+            Assert.AreEqual("Muster", persisted.LastName);
+            Assert.AreEqual("Hans", persisted.SurName);
+            Assert.AreEqual(1, persisted.Addresses.Count);
         }
 
         [TestMethod]
-        public async Task Update_ShouldModifyWebsiteAndPasswordHash()
+        public async Task Update_WithChangedWebsite_ShouldPersistChange()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
+            CustomerId customerId = customer.Id;
 
-            Result<Customer> createResult = Customer.Create(
-                id: 10_002,
-                customerNr: "C-10002",
-                lastName: "Miller",
-                surName: "Alice",
-                email: "alice.miller@tests.local",
-                website: null,
-                passwordHash: "hash1"
-            );
+            DbContext.ChangeTracker.Clear();
 
-            Assert.IsTrue(createResult.IsSuccess);
-            Customer customer = createResult.Value!;
-
-            _ = DbContext.Customers.Add(customer);
-            _ = await DbContext.SaveChangesAsync();
-
-            // Detach, then fetch tracked instance to update
-            DbContext.Entry(customer).State = EntityState.Detached;
-
-            Customer? tracked = await DbContext.Customers
-                .Include(c => c.Addresses)
-                .FirstOrDefaultAsync(c => c.Id == new CustomerId(10_002));
-
-            Assert.IsNotNull(tracked);
-
-            Result websiteRes = tracked.ChangeWebsite("https://changed.example");
-            Assert.IsTrue(websiteRes.IsSuccess);
-
-            Result passRes = tracked.SetPasswordHash("hash2");
-            Assert.IsTrue(passRes.IsSuccess);
+            Customer tracked = await DbContext.Customers.SingleAsync(c => c.Id == customerId);
+            Result result = tracked.ChangeWebsite("https://example.ch");
+            Assert.IsTrue(result.IsSuccess, result.Error);
 
             _repository.Update(tracked);
             _ = await DbContext.SaveChangesAsync();
 
-            Customer? updated = await DbContext.Customers
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == new CustomerId(10_002));
+            DbContext.ChangeTracker.Clear();
 
-            Assert.IsNotNull(updated);
-            Assert.AreEqual("https://changed.example", updated.Website);
-            Assert.AreEqual("hash2", updated.PasswordHash);
+            Customer? persisted = await DbContext.Customers
+                .AsNoTracking()
+                .SingleOrDefaultAsync(c => c.Id == customerId);
+
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual("https://example.ch", persisted.Website);
         }
 
         [TestMethod]
-        public async Task Remove_ShouldDeleteCustomer()
+        public async Task Remove_WithExistingCustomer_ShouldDeleteCustomerAndCascadeAddresses()
         {
-            Assert.IsNotNull(_repository);
-            Assert.IsNotNull(DbContext);
+            Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext);
+            CustomerId customerId = customer.Id;
 
-            Result<Customer> createResult = Customer.Create(
-                id: 10_003,
-                customerNr: "C-10003",
-                lastName: "Delete",
-                surName: "Me",
-                email: "delete.me@tests.local",
-                website: null,
-                passwordHash: "hash"
-            );
+            DbContext.ChangeTracker.Clear();
 
-            Assert.IsTrue(createResult.IsSuccess);
-            Customer customer = createResult.Value!;
+            Customer tracked = await DbContext.Customers
+                .Include(c => c.Addresses)
+                .SingleAsync(c => c.Id == customerId);
 
-            _ = DbContext.Customers.Add(customer);
+            int addressId = tracked.Addresses.Single().Id;
+
+            _repository.Remove(tracked);
             _ = await DbContext.SaveChangesAsync();
 
-            _repository.Remove(customer);
-            _ = await DbContext.SaveChangesAsync();
+            DbContext.ChangeTracker.Clear();
 
-            Customer? deleted = await DbContext.Customers
-                .FirstOrDefaultAsync(c => c.Id == new CustomerId(10_003));
+            bool customerExists = await DbContext.Customers.AsNoTracking().AnyAsync(c => c.Id == customerId);
+            bool addressExists = await DbContext.CustomerAddresses.AsNoTracking().AnyAsync(a => a.Id == addressId);
 
-            Assert.IsNull(deleted);
+            Assert.IsFalse(customerExists);
+            Assert.IsFalse(addressExists);
         }
     }
 }

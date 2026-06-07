@@ -2,187 +2,125 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.Events;
+using OrderManagement.Domain.Catalog.ValueObjects;
 
 using SharedKernel.Primitives;
 
 namespace OrderManagement.Domain.Tests.Catalog
 {
     [TestClass]
-    public class ArticleGroupEquivalenceAndBoundaryTests
+    public sealed class ArticleGroupTests
     {
-        // -----------------------------
-        // Helpers
-        // -----------------------------
         private static Result<ArticleGroup> CreateValidGroup(
-            int id = 1,
             string name = "Electronics",
-            int? parentGroupId = null)
-            => ArticleGroup.Create(id, name, parentGroupId);
-
-        private static string Repeat(char c, int count) => new(c, count);
-
-        // ============================================================
-        // 1) Create(...) — Equivalence Classes
-        // ============================================================
+            ArticleGroupId? parentGroupId = null) => ArticleGroup.Create(name, parentGroupId);
 
         [TestMethod]
-        public void CreateValidInputsShouldSucceedAndRaiseCreatedEvent()
+        public void Create_WithValidName_ShouldSucceed()
         {
-            // ECP: Valid article group
-            Result<ArticleGroup> r = CreateValidGroup();
+            Result<ArticleGroup> result = CreateValidGroup();
 
-            Assert.IsTrue(r.IsSuccess);
-            ArticleGroup g = r.Value!;
-            Assert.AreEqual("Electronics", g.Name);
-            Assert.IsTrue(g.DomainEvents.Count >= 1);   // ArticleGroupCreated
+            Assert.IsTrue(result.IsSuccess, result.Error);
+
+            ArticleGroup group = result.Value!;
+
+            Assert.AreEqual(0, group.Id.Value);
+            Assert.AreEqual("Electronics", group.Name);
+            Assert.IsNull(group.ParentGroupId);
         }
 
         [TestMethod]
-        public void CreateInvalidIdNegativeShouldFail()
+        public void Create_WithValidName_ShouldRaiseCreatedEvent()
         {
-            // ECP: Invalid id class (id < 0)
-            Result<ArticleGroup> r = CreateValidGroup(id: -1);
+            ArticleGroup group = CreateValidGroup().EnsureValue();
 
-            Assert.IsFalse(r.IsSuccess);
+            Assert.IsTrue(group.DomainEvents.Any(e => e is ArticleGroupCreated));
         }
 
         [TestMethod]
-        public void CreateNameWhitespaceOnlyShouldFail()
+        public void Create_WithWhitespaceName_ShouldFail()
         {
-            // ECP: Invalid name class (empty after trim)
-            Result<ArticleGroup> r = CreateValidGroup(name: "   ");
+            Result<ArticleGroup> result = CreateValidGroup("   ");
 
-            Assert.IsFalse(r.IsSuccess);
+            Assert.IsFalse(result.IsSuccess);
         }
 
         [TestMethod]
-        public void CreateInvalidParentGroupIdNegativeShouldFail()
+        public void Create_WithNameLongerThan150Characters_ShouldFail()
         {
-            // ECP: Invalid parent group id (parentGroupId <= 0)
-            Result<ArticleGroup> r = CreateValidGroup(parentGroupId: -5);
+            string name = new('A', 151);
 
-            Assert.IsFalse(r.IsSuccess);
-        }
+            Result<ArticleGroup> result = CreateValidGroup(name);
 
-        // ============================================================
-        // 2) Create(...) — Boundary Value Analysis (Name length)
-        //    ERM: Name nvarchar(150) → max 150 chars
-        // ============================================================
-
-        [TestMethod]
-        public void CreateNameLengthBoundary150ShouldSucceed()
-        {
-            // BVA: name length = 150 (max valid)
-            string name = Repeat('A', 150);
-
-            Result<ArticleGroup> r = CreateValidGroup(name: name);
-
-            Assert.IsTrue(r.IsSuccess);
-            Assert.AreEqual(name, r.Value!.Name);
+            Assert.IsFalse(result.IsSuccess);
         }
 
         [TestMethod]
-        public void CreateNameLengthBoundary151ShouldFail()
+        public void Create_WithAssignedParentGroupId_ShouldSucceed()
         {
-            // BVA: name length = 151 (just over max) – you will enforce this in value checks if desired
-            string name = Repeat('A', 151);
+            var parentGroupId = new ArticleGroupId(10);
 
-            Result<ArticleGroup> r = CreateValidGroup(name: name);
+            Result<ArticleGroup> result = CreateValidGroup(
+                name: "Child Group",
+                parentGroupId: parentGroupId);
 
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        // ============================================================
-        // 3) Rename(...) — Equivalence Classes
-        // ============================================================
-
-        [TestMethod]
-        public void RenameValidNameShouldSucceedAndRaiseRenamedEvent()
-        {
-            Result<ArticleGroup> r = CreateValidGroup();
-            ArticleGroup g = r.Value!;
-
-            Result rename = g.Rename("Home Electronics");
-
-            Assert.IsTrue(rename.IsSuccess);
-            Assert.AreEqual("Home Electronics", g.Name);
-            Assert.IsTrue(g.DomainEvents.Any(e => e is ArticleGroupRenamed));
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(parentGroupId, result.Value!.ParentGroupId);
         }
 
         [TestMethod]
-        public void RenameNameWhitespaceOnlyShouldFail()
+        public void Create_WithUnassignedParentGroupId_ShouldFail()
         {
-            Result<ArticleGroup> r = CreateValidGroup();
-            ArticleGroup g = r.Value!;
+            Result<ArticleGroup> result = CreateValidGroup(
+                name: "Child Group",
+                parentGroupId: ArticleGroupId.Empty);
 
-            Result rename = g.Rename("   ");
-
-            Assert.IsFalse(rename.IsSuccess);
-            Assert.AreEqual("Electronics", g.Name);
-        }
-
-        // ============================================================
-        // 4) AddChild(...) — Equivalence Classes
-        // ============================================================
-
-        [TestMethod]
-        public void AddChildValidChildShouldSucceed()
-        {
-            Result<ArticleGroup> rootResult = CreateValidGroup(id: 1, name: "Root");
-            Result<ArticleGroup> childResult = CreateValidGroup(id: 2, name: "Child", parentGroupId: 1);
-
-            ArticleGroup root = rootResult.Value!;
-            ArticleGroup child = childResult.Value!;
-
-            Result addChildResult = root.AddChild(child);
-
-            Assert.IsTrue(addChildResult.IsSuccess);
-            Assert.AreEqual(1, root.Children.Count);
-            Assert.AreSame(child, root.Children.Single());
+            Assert.IsFalse(result.IsSuccess);
         }
 
         [TestMethod]
-        public void AddChildDuplicateChildShouldFail()
+        public void Rename_WithValidName_ShouldSucceed()
         {
-            Result<ArticleGroup> rootResult = CreateValidGroup(id: 1, name: "Root");
-            Result<ArticleGroup> childResult = CreateValidGroup(id: 2, name: "Child", parentGroupId: 1);
+            ArticleGroup group = CreateValidGroup().EnsureValue();
 
-            ArticleGroup root = rootResult.Value!;
-            ArticleGroup child = childResult.Value!;
+            Result result = group.Rename("Updated Name");
 
-            Result firstAdd = root.AddChild(child);
-            Assert.IsTrue(firstAdd.IsSuccess);
-
-            Result secondAdd = root.AddChild(child);
-
-            Assert.IsFalse(secondAdd.IsSuccess);
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual("Updated Name", group.Name);
         }
-
-        // ============================================================
-        // 5) HasCircularReference(...) — Basic ECP
-        // ============================================================
 
         [TestMethod]
-        public void AddChildWhenChildWouldCreateCircularReferenceShouldFail()
+        public void Rename_WithValidName_ShouldRaiseRenamedEvent()
         {
-            // Arrange: root(1) has ParentGroupId=2 (child), creating cycle potential
-            Result<ArticleGroup> childResult = CreateValidGroup(id: 2, name: "Child");
-            Result<ArticleGroup> rootResult = CreateValidGroup(id: 1, name: "Root", parentGroupId: 2);
+            ArticleGroup group = CreateValidGroup().EnsureValue();
 
-            Assert.IsTrue(childResult.IsSuccess);
-            Assert.IsTrue(rootResult.IsSuccess);
+            Result result = group.Rename("Updated Name");
 
-            ArticleGroup root = rootResult.Value!;
-            ArticleGroup child = childResult.Value!;
-
-            // Act: root.AddChild(child) → detects ParentGroupId=child.Id in traversal
-            Result addResult = root.AddChild(child);
-
-            // Assert: Fails due to circular reference detection
-            Assert.IsFalse(addResult.IsSuccess);
-            // Optional: StringAssert.Contains(addResult.Error, "circular"); // if exact match
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(group.DomainEvents.Any(e => e is ArticleGroupRenamed));
         }
 
+        [TestMethod]
+        public void Rename_WithWhitespaceName_ShouldFail()
+        {
+            ArticleGroup group = CreateValidGroup().EnsureValue();
 
+            Result result = group.Rename("   ");
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual("Electronics", group.Name);
+        }
+
+        [TestMethod]
+        public void Rename_WithNameLongerThan150Characters_ShouldFail()
+        {
+            ArticleGroup group = CreateValidGroup().EnsureValue();
+            string name = new('A', 151);
+
+            Result result = group.Rename(name);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual("Electronics", group.Name);
+        }
     }
 }

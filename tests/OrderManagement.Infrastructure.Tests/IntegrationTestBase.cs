@@ -1,72 +1,68 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using OrderManagement.Domain.Catalog;
-using OrderManagement.Domain.Customers;
-using OrderManagement.Domain.Orders;
 using OrderManagement.Infrastructure.Persistence;
 
 namespace OrderManagement.Infrastructure.Tests
 {
     public abstract class IntegrationTestBase
     {
-        protected OrderManagementDbContext? DbContext { get; private set; }
+        protected OrderManagementDbContext DbContext { get; private set; } = default!;
+
+        public TestContext TestContext { get; set; } = default!;
 
         [TestInitialize]
-        public async Task TestInitialize()
+        public async Task TestInitializeAsync()
         {
-            // Create a new DbContext instance for each test (thread-safe)
+            string databaseName = CreateDatabaseName();
+            string connectionString = CreateConnectionString(databaseName);
+
             DbContextOptions<OrderManagementDbContext> options = new DbContextOptionsBuilder<OrderManagementDbContext>()
-                .UseSqlServer(AssemblySetup.ConnectionString)
+                .UseSqlServer(
+                    connectionString,
+                    sql => sql.MigrationsAssembly(typeof(OrderManagementDbContext).Assembly.FullName))
+                .EnableDetailedErrors()
+                .EnableSensitiveDataLogging()
                 .Options;
 
             DbContext = new OrderManagementDbContext(options);
 
-            await ClearDatabase();
+            await DbContext.Database.MigrateAsync();
+            await OnDatabaseInitializedAsync();
         }
 
         [TestCleanup]
-        public async Task TestCleanup()
+        public async Task TestCleanupAsync()
         {
-            if (DbContext is not null)
+            if (DbContext is null)
             {
-                await DbContext.DisposeAsync();
+                return;
             }
+
+            _ = await DbContext.Database.EnsureDeletedAsync();
+            await DbContext.DisposeAsync();
         }
 
-        private async Task ClearDatabase()
+        protected virtual Task OnDatabaseInitializedAsync() => Task.CompletedTask;
+
+        private static string CreateConnectionString(string databaseName)
         {
-            if (DbContext is null) return;
+            var builder = new SqlConnectionStringBuilder(AssemblySetup.MasterConnectionString)
+            {
+                InitialCatalog = databaseName,
+                TrustServerCertificate = true,
+                MultipleActiveResultSets = true
+            };
 
-            // Clear in order respecting foreign keys
+            return builder.ConnectionString;
+        }
 
-            // Clear OrderLines first (if they exist as a separate table)
-            List<OrderLine> orderLines = await DbContext.OrderLines.ToListAsync();
-            DbContext.OrderLines.RemoveRange(orderLines);
-            _ = await DbContext.SaveChangesAsync();
-
-            // Clear Orders (temporal - must use RemoveRange)
-            List<Order> orders = await DbContext.Orders.ToListAsync();
-            DbContext.Orders.RemoveRange(orders);
-            _ = await DbContext.SaveChangesAsync();
-
-            // Clear CustomerAddresses
-            List<CustomerAddress> addresses = await DbContext.CustomerAddresses.ToListAsync();
-            DbContext.CustomerAddresses.RemoveRange(addresses);
-            _ = await DbContext.SaveChangesAsync();
-
-            // Clear Customers (temporal - must use RemoveRange)
-            List<Customer> customers = await DbContext.Customers.ToListAsync();
-            DbContext.Customers.RemoveRange(customers);
-            _ = await DbContext.SaveChangesAsync();
-
-            // Clear Articles (not temporal - can use ExecuteDeleteAsync)
-            _ = await DbContext.Articles.ExecuteDeleteAsync();
-
-            // Load and remove ArticleGroups (temporal table)
-            List<ArticleGroup> articleGroups = await DbContext.ArticleGroups.ToListAsync();
-            DbContext.ArticleGroups.RemoveRange(articleGroups);
-            _ = await DbContext.SaveChangesAsync();
+        private string CreateDatabaseName()
+        {
+            string testName = TestContext.TestName ?? "UnknownTest";
+            string safeTestName = new([.. testName.Where(char.IsLetterOrDigit).Take(45)]);
+            return $"OrderManagement_Test_{safeTestName}_{Guid.NewGuid():N}";
         }
     }
 }

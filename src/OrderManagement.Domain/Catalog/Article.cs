@@ -8,22 +8,24 @@ namespace OrderManagement.Domain.Catalog
 {
     public sealed class Article : AggregateRoot<ArticleId>
     {
-        private Article() : base(new ArticleId(0)) { }
+        private Article() : base(ArticleId.Empty)
+        {
+            // EF Core
+        }
 
         private Article(
-            ArticleId id,
             ArticleNumber number,
             string name,
             Money price,
             ArticleGroupId groupId
-            ) : base(id)
+            ) : base(ArticleId.Empty)
         {
             ArticleNumber = number;
             Name = name;
             Price = price;
             ArticleGroupId = groupId;
 
-            AddDomainEvent(new ArticleCreated(id, DateTime.UtcNow));
+            AddDomainEvent(new ArticleCreated(number, DateTime.UtcNow));
         }
 
         public ArticleNumber ArticleNumber { get; private set; } = default!;
@@ -36,20 +38,18 @@ namespace OrderManagement.Domain.Catalog
         public int Status { get; private set; } = 1;
 
         public static Result<Article> Create(
-            int id,
             string? articleNr,
             string? name,
             decimal priceAmount,
             string priceCurrency,
-            int groupId,
+            ArticleGroupId groupId,
             int stock = 0,
             decimal vatRate = 0.0m,
             string? description = null,
             int status = 1
             )
         {
-            if (id <= 0) return Results.Fail<Article>("Article id must be positive.");
-            if (!string.IsNullOrEmpty(articleNr) && articleNr.Length > 20) return Results.Fail<Article>("ArticleNumber cannot exceed 20 characters.");
+            if (!string.IsNullOrEmpty(articleNr) && articleNr.Length > 20) return Results.Fail<Article>("ArticleNumber cannot be empty or exceed 20 characters.");
             Result<ArticleNumber> nr = ArticleNumber.Create(articleNr);
             if (!nr.IsSuccess) return Results.Fail<Article>(nr.Error!);
 
@@ -57,19 +57,22 @@ namespace OrderManagement.Domain.Catalog
             if (trimmedName.Length == 0) return Results.Fail<Article>("Name is required.");
             if (trimmedName.Length > 200) return Results.Fail<Article>("Name cannot exceed 200 characters.");
 
-            Money priceValue = Money.From(priceAmount, priceCurrency).EnsureValue();
+            if (!groupId.IsAssigned)
+                return Results.Fail<Article>("ArticleGroupId must be assigned.");
 
-            if (groupId <= 0) return Results.Fail<Article>("ArticleGroupId must be positive.");
             if (stock < 0) return Results.Fail<Article>("Stock cannot be negative.");
-            if (vatRate is < 0 or > 999.99m) return Results.Fail<Article>("VatRate must be between 0 and 999.99 (decimal(5,2)).");
+
+            if (vatRate is < 0 or > 999.99m) return Results.Fail<Article>("VatRate must be between 0 and 999.99.");
+
             if (Math.Floor(vatRate * 100) / 100 != vatRate) return Results.Fail<Article>("VatRate must have at most 2 decimal places.");
 
+            Money priceValue = Money.From(priceAmount, priceCurrency).EnsureValue();
+
             var article = new Article(
-                new ArticleId(id),
                 nr.Value!,
                 trimmedName,
                 priceValue,
-                new ArticleGroupId(groupId)
+                groupId
             )
             {
                 Stock = stock,
@@ -89,7 +92,7 @@ namespace OrderManagement.Domain.Catalog
             Money oldPrice = Price;
             Price = newPrice;
 
-            AddDomainEvent(new ArticlePriceChanged(Id, oldPrice, newPrice, DateTime.UtcNow));
+            AddDomainEvent(new ArticlePriceChanged(ArticleNumber, oldPrice, newPrice, DateTime.UtcNow));
             return Result.Success();
         }
 
@@ -102,20 +105,20 @@ namespace OrderManagement.Domain.Catalog
             int oldStock = Stock;
             Stock += delta;
 
-            AddDomainEvent(new ArticleStockChanged(Id, oldStock, Stock, DateTime.UtcNow));
+            AddDomainEvent(new ArticleStockChanged(ArticleNumber, oldStock, Stock, DateTime.UtcNow));
             return Result.Success();
         }
 
 
         public Result ChangeGroup(ArticleGroupId newGroupId)
         {
-            if (newGroupId.Value <= 0)
-                return Result.Fail("ArticleGroupId must be positive.");
+            if (!newGroupId.IsAssigned)
+                return Result.Fail("ArticleGroupId must be assigned.");
 
             ArticleGroupId oldGroupId = ArticleGroupId;
             ArticleGroupId = newGroupId;
 
-            AddDomainEvent(new ArticleMovedToGroup(Id, oldGroupId, newGroupId, DateTime.UtcNow));
+            AddDomainEvent(new ArticleMovedToGroup(ArticleNumber, oldGroupId, newGroupId, DateTime.UtcNow));
             return Result.Success();
         }
 
