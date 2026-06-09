@@ -25,7 +25,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Invoices
         {
             Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(
                 DbContext,
-                customerNumber: "C-23001",
+                customerNumber: "CU23001",
                 lastName: "Arpanet",
                 surName: "AG",
                 validFrom: new DateOnly(2017, 1, 1),
@@ -78,8 +78,8 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Invoices
         [TestMethod]
         public async Task GetOrdersWithHistoricalAddressAsync_WithCustomerNumberFilter_ShouldReturnOnlyMatchingCustomer()
         {
-            Customer customer1 = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext, customerNumber: "C-23002");
-            Customer customer2 = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext, customerNumber: "C-23003");
+            Customer customer1 = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext, customerNumber: "CU23002");
+            Customer customer2 = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(DbContext, customerNumber: "CU23003");
 
             _ = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, customer1.Id, "ORD-2024-001");
             _ = await InfrastructureTestDataFactory.CreatePersistedOrderAsync(DbContext, customer2.Id, "ORD-2024-002");
@@ -87,10 +87,10 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Invoices
             DbContext.ChangeTracker.Clear();
 
             IReadOnlyList<InvoiceDto> result = await _repository.GetOrdersWithHistoricalAddressAsync(
-                customerNumber: "C-23002");
+                customerNumber: "CU23002");
 
             Assert.AreEqual(1, result.Count);
-            Assert.AreEqual("C-23002", result.Single().Kundennummer);
+            Assert.AreEqual("CU23002", result.Single().Kundennummer);
             Assert.AreEqual("ORD-2024-001", result.Single().Rechnungsnummer);
         }
     }

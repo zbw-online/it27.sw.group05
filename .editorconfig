@@ -129,6 +129,9 @@ dotnet_diagnostic.CA1707.severity = none
 [SharedKernel.Tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
 
+[*.cs]
+dotnet_diagnostic.CA1716.severity = none
+
 # =====================================================
 # EF CORE MIGRATIONS
 # =====================================================

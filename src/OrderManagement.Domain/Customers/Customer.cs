@@ -156,5 +156,40 @@ namespace OrderManagement.Domain.Customers
             Website = w;
             return Result.Success();
         }
+
+        public Result ChangeName(string lastName, string surName)
+        {
+            string normalizedLastName = (lastName ?? string.Empty).Trim();
+            string normalizedSurName = (surName ?? string.Empty).Trim();
+
+            if (normalizedLastName.Length == 0)
+            {
+                return Result.Fail("LastName is required.");
+            }
+
+            if (normalizedSurName.Length == 0)
+            {
+                return Result.Fail("SurName is required.");
+            }
+
+            LastName = normalizedLastName;
+            SurName = normalizedSurName;
+
+            return Result.Success();
+        }
+
+        public Result ChangeEmail(string email)
+        {
+            Result<Email> emailResult = Email.Create(email);
+
+            if (!emailResult.IsSuccess)
+            {
+                return Result.Fail(emailResult.Error!);
+            }
+
+            Email = emailResult.Value!;
+
+            return Result.Success();
+        }
     }
 }

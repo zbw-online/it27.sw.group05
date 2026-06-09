@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Query;
+using OrderManagement.Application.DTOs.Orders;
 
 namespace OrderManagement.Infrastructure.Persistence.Repositories.Orders.Query
 {

@@ -1,0 +1,142 @@
+@page "/customers/create"
+
+@using OrderManagement.Application.Features.Customers.CreateCustomer
+@using OrderManagement.Presentation.Blazor.Features.Customers.CreateCustomer
+
+@inject ICreateCustomerUseCase CreateCustomerUseCase
+
+<h3>Create Customer</h3>
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger">
+        @_errorMessage
+    </div>
+}
+
+@if (_successMessage is not null)
+{
+    <div class="alert alert-success">
+        @_successMessage
+    </div>
+}
+
+<EditForm Model="_form" OnValidSubmit="SubmitAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Customer Number</label>
+        <InputText class="form-control" @bind-Value="_form.CustomerNumber" />
+        <ValidationMessage For="() => _form.CustomerNumber" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Last Name</label>
+        <InputText class="form-control" @bind-Value="_form.LastName" />
+        <ValidationMessage For="() => _form.LastName" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Surname</label>
+        <InputText class="form-control" @bind-Value="_form.SurName" />
+        <ValidationMessage For="() => _form.SurName" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <InputText class="form-control" @bind-Value="_form.Email" />
+        <ValidationMessage For="() => _form.Email" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Website</label>
+        <InputText class="form-control" @bind-Value="_form.Website" />
+    </div>
+
+    <hr />
+
+    <h5>Address</h5>
+
+    <div class="mb-3">
+        <label class="form-label">Valid From</label>
+        <InputDate class="form-control" @bind-Value="_form.AddressValidFrom" />
+        <ValidationMessage For="() => _form.AddressValidFrom" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Street</label>
+        <InputText class="form-control" @bind-Value="_form.Street" />
+        <ValidationMessage For="() => _form.Street" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">House Number</label>
+        <InputText class="form-control" @bind-Value="_form.HouseNumber" />
+        <ValidationMessage For="() => _form.HouseNumber" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Postal Code</label>
+        <InputText class="form-control" @bind-Value="_form.PostalCode" />
+        <ValidationMessage For="() => _form.PostalCode" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">City</label>
+        <InputText class="form-control" @bind-Value="_form.City" />
+        <ValidationMessage For="() => _form.City" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Country Code</label>
+        <InputText class="form-control" @bind-Value="_form.CountryCode" />
+        <ValidationMessage For="() => _form.CountryCode" />
+    </div>
+
+    <button class="btn btn-primary" type="submit" disabled="@_isSaving">
+        @(_isSaving ? "Saving..." : "Create Customer")
+    </button>
+</EditForm>
+
+@code {
+    private readonly CreateCustomerFormModel _form = new();
+
+    private bool _isSaving;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    private async Task SubmitAsync()
+    {
+        _isSaving = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        var command = new CreateCustomerCommand(
+            _form.CustomerNumber,
+            _form.LastName,
+            _form.SurName,
+            _form.Email,
+            _form.Website,
+            DateOnly.FromDateTime(_form.AddressValidFrom),
+            _form.Street,
+            _form.HouseNumber,
+            _form.PostalCode,
+            _form.City,
+            _form.CountryCode);
+
+        var result = await CreateCustomerUseCase.ExecuteAsync(command);
+
+        if (!result.IsSuccess)
+        {
+            _errorMessage = result.Error;
+            _isSaving = false;
+            return;
+        }
+
+        _successMessage =
+            $"Customer '{result.Value!.CustomerNumber}' was created successfully.";
+
+        _isSaving = false;
+    }
+}

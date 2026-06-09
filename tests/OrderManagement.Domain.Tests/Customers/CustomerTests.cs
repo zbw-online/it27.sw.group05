@@ -14,7 +14,7 @@ namespace OrderManagement.Domain.Tests.Customers
         // Helpers
         // -----------------------------
         private static Result<Customer> CreateValidCustomer(
-            string customerNr = "C-00001",
+            string customerNr = "CU00001",
             string lastName = "Mueller",
             string surName = "Edi",
             string email = "edi.mueller@example.com",
@@ -79,7 +79,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void CreateCustomerNumberLengthBoundary7ShouldSucceed()
         {
             // BVA: customer number length = 7 (max valid)
-            string nr = "C-00001"; // 7
+            string nr = "CU00001"; // 7
 
             Result<Customer> r = CreateValidCustomer(customerNr: nr);
 

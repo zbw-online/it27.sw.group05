@@ -14,11 +14,11 @@ namespace OrderManagement.Domain.Tests.Customers.ValueObjects
         [TestMethod]
         public void Create_ValidFormat_ShouldSucceed_AndNormalize()
         {
-            SharedKernel.Primitives.Result<CustomerNumber> r = CustomerNumber.Create(" c-00001 ");
+            SharedKernel.Primitives.Result<CustomerNumber> r = CustomerNumber.Create(" cu00001 ");
             Assert.IsTrue(r.IsSuccess);
 
-            Assert.AreEqual("C-00001", r.Value!.Value);
-            Assert.AreEqual("C-00001", r.Value!.ToString());
+            Assert.AreEqual("CU00001", r.Value!.Value);
+            Assert.AreEqual("CU00001", r.Value!.ToString());
         }
 
         [TestMethod]
@@ -32,7 +32,7 @@ namespace OrderManagement.Domain.Tests.Customers.ValueObjects
         public void Create_InvalidFormat_ShouldFail()
         {
             Assert.IsFalse(CustomerNumber.Create("C-1").IsSuccess);
-            Assert.IsFalse(CustomerNumber.Create("X-00001").IsSuccess);
+            Assert.IsFalse(CustomerNumber.Create("XU00001").IsSuccess);
             Assert.IsFalse(CustomerNumber.Create("C-ABCDE").IsSuccess);
         }
 
@@ -43,22 +43,22 @@ namespace OrderManagement.Domain.Tests.Customers.ValueObjects
         [TestMethod]
         public void Create_Boundary_ExactFiveDigits_ShouldSucceed()
         {
-            SharedKernel.Primitives.Result<CustomerNumber> r = CustomerNumber.Create("C-00000");
+            SharedKernel.Primitives.Result<CustomerNumber> r = CustomerNumber.Create("CU00000");
             Assert.IsTrue(r.IsSuccess);
 
-            SharedKernel.Primitives.Result<CustomerNumber> r2 = CustomerNumber.Create("C-99999");
+            SharedKernel.Primitives.Result<CustomerNumber> r2 = CustomerNumber.Create("CU99999");
             Assert.IsTrue(r2.IsSuccess);
         }
 
         [TestMethod]
         public void Create_Boundary_FourDigits_ShouldFail() =>
             // BVA: one digit short
-            Assert.IsFalse(CustomerNumber.Create("C-0000").IsSuccess);
+            Assert.IsFalse(CustomerNumber.Create("CU0000").IsSuccess);
 
         [TestMethod]
         public void Create_Boundary_SixDigits_ShouldFail() =>
             // BVA: one digit too many
-            Assert.IsFalse(CustomerNumber.Create("C-000001").IsSuccess);
+            Assert.IsFalse(CustomerNumber.Create("CU000001").IsSuccess);
 
         // ============================================================
         // Equality (ValueObject semantics)
@@ -67,8 +67,8 @@ namespace OrderManagement.Domain.Tests.Customers.ValueObjects
         [TestMethod]
         public void Equality_SameNormalizedValue_ShouldBeEqual()
         {
-            CustomerNumber a = CustomerNumber.Create("c-00001").Value!;
-            CustomerNumber b = CustomerNumber.Create(" C-00001 ").Value!;
+            CustomerNumber a = CustomerNumber.Create("cU00001").Value!;
+            CustomerNumber b = CustomerNumber.Create(" CU00001 ").Value!;
 
             Assert.AreEqual(a, b);
             Assert.IsTrue(a.Equals(b));
@@ -77,8 +77,8 @@ namespace OrderManagement.Domain.Tests.Customers.ValueObjects
         [TestMethod]
         public void Equality_DifferentValues_ShouldNotBeEqual()
         {
-            CustomerNumber a = CustomerNumber.Create("C-00001").Value!;
-            CustomerNumber b = CustomerNumber.Create("C-00002").Value!;
+            CustomerNumber a = CustomerNumber.Create("CU00001").Value!;
+            CustomerNumber b = CustomerNumber.Create("CU00002").Value!;
 
             Assert.AreNotEqual(a, b);
         }

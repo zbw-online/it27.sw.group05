@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using OrderManagement.Application.Abstractions.Interfaces.Catalog.Query;
+using OrderManagement.Application.DTOs.Catalog;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.ValueObjects;
 

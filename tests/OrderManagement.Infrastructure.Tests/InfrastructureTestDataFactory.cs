@@ -181,7 +181,7 @@ namespace OrderManagement.Infrastructure.Tests
         public static string NextCustomerNumber()
         {
             int next = Interlocked.Increment(ref _customerSequence);
-            return $"C-{next:00000}";
+            return $"CU{next:00000}";
         }
 
         public static string NextArticleNumber()

@@ -1,6 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Query;
+using OrderManagement.Application.DTOs.Catalog;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query;
 
