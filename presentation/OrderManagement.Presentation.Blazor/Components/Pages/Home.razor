@@ -1,0 +1,33 @@
+@page "/"
+
+<PageTitle>Order Management</PageTitle>
+
+<section class="hero-panel">
+    <div>
+        <p class="eyebrow">Muster AG</p>
+        <h1>Order Management</h1>
+        <p class="hero-text">
+            Blazor presentation layer for customer, article, article group and order management.
+            The UI calls Application Layer use cases only.
+        </p>
+        <a class="btn btn-primary" href="customers">Open customer management</a>
+    </div>
+</section>
+
+<div class="dashboard-grid">
+    <article class="metric-card">
+        <span class="metric-label">Architecture</span>
+        <strong>Vertical slices</strong>
+        <p>Each page maps to one Application use case.</p>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Persistence</span>
+        <strong>EF Core + SQL Server</strong>
+        <p>Infrastructure hides database access behind repository interfaces.</p>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">UI</span>
+        <strong>Blazor Server</strong>
+        <p>Components stay thin and delegate decisions to use cases.</p>
+    </article>
+</div>

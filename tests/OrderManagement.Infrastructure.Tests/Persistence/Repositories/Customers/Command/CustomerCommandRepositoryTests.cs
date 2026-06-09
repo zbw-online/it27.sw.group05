@@ -24,7 +24,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Customer
         public async Task Add_WithValidCustomer_ShouldPersistCustomerAndAddressAndGenerateId()
         {
             Customer customer = Customer.Create(
-                customerNr: "C-20001",
+                customerNr: "CU20001",
                 lastName: "Muster",
                 surName: "Hans",
                 email: "hans.muster@test.local",
@@ -54,7 +54,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Customer
                 .SingleOrDefaultAsync(c => c.Id == customerId);
 
             Assert.IsNotNull(persisted);
-            Assert.AreEqual("C-20001", persisted.CustomerNumber.Value);
+            Assert.AreEqual("CU20001", persisted.CustomerNumber.Value);
             Assert.AreEqual("Muster", persisted.LastName);
             Assert.AreEqual("Hans", persisted.SurName);
             Assert.AreEqual(1, persisted.Addresses.Count);

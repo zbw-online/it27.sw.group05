@@ -38,9 +38,9 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Customer
         {
             Customer customer = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(
                 DbContext,
-                customerNumber: "C-21001");
+                customerNumber: "CU21001");
 
-            CustomerNumber number = CustomerNumber.Create("C-21001").EnsureValue();
+            CustomerNumber number = CustomerNumber.Create("CU21001").EnsureValue();
             DbContext.ChangeTracker.Clear();
 
             Customer? result = await _repository.GetByCustomerNumberAsync(number);
@@ -80,7 +80,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence.Repositories.Customer
 
             DbContext.ChangeTracker.Clear();
 
-            IReadOnlyList<Customer> result = await _repository.SearchByNameAsync("Schneid");
+            IReadOnlyList<Customer> result = await _repository.SearchByNameOrNumberAsync("Schneid");
 
             Assert.AreEqual(1, result.Count);
             Assert.AreEqual(matching.Id, result.Single().Id);

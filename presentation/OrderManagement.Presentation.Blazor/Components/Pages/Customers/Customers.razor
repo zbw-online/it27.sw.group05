@@ -1,0 +1,396 @@
+@page "/customers"
+@rendermode InteractiveServer
+
+@inject ISearchCustomersUseCase SearchCustomersUseCase
+@inject ICreateCustomerUseCase CreateCustomerUseCase
+@inject IGetCustomerForEditUseCase GetCustomerForEditUseCase
+@inject IUpdateCustomerUseCase UpdateCustomerUseCase
+@inject IDeleteCustomerUseCase DeleteCustomerUseCase
+
+<PageTitle>Customers</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Customer management</p>
+        <h1>Customers</h1>
+        <p class="page-subtitle">Search, create, update and delete customers through Application Layer use cases.</p>
+    </div>
+    <button class="btn btn-primary" @onclick="StartCreate">New customer</button>
+</div>
+
+@if (_message is not null)
+{
+    <div class="alert alert-success">@_message</div>
+}
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+<section class="content-grid">
+    <article class="card-panel customer-form-panel">
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">@(_isEditMode ? "Edit" : "Create")</p>
+                <h2>@(_isEditMode ? "Edit customer" : "Create customer")</h2>
+            </div>
+            @if (_isEditMode)
+            {
+                <button class="btn btn-outline-secondary btn-sm" @onclick="StartCreate">Cancel edit</button>
+            }
+        </div>
+
+        <EditForm Model="_form" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Customer number</label>
+                    <InputText class="form-control" @bind-Value="_form.CustomerNumber" disabled="@_isEditMode" />
+                    <small>Format: CU00001</small>
+                </div>
+
+                <div class="form-field">
+                    <label>Email</label>
+                    <InputText class="form-control" @bind-Value="_form.Email" />
+                </div>
+
+                <div class="form-field">
+                    <label>Last name</label>
+                    <InputText class="form-control" @bind-Value="_form.LastName" />
+                </div>
+
+                <div class="form-field">
+                    <label>Surname</label>
+                    <InputText class="form-control" @bind-Value="_form.SurName" />
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label>Website</label>
+                    <InputText class="form-control" @bind-Value="_form.Website" />
+                    <small>Allowed: google.com, www.google.com, https://policies.google.com/path?x=y</small>
+                </div>
+            </div>
+
+            <hr />
+
+            <div class="section-title compact">
+                <div>
+                    <p class="eyebrow">Address</p>
+                    <h2>Current address</h2>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Valid from</label>
+                    <InputDate class="form-control" @bind-Value="_form.AddressValidFrom" />
+                </div>
+
+                <div class="form-field">
+                    <label>Street</label>
+                    <InputText class="form-control" @bind-Value="_form.Street" />
+                </div>
+
+                <div class="form-field">
+                    <label>House number</label>
+                    <InputText class="form-control" @bind-Value="_form.HouseNumber" />
+                </div>
+
+                <div class="form-field">
+                    <label>Postal code</label>
+                    <InputText class="form-control" @bind-Value="_form.PostalCode" />
+                </div>
+
+                <div class="form-field">
+                    <label>City</label>
+                    <InputText class="form-control" @bind-Value="_form.City" />
+                </div>
+
+                <div class="form-field">
+                    <label>Country code</label>
+                    <InputText class="form-control" @bind-Value="_form.CountryCode" />
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit" disabled="@_isBusy">
+                    @(_isBusy ? "Saving..." : _isEditMode ? "Save changes" : "Create customer")
+                </button>
+            </div>
+        </EditForm>
+    </article>
+
+    <article class="card-panel customer-list-panel">
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">Overview</p>
+                <h2>Customer list</h2>
+            </div>
+        </div>
+
+        <div class="search-row">
+            <InputText class="form-control" placeholder="Search by name, number or email" @bind-Value="_searchTerm" />
+            <button class="btn btn-outline-primary" @onclick="LoadCustomersAsync" disabled="@_isBusy">Search</button>
+        </div>
+
+        @if (_customers.Count == 0)
+        {
+            <div class="empty-state">
+                <strong>No customers found.</strong>
+                <span>Create the first customer or adjust the search.</span>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table customer-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Number</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Address</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (CustomerListItemDto customer in _customers)
+                        {
+                            <tr>
+                                <td><span class="badge-soft">@customer.CustomerNumber</span></td>
+                                <td>@customer.FullName</td>
+                                <td>@customer.Email</td>
+                                <td>@customer.Street @customer.HouseNumber, @customer.PostalCode @customer.City</td>
+                                <td class="table-actions">
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => LoadForEditAsync(customer.CustomerId)">Edit</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(customer.CustomerId)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </article>
+</section>
+
+@code {
+    private readonly CustomerFormModel _form = new();
+    private readonly List<CustomerListItemDto> _customers = [];
+
+    private string? _searchTerm;
+    private string? _message;
+    private string? _error;
+    private bool _isBusy;
+    private bool _isEditMode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomersAsync();
+    }
+
+    private void StartCreate()
+    {
+        _isEditMode = false;
+        _message = null;
+        _error = null;
+        _form.Reset();
+    }
+
+    private async Task LoadCustomersAsync()
+    {
+        _isBusy = true;
+        _error = null;
+
+        var result = await SearchCustomersUseCase.ExecuteAsync(new SearchCustomersQuery(_searchTerm));
+
+        _customers.Clear();
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        _customers.AddRange(result.Value!);
+        _isBusy = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        if (_isEditMode)
+        {
+            var command = new UpdateCustomerCommand(
+                _form.CustomerId,
+                _form.LastName,
+                _form.SurName,
+                _form.Email,
+                _form.Website,
+                DateOnly.FromDateTime(_form.AddressValidFrom),
+                _form.Street,
+                _form.HouseNumber,
+                _form.PostalCode,
+                _form.City,
+                _form.CountryCode);
+
+            var result = await UpdateCustomerUseCase.ExecuteAsync(command);
+
+            if (!result.IsSuccess)
+            {
+                _error = result.Error;
+                _isBusy = false;
+                return;
+            }
+
+            _message = "Customer was updated.";
+        }
+        else
+        {
+            var command = new CreateCustomerCommand(
+                _form.CustomerNumber,
+                _form.LastName,
+                _form.SurName,
+                _form.Email,
+                _form.Website,
+                DateOnly.FromDateTime(_form.AddressValidFrom),
+                _form.Street,
+                _form.HouseNumber,
+                _form.PostalCode,
+                _form.City,
+                _form.CountryCode);
+
+            var result = await CreateCustomerUseCase.ExecuteAsync(command);
+
+            if (!result.IsSuccess)
+            {
+                _error = result.Error;
+                _isBusy = false;
+                return;
+            }
+
+            _message = $"Customer {result.Value!.CustomerNumber} was created.";
+            _form.Reset();
+        }
+
+        await LoadCustomersAsync();
+        _isBusy = false;
+    }
+
+    private async Task LoadForEditAsync(int customerId)
+    {
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        var result = await GetCustomerForEditUseCase.ExecuteAsync(new GetCustomerForEditQuery(customerId));
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        GetCustomerForEditResponse customer = result.Value!;
+
+        _form.CustomerId = customer.CustomerId;
+        _form.CustomerNumber = customer.CustomerNumber;
+        _form.LastName = customer.LastName;
+        _form.SurName = customer.SurName;
+        _form.Email = customer.Email;
+        _form.Website = customer.Website;
+        _form.AddressValidFrom = customer.AddressValidFrom.ToDateTime(TimeOnly.MinValue);
+        _form.Street = customer.Street;
+        _form.HouseNumber = customer.HouseNumber;
+        _form.PostalCode = customer.PostalCode;
+        _form.City = customer.City;
+        _form.CountryCode = customer.CountryCode;
+
+        _isEditMode = true;
+        _isBusy = false;
+    }
+
+    private async Task DeleteAsync(int customerId)
+    {
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        var result = await DeleteCustomerUseCase.ExecuteAsync(new DeleteCustomerCommand(customerId));
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        _message = "Customer was deleted.";
+        await LoadCustomersAsync();
+        _isBusy = false;
+    }
+
+    private sealed class CustomerFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.RegularExpression(@"^CU\d{5}$", ErrorMessage = "Customer number must match CU00001.")]
+        public string CustomerNumber { get; set; } = "CU00001";
+
+        public int CustomerId { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string LastName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string SurName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        public string? Website { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public DateTime AddressValidFrom { get; set; } = DateTime.Today;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Street { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string HouseNumber { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string PostalCode { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string City { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(2, MinimumLength = 2)]
+        public string CountryCode { get; set; } = "CH";
+
+        public void Reset()
+        {
+            CustomerId = 0;
+            CustomerNumber = "CU00001";
+            LastName = string.Empty;
+            SurName = string.Empty;
+            Email = string.Empty;
+            Website = null;
+            AddressValidFrom = DateTime.Today;
+            Street = string.Empty;
+            HouseNumber = string.Empty;
+            PostalCode = string.Empty;
+            City = string.Empty;
+            CountryCode = "CH";
+        }
+    }
+}

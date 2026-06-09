@@ -62,7 +62,7 @@ namespace OrderManagement.Infrastructure.Tests.Persistence
         {
             Customer existing = await InfrastructureTestDataFactory.CreatePersistedCustomerAsync(
                 DbContext,
-                customerNumber: "C-19999",
+                customerNumber: "CU19999",
                 email: "existing@test.local");
 
             Customer duplicate = Customer.Create(
