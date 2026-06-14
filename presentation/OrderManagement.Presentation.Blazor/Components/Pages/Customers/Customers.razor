@@ -6,6 +6,8 @@
 @inject IGetCustomerForEditUseCase GetCustomerForEditUseCase
 @inject IUpdateCustomerUseCase UpdateCustomerUseCase
 @inject IDeleteCustomerUseCase DeleteCustomerUseCase
+@inject IGetCustomerDetailsUseCase GetCustomerDetailsUseCase
+@inject IAddCustomerAddressUseCase AddCustomerAddressUseCase
 
 <PageTitle>Customers</PageTitle>
 
@@ -28,7 +30,7 @@
     <div class="alert alert-danger">@_error</div>
 }
 
-<section class="content-grid">
+<section class="content-grid customer-management-grid">
     <article class="card-panel customer-form-panel">
         <div class="section-title">
             <div>
@@ -78,8 +80,8 @@
 
             <div class="section-title compact">
                 <div>
-                    <p class="eyebrow">Address</p>
-                    <h2>Current address</h2>
+                    <p class="eyebrow">Initial/current address</p>
+                    <h2>@(_isEditMode ? "Change current address" : "Initial address")</h2>
                 </div>
             </div>
 
@@ -152,21 +154,21 @@
                             <th>Number</th>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Address</th>
+                            <th>Current address</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (CustomerListItemDto customer in _customers)
                         {
-                            <tr>
+                            <tr class="customer-row @(_selectedCustomer?.CustomerId == customer.CustomerId ? "selected" : null)" @onclick="() => LoadDetailsAsync(customer.CustomerId)">
                                 <td><span class="badge-soft">@customer.CustomerNumber</span></td>
                                 <td>@customer.FullName</td>
                                 <td>@customer.Email</td>
                                 <td>@customer.Street @customer.HouseNumber, @customer.PostalCode @customer.City</td>
                                 <td class="table-actions">
-                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => LoadForEditAsync(customer.CustomerId)">Edit</button>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(customer.CustomerId)">Delete</button>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => LoadForEditAsync(customer.CustomerId)" @onclick:stopPropagation="true">Edit</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(customer.CustomerId)" @onclick:stopPropagation="true">Delete</button>
                                 </td>
                             </tr>
                         }
@@ -175,12 +177,134 @@
             </div>
         }
     </article>
+
+    <aside class="card-panel customer-detail-panel">
+        @if (_selectedCustomer is null)
+        {
+            <div class="empty-state detail-empty-state">
+                <strong>No customer selected.</strong>
+                <span>Click a customer row to open details and manage addresses.</span>
+            </div>
+        }
+        else
+        {
+            <div class="section-title">
+                <div>
+                    <p class="eyebrow">Details</p>
+                    <h2>@_selectedCustomer.FullName</h2>
+                    <p class="page-subtitle mb-0">@_selectedCustomer.CustomerNumber · @_selectedCustomer.Email</p>
+                </div>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="CloseDetails">Close</button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_selectedCustomer.Website))
+            {
+                <p><strong>Website:</strong> @_selectedCustomer.Website</p>
+            }
+
+            <section class="address-block current-address-block">
+                <div class="address-block-header">
+                    <span class="status-pill current">Current</span>
+                    <strong>Actual address</strong>
+                </div>
+                @if (_selectedCustomer.CurrentAddress is null)
+                {
+                    <p class="text-muted">No current address exists.</p>
+                }
+                else
+                {
+                    @RenderAddress(_selectedCustomer.CurrentAddress)
+                }
+            </section>
+
+            <section class="address-block">
+                <div class="address-block-header">
+                    <span class="status-pill future">New</span>
+                    <strong>Add future/current address</strong>
+                </div>
+
+                <EditForm Model="_addressForm" OnValidSubmit="AddAddressAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="form-grid address-form-grid">
+                        <div class="form-field">
+                            <label>Valid from</label>
+                            <InputDate class="form-control" @bind-Value="_addressForm.ValidFrom" />
+                        </div>
+                        <div class="form-field">
+                            <label>Street</label>
+                            <InputText class="form-control" @bind-Value="_addressForm.Street" />
+                        </div>
+                        <div class="form-field">
+                            <label>House number</label>
+                            <InputText class="form-control" @bind-Value="_addressForm.HouseNumber" />
+                        </div>
+                        <div class="form-field">
+                            <label>Postal code</label>
+                            <InputText class="form-control" @bind-Value="_addressForm.PostalCode" />
+                        </div>
+                        <div class="form-field">
+                            <label>City</label>
+                            <InputText class="form-control" @bind-Value="_addressForm.City" />
+                        </div>
+                        <div class="form-field">
+                            <label>Country code</label>
+                            <InputText class="form-control" @bind-Value="_addressForm.CountryCode" />
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn btn-primary" type="submit" disabled="@_isBusy">Add address</button>
+                    </div>
+                </EditForm>
+            </section>
+
+            <section class="address-block">
+                <div class="address-block-header">
+                    <span class="status-pill future">Future</span>
+                    <strong>Future addresses</strong>
+                </div>
+                @if (_selectedCustomer.FutureAddresses.Count == 0)
+                {
+                    <p class="text-muted">No future addresses scheduled.</p>
+                }
+                else
+                {
+                    @foreach (CustomerAddressDto address in _selectedCustomer.FutureAddresses)
+                    {
+                        @RenderAddress(address)
+                    }
+                }
+            </section>
+
+            <section class="address-block">
+                <div class="address-block-header">
+                    <span class="status-pill previous">History</span>
+                    <strong>Previous addresses</strong>
+                </div>
+                @if (_selectedCustomer.PreviousAddresses.Count == 0)
+                {
+                    <p class="text-muted">No previous addresses.</p>
+                }
+                else
+                {
+                    @foreach (CustomerAddressDto address in _selectedCustomer.PreviousAddresses)
+                    {
+                        @RenderAddress(address)
+                    }
+                }
+            </section>
+        }
+    </aside>
 </section>
 
 @code {
     private readonly CustomerFormModel _form = new();
+    private readonly CustomerAddressFormModel _addressForm = new();
     private readonly List<CustomerListItemDto> _customers = [];
 
+    private GetCustomerDetailsResponse? _selectedCustomer;
     private string? _searchTerm;
     private string? _message;
     private string? _error;
@@ -220,6 +344,31 @@
         _isBusy = false;
     }
 
+    private async Task LoadDetailsAsync(int customerId)
+    {
+        _isBusy = true;
+        _error = null;
+
+        var result = await GetCustomerDetailsUseCase.ExecuteAsync(new GetCustomerDetailsQuery(customerId));
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        _selectedCustomer = result.Value!;
+        _addressForm.Reset();
+        _isBusy = false;
+    }
+
+    private void CloseDetails()
+    {
+        _selectedCustomer = null;
+        _addressForm.Reset();
+    }
+
     private async Task SaveAsync()
     {
         _isBusy = true;
@@ -251,6 +400,10 @@
             }
 
             _message = "Customer was updated.";
+            if (_selectedCustomer?.CustomerId == _form.CustomerId)
+            {
+                await LoadDetailsAsync(_form.CustomerId);
+            }
         }
         else
         {
@@ -316,6 +469,46 @@
 
         _isEditMode = true;
         _isBusy = false;
+
+        await LoadDetailsAsync(customerId);
+    }
+
+    private async Task AddAddressAsync()
+    {
+        if (_selectedCustomer is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        var command = new AddCustomerAddressCommand(
+            _selectedCustomer.CustomerId,
+            DateOnly.FromDateTime(_addressForm.ValidFrom),
+            _addressForm.Street,
+            _addressForm.HouseNumber,
+            _addressForm.PostalCode,
+            _addressForm.City,
+            _addressForm.CountryCode);
+
+        var result = await AddCustomerAddressUseCase.ExecuteAsync(command);
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        int customerId = _selectedCustomer.CustomerId;
+        _message = "Address was added.";
+        _addressForm.Reset();
+
+        await LoadCustomersAsync();
+        await LoadDetailsAsync(customerId);
+        _isBusy = false;
     }
 
     private async Task DeleteAsync(int customerId)
@@ -333,10 +526,36 @@
             return;
         }
 
+        if (_selectedCustomer?.CustomerId == customerId)
+        {
+            _selectedCustomer = null;
+        }
+
         _message = "Customer was deleted.";
         await LoadCustomersAsync();
         _isBusy = false;
     }
+
+    private static RenderFragment RenderAddress(CustomerAddressDto address) => builder =>
+    {
+        int sequence = 0;
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", "address-card");
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", "address-card-main");
+        builder.OpenElement(sequence++, "strong");
+        builder.AddContent(sequence++, $"{address.Street} {address.HouseNumber}");
+        builder.CloseElement();
+        builder.OpenElement(sequence++, "span");
+        builder.AddContent(sequence++, $"{address.PostalCode} {address.City}, {address.CountryCode}");
+        builder.CloseElement();
+        builder.CloseElement();
+        builder.OpenElement(sequence++, "small");
+        string validTo = address.ValidTo is null ? "open" : address.ValidTo.Value.ToString("yyyy-MM-dd");
+        builder.AddContent(sequence++, $"Valid {address.ValidFrom:yyyy-MM-dd} – {validTo}");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
 
     private sealed class CustomerFormModel
     {
@@ -386,6 +605,38 @@
             Email = string.Empty;
             Website = null;
             AddressValidFrom = DateTime.Today;
+            Street = string.Empty;
+            HouseNumber = string.Empty;
+            PostalCode = string.Empty;
+            City = string.Empty;
+            CountryCode = "CH";
+        }
+    }
+
+    private sealed class CustomerAddressFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public DateTime ValidFrom { get; set; } = DateTime.Today.AddDays(1);
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Street { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string HouseNumber { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string PostalCode { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string City { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(2, MinimumLength = 2)]
+        public string CountryCode { get; set; } = "CH";
+
+        public void Reset()
+        {
+            ValidFrom = DateTime.Today.AddDays(1);
             Street = string.Empty;
             HouseNumber = string.Empty;
             PostalCode = string.Empty;

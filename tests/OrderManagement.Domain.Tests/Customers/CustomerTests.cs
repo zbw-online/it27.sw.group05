@@ -127,10 +127,18 @@ namespace OrderManagement.Domain.Tests.Customers
         }
 
         [TestMethod]
-        public void CreateWebsiteNotAbsoluteUrlShouldFail()
+        public void CreateWebsiteWithoutSchemeAndPathShouldSucceed()
         {
-            // ECP: invalid website class (not absolute)
+            // ECP: valid website class according to the project requirement.
             Result<Customer> r = CreateValidCustomer(website: "example.com/path");
+
+            Assert.IsTrue(r.IsSuccess);
+        }
+
+        [TestMethod]
+        public void CreateWebsiteWithWhitespaceInsideDomainShouldFail()
+        {
+            Result<Customer> r = CreateValidCustomer(website: "exa mple.com");
 
             Assert.IsFalse(r.IsSuccess);
         }
@@ -280,6 +288,46 @@ namespace OrderManagement.Domain.Tests.Customers
             CustomerAddress first = c.Addresses.OrderBy(a => a.ValidFrom).First();
             Assert.IsNotNull(first.ValidTo);
             Assert.AreEqual(new DateOnly(2025, 01, 31), first.ValidTo!.Value);
+        }
+
+
+
+        [TestMethod]
+        public void ChangeAddressFutureAddressShouldKeepCurrentAddressActiveUntilFutureValidFrom()
+        {
+            Customer c = CreateValidCustomer().Value!;
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            DateOnly currentValidFrom = today.AddMonths(-1);
+            DateOnly futureValidFrom = today.AddMonths(1);
+
+            Result r1 = c.ChangeAddress(
+                validFrom: currentValidFrom,
+                street: "Current Street",
+                houseNumber: "1",
+                postalCode: "9000",
+                city: "St. Gallen",
+                countryCode: "CH");
+
+            Result r2 = c.ChangeAddress(
+                validFrom: futureValidFrom,
+                street: "Future Street",
+                houseNumber: "2",
+                postalCode: "8000",
+                city: "Zurich",
+                countryCode: "CH");
+
+            Assert.IsTrue(r1.IsSuccess, r1.Error);
+            Assert.IsTrue(r2.IsSuccess, r2.Error);
+
+            CustomerAddress? current = c.AddressAt(today);
+            Assert.IsNotNull(current);
+            Assert.AreEqual("Current Street", current.Street);
+
+            CustomerAddress future = c.Addresses.Single(a => a.ValidFrom == futureValidFrom);
+            Assert.AreEqual("Future Street", future.Street);
+
+            CustomerAddress oldCurrent = c.Addresses.Single(a => a.ValidFrom == currentValidFrom);
+            Assert.AreEqual(futureValidFrom.AddDays(-1), oldCurrent.ValidTo);
         }
 
         [TestMethod]

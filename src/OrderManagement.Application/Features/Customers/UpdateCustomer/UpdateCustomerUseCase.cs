@@ -63,17 +63,29 @@ namespace OrderManagement.Application.Features.Customers.UpdateCustomer
                 return websiteResult;
             }
 
-            Result addressResult = customer.ChangeAddress(
-                command.AddressValidFrom,
-                command.Street,
-                command.HouseNumber,
-                command.PostalCode,
-                command.City,
-                command.CountryCode);
+            CustomerAddress? currentAddress = customer.AddressAt(DateOnly.FromDateTime(DateTime.Today));
+            bool addressChanged = currentAddress is null ||
+                currentAddress.ValidFrom != command.AddressValidFrom ||
+                !string.Equals(currentAddress.Street, command.Street.Trim(), StringComparison.Ordinal) ||
+                !string.Equals(currentAddress.HouseNumber, command.HouseNumber.Trim(), StringComparison.Ordinal) ||
+                !string.Equals(currentAddress.PostalCode, command.PostalCode.Trim(), StringComparison.Ordinal) ||
+                !string.Equals(currentAddress.City, command.City.Trim(), StringComparison.Ordinal) ||
+                !string.Equals(currentAddress.CountryCode, command.CountryCode.Trim().ToUpperInvariant(), StringComparison.Ordinal);
 
-            if (!addressResult.IsSuccess)
+            if (addressChanged)
             {
-                return addressResult;
+                Result addressResult = customer.ChangeAddress(
+                    command.AddressValidFrom,
+                    command.Street,
+                    command.HouseNumber,
+                    command.PostalCode,
+                    command.City,
+                    command.CountryCode);
+
+                if (!addressResult.IsSuccess)
+                {
+                    return addressResult;
+                }
             }
 
             _customerCommandRepository.Update(customer);
