@@ -71,18 +71,13 @@ namespace OrderManagement.Domain.Customers
             if (ln.Length == 0) return Results.Fail<Customer>("LastName is required.");
             if (sn.Length == 0) return Results.Fail<Customer>("SurName is required.");
 
-            // Website Rules
-            string? w = null;
-            string websiteTrim = (website ?? string.Empty).Trim();
-            if (websiteTrim.Length > 0)
+            Result<string?> websiteResult = NormalizeWebsite(website);
+            if (!websiteResult.IsSuccess)
             {
-                if (websiteTrim.Length > 255) return Results.Fail<Customer>("Website is too long.");
-                if (!Uri.TryCreate(websiteTrim, UriKind.Absolute, out _))
-                {
-                    return Results.Fail<Customer>("Website must be a valid absolute URL.");
-                }
-                w = websiteTrim;
+                return Results.Fail<Customer>(websiteResult.Error!);
             }
+
+            string? w = websiteResult.Value;
 
             var customer = new Customer(
                 nr.Value!,
@@ -140,21 +135,41 @@ namespace OrderManagement.Domain.Customers
 
         public Result ChangeWebsite(string? website)
         {
-            string w = (website ?? string.Empty).Trim();
-
-            if (w.Length == 0)
+            Result<string?> websiteResult = NormalizeWebsite(website);
+            if (!websiteResult.IsSuccess)
             {
-                Website = null;
-                return Result.Success();
+                return Result.Fail(websiteResult.Error!);
             }
 
-            if (w.Length > 255) return Result.Fail("Website is too long.");
-            if (!Uri.TryCreate(w, UriKind.Absolute, out _))
-            {
-                return Result.Fail("Website must be a valid absolute URL.");
-            }
-            Website = w;
+            Website = websiteResult.Value;
             return Result.Success();
+        }
+
+
+        private static Result<string?> NormalizeWebsite(string? website)
+        {
+            string value = (website ?? string.Empty).Trim();
+
+            if (value.Length == 0)
+            {
+                return Results.Success<string?>(null);
+            }
+
+            if (value.Length > 255)
+            {
+                return Results.Fail<string?>("Website is too long.");
+            }
+
+            string valueForValidation = value.Contains("://", StringComparison.Ordinal)
+                ? value
+                : $"https://{value}";
+
+            return !Uri.TryCreate(valueForValidation, UriKind.Absolute, out Uri? uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+                string.IsNullOrWhiteSpace(uri.Host) ||
+                !uri.Host.Contains('.', StringComparison.Ordinal)
+                ? Results.Fail<string?>("Website must be a valid website address.")
+                : Results.Success<string?>(value);
         }
 
         public Result ChangeName(string lastName, string surName)
