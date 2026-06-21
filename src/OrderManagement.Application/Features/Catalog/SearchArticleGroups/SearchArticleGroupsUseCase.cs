@@ -16,19 +16,11 @@ namespace OrderManagement.Application.Features.Catalog.SearchArticleGroups
             SearchArticleGroupsQuery query,
             CancellationToken cancellationToken = default)
         {
-            IReadOnlyList<ArticleGroup> groups;
-
-            if (query.ParentGroupId.HasValue)
-            {
-                groups = await _articleGroupQueryRepository.GetByParentAsync(
+            IReadOnlyList<ArticleGroup> groups = query.ParentGroupId.HasValue
+                ? await _articleGroupQueryRepository.GetByParentAsync(
                     new ArticleGroupId(query.ParentGroupId.Value),
-                    cancellationToken);
-            }
-            else
-            {
-                groups = await _articleGroupQueryRepository.GetListAsync(cancellationToken);
-            }
-
+                    cancellationToken)
+                : await _articleGroupQueryRepository.GetListAsync(cancellationToken);
             string term = (query.SearchTerm ?? string.Empty).Trim();
 
             if (term.Length > 0)
@@ -37,7 +29,7 @@ namespace OrderManagement.Application.Features.Catalog.SearchArticleGroups
                     g.Name.Contains(term, StringComparison.OrdinalIgnoreCase))];
             }
 
-            Dictionary<int, string> nameById = groups.ToDictionary(g => g.Id.Value, g => g.Name);
+            var nameById = groups.ToDictionary(g => g.Id.Value, g => g.Name);
 
             IReadOnlyList<ArticleGroupListItemDto> result = [.. groups
                 .OrderBy(g => g.Name)

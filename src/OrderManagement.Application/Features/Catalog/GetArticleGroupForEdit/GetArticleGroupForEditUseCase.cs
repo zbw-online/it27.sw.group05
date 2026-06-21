@@ -19,12 +19,9 @@ namespace OrderManagement.Application.Features.Catalog.GetArticleGroupForEdit
                 new ArticleGroupId(query.ArticleGroupId),
                 cancellationToken);
 
-            if (group is null)
-            {
-                return Results.Fail<GetArticleGroupForEditResponse>("Article group was not found.");
-            }
-
-            return Results.Success(new GetArticleGroupForEditResponse(
+            return group is null
+                ? Results.Fail<GetArticleGroupForEditResponse>("Article group was not found.")
+                : Results.Success(new GetArticleGroupForEditResponse(
                 group.Id.Value,
                 group.Name,
                 group.ParentGroupId?.Value));

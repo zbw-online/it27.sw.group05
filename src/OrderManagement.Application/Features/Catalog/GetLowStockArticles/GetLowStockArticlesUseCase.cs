@@ -27,7 +27,7 @@ namespace OrderManagement.Application.Features.Catalog.GetLowStockArticles
                 cancellationToken);
 
             IReadOnlyList<ArticleGroup> groups = await _articleGroupQueryRepository.GetListAsync(cancellationToken);
-            Dictionary<int, string> groupNames = groups.ToDictionary(g => g.Id.Value, g => g.Name);
+            var groupNames = groups.ToDictionary(g => g.Id.Value, g => g.Name);
 
             IReadOnlyList<ArticleListItemDto> result = [.. articles
                 .OrderBy(a => a.Stock)

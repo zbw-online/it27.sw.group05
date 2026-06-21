@@ -15,19 +15,11 @@ namespace OrderManagement.Application.Features.Catalog.GetArticleGroupHierarchy
             GetArticleGroupHierarchyQuery query,
             CancellationToken cancellationToken = default)
         {
-            IReadOnlyList<ArticleGroupHierarchyDto> hierarchy;
-
-            if (query.RootGroupId.HasValue)
-            {
-                hierarchy = await _articleGroupQueryRepository.GetHierarchyFromRootAsync(
+            IReadOnlyList<ArticleGroupHierarchyDto> hierarchy = query.RootGroupId.HasValue
+                ? await _articleGroupQueryRepository.GetHierarchyFromRootAsync(
                     new ArticleGroupId(query.RootGroupId.Value),
-                    cancellationToken);
-            }
-            else
-            {
-                hierarchy = await _articleGroupQueryRepository.GetFullHierarchyAsync(cancellationToken);
-            }
-
+                    cancellationToken)
+                : await _articleGroupQueryRepository.GetFullHierarchyAsync(cancellationToken);
             return Results.Success(hierarchy);
         }
     }

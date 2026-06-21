@@ -18,12 +18,9 @@ namespace OrderManagement.Application.Features.Catalog.GetArticleForEdit
                 new ArticleId(query.ArticleId),
                 cancellationToken);
 
-            if (article is null)
-            {
-                return Results.Fail<GetArticleForEditResponse>("Article was not found.");
-            }
-
-            return Results.Success(new GetArticleForEditResponse(
+            return article is null
+                ? Results.Fail<GetArticleForEditResponse>("Article was not found.")
+                : Results.Success(new GetArticleForEditResponse(
                 article.Id.Value,
                 article.ArticleNumber.Value,
                 article.Name,
