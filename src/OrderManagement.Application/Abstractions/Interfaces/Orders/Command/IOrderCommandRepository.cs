@@ -7,5 +7,8 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Orders.Command
 {
     public interface IOrderCommandRepository : ICommandRepository<Order, OrderId>
     {
+        Task<Order?> GetByIdAsync(
+            OrderId id,
+            CancellationToken cancellationToken = default);
     }
 }

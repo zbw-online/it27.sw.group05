@@ -31,5 +31,43 @@ steps:
 - script: dotnet restore
   displayName: Restore
 
-- script: dotnet test --configuration Release --no-restore
-  displayName: Run tests
+- script: >
+    dotnet test --configuration Release --no-restore
+    --settings coverage.runsettings
+    --collect:"XPlat Code Coverage"
+    --results-directory $(Agent.TempDirectory)/coverage
+  displayName: Run tests with coverage collection
+
+- script: dotnet tool install --global dotnet-reportgenerator-globaltool
+  displayName: Install ReportGenerator
+
+- script: >
+    reportgenerator
+    -reports:$(Agent.TempDirectory)/coverage/**/coverage.cobertura.xml
+    -targetdir:$(Build.ArtifactStagingDirectory)/coverage-report
+    -reporttypes:Html;TextSummary;Cobertura
+  displayName: Generate coverage report
+
+- task: PublishPipelineArtifact@1
+  displayName: Publish coverage report
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)/coverage-report'
+    artifact: 'CoverageReport'
+    publishLocation: 'pipeline'
+
+- script: |
+    set -euo pipefail
+
+    SUMMARY="$(Build.ArtifactStagingDirectory)/coverage-report/Summary.txt"
+    cat "$SUMMARY"
+
+    LINE_COVERAGE=$(grep -m1 "Line coverage:" "$SUMMARY" | grep -oE "[0-9]+(\.[0-9]+)?" | head -1)
+    THRESHOLD=50
+
+    echo "Line coverage: ${LINE_COVERAGE}% (required: ${THRESHOLD}%)"
+
+    if awk -v cov="$LINE_COVERAGE" -v min="$THRESHOLD" 'BEGIN { exit !(cov < min) }'; then
+      echo "##vso[task.logissue type=error]Line coverage ${LINE_COVERAGE}% is below the required ${THRESHOLD}% minimum."
+      exit 1
+    fi
+  displayName: Enforce minimum coverage threshold

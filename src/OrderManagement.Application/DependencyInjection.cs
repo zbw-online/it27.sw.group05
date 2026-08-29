@@ -20,6 +20,13 @@ using OrderManagement.Application.Features.Customers.GetCustomerDetails;
 using OrderManagement.Application.Features.Customers.GetCustomerForEdit;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
 using OrderManagement.Application.Features.Customers.UpdateCustomer;
+using OrderManagement.Application.Features.Orders.AddOrderLine;
+using OrderManagement.Application.Features.Orders.CreateOrder;
+using OrderManagement.Application.Features.Orders.DeleteOrder;
+using OrderManagement.Application.Features.Orders.GetOrderDetails;
+using OrderManagement.Application.Features.Orders.RemoveOrderLine;
+using OrderManagement.Application.Features.Orders.SearchOrders;
+using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity;
 
 namespace OrderManagement.Application
 {
@@ -48,6 +55,14 @@ namespace OrderManagement.Application
             _ = services.AddScoped<IRenameArticleGroupUseCase, RenameArticleGroupUseCase>();
             _ = services.AddScoped<IDeleteArticleGroupUseCase, DeleteArticleGroupUseCase>();
             _ = services.AddScoped<IGetArticleGroupHierarchyUseCase, GetArticleGroupHierarchyUseCase>();
+
+            _ = services.AddScoped<ICreateOrderUseCase, CreateOrderUseCase>();
+            _ = services.AddScoped<ISearchOrdersUseCase, SearchOrdersUseCase>();
+            _ = services.AddScoped<IGetOrderDetailsUseCase, GetOrderDetailsUseCase>();
+            _ = services.AddScoped<IAddOrderLineUseCase, AddOrderLineUseCase>();
+            _ = services.AddScoped<IUpdateOrderLineQuantityUseCase, UpdateOrderLineQuantityUseCase>();
+            _ = services.AddScoped<IRemoveOrderLineUseCase, RemoveOrderLineUseCase>();
+            _ = services.AddScoped<IDeleteOrderUseCase, DeleteOrderUseCase>();
 
             return services;
         }

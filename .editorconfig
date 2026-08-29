@@ -123,10 +123,7 @@ dotnet_naming_style.pascal_case.capitalization = pascal_case
 # TEST PROJECT CONVENTIONS
 # =====================================================
 
-[**/*.Tests/**/*.cs]
-dotnet_diagnostic.CA1707.severity = none
-
-[SharedKernel.Tests/**/*.cs]
+[**/*Tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
 
 [*.cs]
