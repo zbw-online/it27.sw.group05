@@ -1,0 +1,564 @@
+@page "/orders"
+@rendermode InteractiveServer
+
+@inject ISearchOrdersUseCase SearchOrdersUseCase
+@inject ICreateOrderUseCase CreateOrderUseCase
+@inject IGetOrderDetailsUseCase GetOrderDetailsUseCase
+@inject IAddOrderLineUseCase AddOrderLineUseCase
+@inject IUpdateOrderLineQuantityUseCase UpdateOrderLineQuantityUseCase
+@inject IRemoveOrderLineUseCase RemoveOrderLineUseCase
+@inject IDeleteOrderUseCase DeleteOrderUseCase
+@inject ISearchArticlesUseCase SearchArticlesUseCase
+@inject ISearchCustomersUseCase SearchCustomersUseCase
+
+<PageTitle>Orders</PageTitle>
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Order management</p>
+        <h1>Orders</h1>
+        <p class="page-subtitle">Create, search, edit and delete orders through Application Layer use cases.</p>
+    </div>
+</div>
+
+@if (_message is not null)
+{
+    <div class="alert alert-success">@_message</div>
+}
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+<section class="content-grid customer-management-grid">
+    <article class="card-panel customer-form-panel">
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">Create</p>
+                <h2>New order</h2>
+            </div>
+        </div>
+
+        <EditForm Model="_form" OnValidSubmit="CreateAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Order number</label>
+                    <InputText class="form-control" @bind-Value="_form.OrderNumber" />
+                    <small>Format: ORD-2026-001</small>
+                </div>
+
+                <div class="form-field">
+                    <label>Customer number</label>
+                    <InputText class="form-control" @bind-Value="_form.CustomerNumber" />
+                </div>
+            </div>
+
+            <hr />
+
+            <div class="section-title compact">
+                <div>
+                    <p class="eyebrow">Delivery address</p>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Street</label>
+                    <InputText class="form-control" @bind-Value="_form.Street" />
+                </div>
+                <div class="form-field">
+                    <label>House number</label>
+                    <InputText class="form-control" @bind-Value="_form.HouseNumber" />
+                </div>
+                <div class="form-field">
+                    <label>Postal code</label>
+                    <InputText class="form-control" @bind-Value="_form.PostalCode" />
+                </div>
+                <div class="form-field">
+                    <label>City</label>
+                    <InputText class="form-control" @bind-Value="_form.City" />
+                </div>
+                <div class="form-field">
+                    <label>Country code</label>
+                    <InputText class="form-control" @bind-Value="_form.CountryCode" />
+                </div>
+            </div>
+
+            <hr />
+
+            <div class="section-title compact">
+                <div>
+                    <p class="eyebrow">Order lines</p>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AddFormLine">Add line</button>
+            </div>
+
+            @foreach (OrderLineFormModel line in _form.Lines)
+            {
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Article number</label>
+                        <InputText class="form-control" @bind-Value="line.ArticleNumber" />
+                    </div>
+                    <div class="form-field">
+                        <label>Quantity</label>
+                        <InputNumber class="form-control" @bind-Value="line.Quantity" />
+                    </div>
+                    <div class="form-field">
+                        <label>&nbsp;</label>
+                        <button type="button" class="btn btn-outline-danger" @onclick="() => _form.Lines.Remove(line)">Remove</button>
+                    </div>
+                </div>
+            }
+
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit" disabled="@_isBusy">
+                    @(_isBusy ? "Saving..." : "Create order")
+                </button>
+            </div>
+        </EditForm>
+    </article>
+
+    <article class="card-panel customer-list-panel">
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">Overview</p>
+                <h2>Order list</h2>
+            </div>
+        </div>
+
+        <div class="search-row">
+            <InputText class="form-control" placeholder="Search by order number or customer number" @bind-Value="_searchTerm" />
+            <button class="btn btn-outline-primary" @onclick="LoadOrdersAsync" disabled="@_isBusy">Search</button>
+        </div>
+
+        @if (_orders.Count == 0)
+        {
+            <div class="empty-state">
+                <strong>No orders found.</strong>
+                <span>Create the first order or adjust the search.</span>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table customer-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Order number</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Lines</th>
+                            <th>Total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (OrderListItemDto order in _orders)
+                        {
+                            <tr class="customer-row @(_selectedOrder?.OrderId == order.OrderId ? "selected" : null)" @onclick="() => LoadDetailsAsync(order.OrderId)">
+                                <td><span class="badge-soft">@order.OrderNumber</span></td>
+                                <td>@order.OrderDate.ToString("yyyy-MM-dd")</td>
+                                <td>@order.CustomerNumber</td>
+                                <td>@order.LineCount</td>
+                                <td>@order.TotalAmount.ToString("0.00") @order.TotalCurrency</td>
+                                <td class="table-actions">
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(order.OrderId)" @onclick:stopPropagation="true">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </article>
+
+    <aside class="card-panel customer-detail-panel">
+        @if (_selectedOrder is null)
+        {
+            <div class="empty-state detail-empty-state">
+                <strong>No order selected.</strong>
+                <span>Click an order row to open details and manage its lines.</span>
+            </div>
+        }
+        else
+        {
+            <div class="section-title">
+                <div>
+                    <p class="eyebrow">Details</p>
+                    <h2>@_selectedOrder.OrderNumber</h2>
+                    <p class="page-subtitle mb-0">@_selectedOrder.CustomerNumber · @_selectedOrder.CustomerName</p>
+                </div>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="CloseDetails">Close</button>
+            </div>
+
+            <p>
+                <strong>Delivery address:</strong>
+                @_selectedOrder.DeliveryStreet @_selectedOrder.DeliveryHouseNumber, @_selectedOrder.DeliveryPostalCode @_selectedOrder.DeliveryCity, @_selectedOrder.DeliveryCountryCode
+            </p>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Article</th>
+                            <th>Unit price</th>
+                            <th>Quantity</th>
+                            <th>Line total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (OrderLineDto line in _selectedOrder.Lines)
+                        {
+                            <tr>
+                                <td>@line.ArticleName</td>
+                                <td>@line.UnitPriceAmount.ToString("0.00") @line.UnitPriceCurrency</td>
+                                <td style="max-width: 100px;">
+                                    <input type="number" min="1" class="form-control" value="@line.Quantity"
+                                           @onchange="@(e => UpdateLineQuantityAsync(line.OrderLineId, e.Value))" />
+                                </td>
+                                <td>@line.LineTotalAmount.ToString("0.00") @line.LineTotalCurrency</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveLineAsync(line.OrderLineId)">Remove</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="text-end"><strong>Total</strong></td>
+                            <td colspan="2"><strong>@_selectedOrder.TotalAmount.ToString("0.00") @_selectedOrder.TotalCurrency</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Article number</label>
+                    <InputText class="form-control" @bind-Value="_addLineForm.ArticleNumber" />
+                </div>
+                <div class="form-field">
+                    <label>Quantity</label>
+                    <InputNumber class="form-control" @bind-Value="_addLineForm.Quantity" />
+                </div>
+                <div class="form-field">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-outline-primary" @onclick="AddLineAsync" disabled="@_isBusy">Add line</button>
+                </div>
+            </div>
+        }
+    </aside>
+</section>
+
+@code {
+    private readonly OrderFormModel _form = new();
+    private readonly AddLineFormModel _addLineForm = new();
+    private readonly List<OrderListItemDto> _orders = [];
+
+    private GetOrderDetailsResponse? _selectedOrder;
+    private string? _searchTerm;
+    private string? _message;
+    private string? _error;
+    private bool _isBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrdersAsync();
+    }
+
+    private void AddFormLine() => _form.Lines.Add(new OrderLineFormModel());
+
+    private async Task LoadOrdersAsync()
+    {
+        _isBusy = true;
+        _error = null;
+
+        var result = await SearchOrdersUseCase.ExecuteAsync(new SearchOrdersQuery(_searchTerm));
+
+        _orders.Clear();
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        _orders.AddRange(result.Value!);
+        _isBusy = false;
+    }
+
+    private async Task LoadDetailsAsync(int orderId)
+    {
+        _isBusy = true;
+        _error = null;
+
+        var result = await GetOrderDetailsUseCase.ExecuteAsync(new GetOrderDetailsQuery(orderId));
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        _selectedOrder = result.Value!;
+        _addLineForm.Reset();
+        _isBusy = false;
+    }
+
+    private void CloseDetails() => _selectedOrder = null;
+
+    private async Task<int?> ResolveArticleIdAsync(string articleNumber)
+    {
+        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(articleNumber, null));
+        return result.IsSuccess
+            ? result.Value!.FirstOrDefault(a => a.ArticleNumber == articleNumber)?.ArticleId
+            : null;
+    }
+
+    private async Task<int?> ResolveCustomerIdAsync(string customerNumber)
+    {
+        var result = await SearchCustomersUseCase.ExecuteAsync(new SearchCustomersQuery(customerNumber));
+        return result.IsSuccess
+            ? result.Value!.FirstOrDefault(c => c.CustomerNumber == customerNumber)?.CustomerId
+            : null;
+    }
+
+    private async Task CreateAsync()
+    {
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        int? customerId = await ResolveCustomerIdAsync(_form.CustomerNumber);
+        if (customerId is null)
+        {
+            _error = $"Customer '{_form.CustomerNumber}' was not found.";
+            _isBusy = false;
+            return;
+        }
+
+        List<CreateOrderLineInput> lines = [];
+        foreach (OrderLineFormModel line in _form.Lines)
+        {
+            int? articleId = await ResolveArticleIdAsync(line.ArticleNumber);
+            if (articleId is null)
+            {
+                _error = $"Article '{line.ArticleNumber}' was not found.";
+                _isBusy = false;
+                return;
+            }
+
+            lines.Add(new CreateOrderLineInput(articleId.Value, line.Quantity));
+        }
+
+        var command = new CreateOrderCommand(
+            _form.OrderNumber,
+            customerId.Value,
+            _form.Street,
+            _form.HouseNumber,
+            _form.PostalCode,
+            _form.City,
+            _form.CountryCode,
+            lines);
+
+        var result = await CreateOrderUseCase.ExecuteAsync(command);
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        _message = $"Order {result.Value!.OrderNumber} was created.";
+        _form.Reset();
+
+        await LoadOrdersAsync();
+        _isBusy = false;
+    }
+
+    private async Task AddLineAsync()
+    {
+        if (_selectedOrder is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        int? articleId = await ResolveArticleIdAsync(_addLineForm.ArticleNumber);
+        if (articleId is null)
+        {
+            _error = $"Article '{_addLineForm.ArticleNumber}' was not found.";
+            _isBusy = false;
+            return;
+        }
+
+        var command = new AddOrderLineCommand(_selectedOrder.OrderId, articleId.Value, _addLineForm.Quantity);
+        var result = await AddOrderLineUseCase.ExecuteAsync(command);
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        int orderId = _selectedOrder.OrderId;
+        _message = "Order line was added.";
+
+        await LoadOrdersAsync();
+        await LoadDetailsAsync(orderId);
+        _isBusy = false;
+    }
+
+    private async Task UpdateLineQuantityAsync(int orderLineId, object? rawValue)
+    {
+        if (_selectedOrder is null || !int.TryParse(rawValue?.ToString(), out int quantity))
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        var command = new UpdateOrderLineQuantityCommand(_selectedOrder.OrderId, orderLineId, quantity);
+        var result = await UpdateOrderLineQuantityUseCase.ExecuteAsync(command);
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        int orderId = _selectedOrder.OrderId;
+        await LoadOrdersAsync();
+        await LoadDetailsAsync(orderId);
+        _isBusy = false;
+    }
+
+    private async Task RemoveLineAsync(int orderLineId)
+    {
+        if (_selectedOrder is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        var command = new RemoveOrderLineCommand(_selectedOrder.OrderId, orderLineId);
+        var result = await RemoveOrderLineUseCase.ExecuteAsync(command);
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        int orderId = _selectedOrder.OrderId;
+        _message = "Order line was removed.";
+
+        await LoadOrdersAsync();
+        await LoadDetailsAsync(orderId);
+        _isBusy = false;
+    }
+
+    private async Task DeleteAsync(int orderId)
+    {
+        _isBusy = true;
+        _message = null;
+        _error = null;
+
+        var result = await DeleteOrderUseCase.ExecuteAsync(new DeleteOrderCommand(orderId));
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            _isBusy = false;
+            return;
+        }
+
+        if (_selectedOrder?.OrderId == orderId)
+        {
+            _selectedOrder = null;
+        }
+
+        _message = "Order was deleted.";
+        await LoadOrdersAsync();
+        _isBusy = false;
+    }
+
+    private sealed class OrderFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.RegularExpression(@"^ORD-\d{4}-\d{3}$", ErrorMessage = "Order number must match ORD-2026-001.")]
+        public string OrderNumber { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string CustomerNumber { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Street { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string HouseNumber { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string PostalCode { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string City { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(2, MinimumLength = 2)]
+        public string CountryCode { get; set; } = "CH";
+
+        public List<OrderLineFormModel> Lines { get; } = [new()];
+
+        public void Reset()
+        {
+            OrderNumber = string.Empty;
+            CustomerNumber = string.Empty;
+            Street = string.Empty;
+            HouseNumber = string.Empty;
+            PostalCode = string.Empty;
+            City = string.Empty;
+            CountryCode = "CH";
+            Lines.Clear();
+            Lines.Add(new OrderLineFormModel());
+        }
+    }
+
+    private sealed class OrderLineFormModel
+    {
+        public string ArticleNumber { get; set; } = string.Empty;
+        public int Quantity { get; set; } = 1;
+    }
+
+    private sealed class AddLineFormModel
+    {
+        public string ArticleNumber { get; set; } = string.Empty;
+        public int Quantity { get; set; } = 1;
+
+        public void Reset()
+        {
+            ArticleNumber = string.Empty;
+            Quantity = 1;
+        }
+    }
+}

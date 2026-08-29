@@ -78,15 +78,43 @@ namespace OrderManagement.Domain.Orders
             if (_lines.Count != 0 && _lines[0].UnitPrice.Currency != unitPrice.Currency)
                 return Result.Fail($"Invalid currency. Expected {_lines[0].UnitPrice.Currency} but got {unitPrice.Currency}.");
 
+            int nextLineNumber = _lines.Count == 0 ? 1 : _lines.Max(x => x.LineNumber) + 1;
+
             var line = new OrderLine(
                 OrderLineId.Empty,
-                _lines.Count + 1,
+                nextLineNumber,
                 articleId,
                 articleName.Trim(),
                 unitPrice,
                 quantity);
 
             _lines.Add(line);
+
+            RecalculateTotal();
+            return Result.Success();
+        }
+
+        public Result UpdateLineQuantity(OrderLineId lineId, int quantity)
+        {
+            OrderLine? line = _lines.FirstOrDefault(x => x.Id == lineId);
+            if (line is null)
+                return Result.Fail("Order line was not found.");
+
+            Result result = line.ChangeQuantity(quantity);
+            if (!result.IsSuccess)
+                return result;
+
+            RecalculateTotal();
+            return Result.Success();
+        }
+
+        public Result RemoveLine(OrderLineId lineId)
+        {
+            OrderLine? line = _lines.FirstOrDefault(x => x.Id == lineId);
+            if (line is null)
+                return Result.Fail("Order line was not found.");
+
+            _ = _lines.Remove(line);
 
             RecalculateTotal();
             return Result.Success();

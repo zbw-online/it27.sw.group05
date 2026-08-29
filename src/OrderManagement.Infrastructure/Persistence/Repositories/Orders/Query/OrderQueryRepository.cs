@@ -13,21 +13,25 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Orders.Query
 
         public async Task<Order?> GetByIdAsync(OrderId id, CancellationToken ct = default)
             => await _context.Set<Order>()
+                .Include(o => o.Lines)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(o => o.Id == id, ct);
 
         public async Task<IReadOnlyList<Order>> GetListAsync(CancellationToken ct = default)
             => await _context.Set<Order>()
+                .Include(o => o.Lines)
                 .AsNoTracking()
                 .ToListAsync(ct);
 
         public async Task<Order?> GetByOrderNumberAsync(OrderNumber orderNumber, CancellationToken cancellationToken = default)
             => await _context.Set<Order>()
+                .Include(o => o.Lines)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, cancellationToken);
 
         public async Task<IReadOnlyList<Order>> GetByCustomerIdAsync(CustomerId customerId, CancellationToken cancellationToken = default)
             => await _context.Set<Order>()
+                .Include(o => o.Lines)
                 .AsNoTracking()
                 .Where(o => o.CustomerId == customerId)
                 .ToListAsync(cancellationToken);

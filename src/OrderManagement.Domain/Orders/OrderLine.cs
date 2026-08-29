@@ -35,5 +35,15 @@ namespace OrderManagement.Domain.Orders
         public Money UnitPrice { get; private set; } = default!;
         public int Quantity { get; private set; }
         public Money LineTotal { get; private set; } = default!;
+
+        internal Result ChangeQuantity(int quantity)
+        {
+            if (quantity <= 0)
+                return Result.Fail("Quantity must be positive.");
+
+            Quantity = quantity;
+            LineTotal = Money.From(UnitPrice.Amount * quantity, UnitPrice.Currency).EnsureValue();
+            return Result.Success();
+        }
     }
 }

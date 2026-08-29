@@ -1,5 +1,8 @@
+using Microsoft.EntityFrameworkCore;
+
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Command;
 using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
 
 namespace OrderManagement.Infrastructure.Persistence.Repositories.Orders.Command
 {
@@ -15,5 +18,10 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Orders.Command
 
         public void Remove(Order order)
             => _context.Set<Order>().Remove(order);
+
+        public async Task<Order?> GetByIdAsync(OrderId id, CancellationToken cancellationToken = default)
+            => await _context.Set<Order>()
+                .Include(o => o.Lines)
+                .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
     }
 }

@@ -341,6 +341,127 @@ namespace OrderManagement.Tests.Domain.Orders
             Assert.AreEqual("Oak Panel", line.ArticleName);
         }
 
+        [TestMethod]
+        public void UpdateLineQuantity_WithExistingLineAndValidQuantity_UpdatesQuantityAndRecalculatesTotal()
+        {
+            // Arrange
+            Order order = ValidOrder();
+            Money unitPrice = Money.From(10m, "CHF").EnsureValue();
+            _ = order.AddLine(new ArticleId(1), "Article", unitPrice, 2);
+
+            OrderLine line = order.Lines.Single();
+            AssignLineId(line, 100);
+
+            // Act
+            Result result = order.UpdateLineQuantity(line.Id, 5);
+
+            // Assert
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(5, line.Quantity);
+            Assert.AreEqual(50m, line.LineTotal.Amount);
+            Assert.AreEqual(50m, order.Total.Amount);
+        }
+
+        [TestMethod]
+        public void UpdateLineQuantity_WithUnknownLineId_ReturnsFailure()
+        {
+            // Arrange
+            Order order = ValidOrder();
+            Money unitPrice = Money.From(10m, "CHF").EnsureValue();
+            _ = order.AddLine(new ArticleId(1), "Article", unitPrice, 2);
+
+            // Act
+            Result result = order.UpdateLineQuantity(new OrderLineId(999), 5);
+
+            // Assert
+            Assert.IsFalse(result.IsSuccess);
+            StringAssert.Contains(result.Error!, "not found");
+        }
+
+        [TestMethod]
+        public void UpdateLineQuantity_WithZeroQuantity_ReturnsFailureAndLeavesLineUnchanged()
+        {
+            // Arrange
+            Order order = ValidOrder();
+            Money unitPrice = Money.From(10m, "CHF").EnsureValue();
+            _ = order.AddLine(new ArticleId(1), "Article", unitPrice, 2);
+
+            OrderLine line = order.Lines.Single();
+            AssignLineId(line, 100);
+
+            // Act
+            Result result = order.UpdateLineQuantity(line.Id, 0);
+
+            // Assert
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(2, line.Quantity);
+            Assert.AreEqual(20m, order.Total.Amount);
+        }
+
+        [TestMethod]
+        public void RemoveLine_WithExistingLine_RemovesLineAndRecalculatesTotal()
+        {
+            // Arrange
+            Order order = ValidOrder();
+            Money price = Money.From(10m, "CHF").EnsureValue();
+            _ = order.AddLine(new ArticleId(1), "First", price, 1);
+            _ = order.AddLine(new ArticleId(2), "Second", price, 2);
+
+            OrderLine[] lines = [.. order.Lines.OrderBy(l => l.LineNumber)];
+            AssignLineId(lines[0], 100);
+            AssignLineId(lines[1], 101);
+
+            // Act
+            Result result = order.RemoveLine(lines[0].Id);
+
+            // Assert
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(1, order.Lines.Count);
+            Assert.AreEqual("Second", order.Lines.Single().ArticleName);
+            Assert.AreEqual(20m, order.Total.Amount);
+        }
+
+        [TestMethod]
+        public void RemoveLine_WithUnknownLineId_ReturnsFailure()
+        {
+            // Arrange
+            Order order = ValidOrder();
+            Money price = Money.From(10m, "CHF").EnsureValue();
+            _ = order.AddLine(new ArticleId(1), "Article", price, 1);
+
+            // Act
+            Result result = order.RemoveLine(new OrderLineId(999));
+
+            // Assert
+            Assert.IsFalse(result.IsSuccess);
+            StringAssert.Contains(result.Error!, "not found");
+            Assert.AreEqual(1, order.Lines.Count);
+        }
+
+        [TestMethod]
+        public void AddLine_AfterRemovingAnEarlierLine_DoesNotReuseLineNumber()
+        {
+            // Arrange
+            Order order = ValidOrder();
+            Money price = Money.From(10m, "CHF").EnsureValue();
+            _ = order.AddLine(new ArticleId(1), "First", price, 1);
+            _ = order.AddLine(new ArticleId(2), "Second", price, 1);
+
+            OrderLine firstLine = order.Lines.OrderBy(l => l.LineNumber).First();
+            AssignLineId(firstLine, 100);
+            _ = order.RemoveLine(firstLine.Id);
+
+            // Act
+            Result result = order.AddLine(new ArticleId(3), "Third", price, 1);
+
+            // Assert
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(3, order.Lines.Single(l => l.ArticleName == "Third").LineNumber);
+        }
+
+        private static void AssignLineId(OrderLine line, int id)
+            => typeof(OrderLine).GetProperty(nameof(OrderLine.Id))!.SetValue(line, new OrderLineId(id));
+
         private static Order ValidOrder() => Order.Create(
                     "ORD-2026-999",
                     new CustomerId(1),

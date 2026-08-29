@@ -1,9 +1,9 @@
 # Auftragsverwaltung
 
-Desktop-Anwendung zur Verwaltung von Kunden, Artikeln, Artikelgruppen
+Blazor-Webanwendung zur Verwaltung von Kunden, Artikeln, Artikelgruppen
 und Aufträgen.
-Technologien: **.NET / C#**, **Entity Framework Core (Code First)**,
-**MS SQL Server**
+Technologien: **.NET / C#**, **Blazor (Server, Interactive)**,
+**Entity Framework Core (Code First)**, **MS SQL Server**
 
 ------------------------------------------------------------------------
 
@@ -52,24 +52,21 @@ dotnet restore
 
 # EF Core Verbindung einrichten
 
-Für lokale Entwicklung werden **User Secrets** verwendet.
+Für lokale Entwicklung werden **User Secrets** verwendet. Startup-Projekt
+ist die Blazor-Anwendung; sie und `OrderManagement.Infrastructure` teilen
+sich dieselbe `UserSecretsId`, damit sowohl die Laufzeit-App als auch das
+EF-Core-Tooling dieselbe Connection String lesen.
 
-In den **src Ordner wechseln**
-
-``` ps
-cd .\src
-```
-
-User-Secrets initialisieren (Pfad ggf. anpassen):
+User-Secrets initialisieren:
 
 ``` ps
-dotnet user-secrets init --project "C:\Path\To\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj"
+dotnet user-secrets init --project src\OrderManagement.Presentation.Blazor\OrderManagement.Presentation.Blazor.csproj
 ```
 
 Connection String setzen:
 
 ``` ps
-dotnet user-secrets set "ConnectionStrings:OrderManagement" "Server=.;Database=OrderManagement;Trusted_Connection=true;TrustServerCertificate=true;" --project "C:\Path\To\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj"
+dotnet user-secrets set "ConnectionStrings:OrderManagement" "Server=.;Database=OrderManagement;Trusted_Connection=true;TrustServerCertificate=true;" --project src\OrderManagement.Presentation.Blazor\OrderManagement.Presentation.Blazor.csproj
 ```
 
 Alternative Beispiele:
@@ -93,13 +90,13 @@ Server=localhost\SQLEXPRESS;Database=OrderManagement;Trusted_Connection=true;
 Migrationen anwenden:
 
 ``` ps
-dotnet ef database update --project "C:\Path\To\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj"
+dotnet ef database update --project src\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj --startup-project src\OrderManagement.Presentation.Blazor\OrderManagement.Presentation.Blazor.csproj
 ```
 
 Neue Migration erstellen:
 
 ``` ps
-dotnet ef migrations add InitialCreate --project "C:\Path\To\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj"
+dotnet ef migrations add InitialCreate --project src\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj --startup-project src\OrderManagement.Presentation.Blazor\OrderManagement.Presentation.Blazor.csproj
 ```
 
 ------------------------------------------------------------------------
@@ -115,7 +112,21 @@ dotnet test
 Bestimmtes Testprojekt ausführen:
 
 ``` ps
-dotnet test .\tests\OrderManagement.Tests\OrderManagement.Tests.csproj
+dotnet test .\tests\OrderManagement.Domain.Tests\OrderManagement.Domain.Tests.csproj
+dotnet test .\tests\SharedKernel.Tests\SharedKernel.Tests.csproj
+dotnet test .\tests\OrderManagement.Application.Tests\OrderManagement.Application.Tests.csproj
+dotnet test .\tests\OrderManagement.Infrastructure.IntegrationTests\OrderManagement.Infrastructure.IntegrationTests.csproj
+dotnet test .\tests\OrderManagement.AcceptanceTests\OrderManagement.AcceptanceTests.csproj
+```
+
+`OrderManagement.Infrastructure.IntegrationTests` und
+`OrderManagement.AcceptanceTests` benötigen einen laufenden
+**Docker Desktop** (SQL Server Testcontainers).
+
+Testabdeckung erfassen:
+
+``` ps
+dotnet test --settings coverage.runsettings --collect:"XPlat Code Coverage"
 ```
 
 ------------------------------------------------------------------------
