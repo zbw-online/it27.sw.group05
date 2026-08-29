@@ -17,57 +17,79 @@ steps:
   clean: true
 
 - task: UseDotNet@2
-  displayName: 'Install .NET 8 SDK'
+  displayName: Install .NET 8 SDK
   inputs:
-    packageType: 'sdk'
+    packageType: sdk
     version: '8.0.x'
 
 - task: UseDotNet@2
-  displayName: 'Install .NET 9 SDK'
+  displayName: Install .NET 9 SDK
   inputs:
     packageType: sdk
-    version: 9.x
+    version: '9.x'
 
 - script: dotnet restore
   displayName: Restore
 
-- script: >
-    dotnet test --configuration Release --no-restore
-    --settings coverage.runsettings
-    --collect:"XPlat Code Coverage"
-    --results-directory $(Agent.TempDirectory)/coverage
+- script: |
+    dotnet test \
+      --configuration Release \
+      --no-restore \
+      --settings coverage.runsettings \
+      --collect:"XPlat Code Coverage" \
+      --results-directory "$(Agent.TempDirectory)/coverage"
   displayName: Run tests with coverage collection
 
 - script: dotnet tool install --global dotnet-reportgenerator-globaltool
   displayName: Install ReportGenerator
 
-- script: >
-    reportgenerator
-    -reports:$(Agent.TempDirectory)/coverage/**/coverage.cobertura.xml
-    -targetdir:$(Build.ArtifactStagingDirectory)/coverage-report
-    -reporttypes:Html;TextSummary;Cobertura
+- script: |
+    reportgenerator \
+      "-reports:$(Agent.TempDirectory)/coverage/**/coverage.cobertura.xml" \
+      "-targetdir:$(Build.ArtifactStagingDirectory)/coverage-report" \
+      "-reporttypes:Html;TextSummary;Cobertura"
   displayName: Generate coverage report
 
 - task: PublishPipelineArtifact@1
   displayName: Publish coverage report
   inputs:
     targetPath: '$(Build.ArtifactStagingDirectory)/coverage-report'
-    artifact: 'CoverageReport'
-    publishLocation: 'pipeline'
+    artifact: CoverageReport
+    publishLocation: pipeline
 
 - script: |
     set -euo pipefail
 
     SUMMARY="$(Build.ArtifactStagingDirectory)/coverage-report/Summary.txt"
+
+    if [ ! -f "$SUMMARY" ]; then
+      echo "##vso[task.logissue type=error]Coverage summary was not generated."
+      exit 1
+    fi
+
     cat "$SUMMARY"
 
-    LINE_COVERAGE=$(grep -m1 "Line coverage:" "$SUMMARY" | grep -oE "[0-9]+(\.[0-9]+)?" | head -1)
+    LINE_COVERAGE="$(
+      grep -m1 "Line coverage:" "$SUMMARY" |
+      grep -oE "[0-9]+(\.[0-9]+)?" |
+      head -1
+    )"
+
+    if [ -z "$LINE_COVERAGE" ]; then
+      echo "##vso[task.logissue type=error]Could not read line coverage from Summary.txt."
+      exit 1
+    fi
+
     THRESHOLD=50
 
     echo "Line coverage: ${LINE_COVERAGE}% (required: ${THRESHOLD}%)"
 
-    if awk -v cov="$LINE_COVERAGE" -v min="$THRESHOLD" 'BEGIN { exit !(cov < min) }'; then
+    if awk -v coverage="$LINE_COVERAGE" -v minimum="$THRESHOLD" \
+      'BEGIN { exit !(coverage < minimum) }'
+    then
       echo "##vso[task.logissue type=error]Line coverage ${LINE_COVERAGE}% is below the required ${THRESHOLD}% minimum."
       exit 1
     fi
+
+    echo "Coverage requirement passed."
   displayName: Enforce minimum coverage threshold
