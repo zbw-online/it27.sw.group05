@@ -1,33 +1,317 @@
 @page "/"
+@rendermode InteractiveServer
+@using OrderManagement.Application.DTOs.Orders
+@using OrderManagement.Application.Features.Customers.GetCustomersWithoutCurrentAddress
+@using OrderManagement.Application.Features.Catalog.GetLowStockArticles
+@using OrderManagement.Application.Features.Catalog.Shared
+@using OrderManagement.Application.Features.Orders.GetDashboardOverview
+@using OrderManagement.Application.Features.Orders.GetQuarterlyKpis
+@using OrderManagement.Application.Features.Orders.GetTopSellingArticles
+@using OrderManagement.Application.Features.Orders.Shared
+@using OrderManagement.Presentation.Blazor.Components.Shared
+@inject IGetDashboardOverviewUseCase GetDashboardOverviewUseCase
+@inject IGetQuarterlyKpisUseCase GetQuarterlyKpisUseCase
+@inject IGetTopSellingArticlesUseCase GetTopSellingArticlesUseCase
+@inject IGetLowStockArticlesUseCase GetLowStockArticlesUseCase
+@inject IGetCustomersWithoutCurrentAddressUseCase GetCustomersWithoutCurrentAddressUseCase
+@inject NavigationManager Navigation
 
-<PageTitle>Order Management</PageTitle>
+<PageTitle>Übersicht – Muster AG</PageTitle>
 
-<section class="hero-panel">
-    <div>
-        <p class="eyebrow">Muster AG</p>
-        <h1>Order Management</h1>
-        <p class="hero-text">
-            Blazor presentation layer for customer, article, article group and order management.
-            The UI calls Application Layer use cases only.
-        </p>
-        <a class="btn btn-primary" href="customers">Open customer management</a>
+<PageHeader Title="Übersicht" Subtitle="Kennzahlen und Aktivitäten der Auftragsverwaltung">
+    <Actions>
+        <Button Variant="ButtonVariant.Primary" OnClick="GoToNewOrder">+ Neuer Auftrag</Button>
+    </Actions>
+</PageHeader>
+
+@if (_isLoading)
+{
+    <LoadingState Text="Übersicht wird geladen …" />
+}
+else if (_loadError is not null)
+{
+    <ErrorState Title="Übersicht konnte nicht geladen werden" Description="@_loadError" OnRetry="LoadAsync" />
+}
+else if (_overview is not null)
+{
+    <div class="section-stack">
+        <section class="kpi-row" aria-label="Kennzahlen">
+            <KpiCard Label="Aufträge total" Value="@_overview.TotalOrders.ToString()">
+                <Icon>
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M5 3h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /><path d="M7 9h6M7 12.5h6M7 16h3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+                </Icon>
+            </KpiCard>
+            <KpiCard Label="Ø Auftragswert" Value="@Formatting.Chf(_overview.AverageOrderValue)">
+                <Icon>
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M3 14.5 7.5 10l3 3L17 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /><path d="M12.5 6H17v4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </Icon>
+            </KpiCard>
+            <KpiCard Label="Umsatz" Value="@Formatting.Chf(_overview.Revenue)">
+                <Icon>
+                    <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6.5" stroke="currentColor" stroke-width="1.6" /><path d="M10 6.8v6.4M8 12.2c0 .9.9 1.6 2 1.6s2-.6 2-1.5c0-2-4-1-4-3 0-.9.9-1.5 2-1.5s2 .5 2 1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" /></svg>
+                </Icon>
+            </KpiCard>
+            <KpiCard Label="Aktive Kunden" Value="@_overview.ActiveCustomers.ToString()">
+                <Icon>
+                    <svg viewBox="0 0 20 20" fill="none"><circle cx="7.5" cy="6.5" r="2.5" stroke="currentColor" stroke-width="1.6" /><path d="M2.5 17c0-3 2.2-5 5-5s5 2 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /><circle cx="14.5" cy="7" r="2" stroke="currentColor" stroke-width="1.6" /><path d="M12.8 12.3c2.4.3 4.2 2.1 4.2 4.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+                </Icon>
+            </KpiCard>
+            <KpiCard Label="Artikel im Katalog" Value="@_overview.ArticleCount.ToString()">
+                <Icon>
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M3 6.2 10 3l7 3.2-7 3.2-7-3.2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /><path d="M3 6.2V14l7 3.2 7-3.2V6.2" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /><path d="M10 9.4v7.8" stroke="currentColor" stroke-width="1.6" /></svg>
+                </Icon>
+            </KpiCard>
+        </section>
+
+        <div class="grid-row grid-row-2">
+            <article class="panel">
+                <div class="panel-header">
+                    <h2>Aufträge &amp; Umsatz</h2>
+                </div>
+                @if (_overview.MonthlyTrend.Count == 0)
+                {
+                    <EmptyState Title="Noch keine Aufträge" Description="Sobald Aufträge erfasst sind, erscheint hier der Verlauf." />
+                }
+                else
+                {
+                    <TrendChart Points="_overview.MonthlyTrend" />
+                }
+            </article>
+
+            <article class="panel">
+                <div class="panel-header">
+                    <h2>Auftragsstatus</h2>
+                </div>
+                <EmptyState Title="Nicht verfügbar" Description="Der Auftragsstatus (z. B. In Bearbeitung, Verzögert, Storniert) wird im aktuellen Datenmodell noch nicht erfasst." />
+            </article>
+        </div>
+
+        <div class="grid-row grid-row-2">
+            <article class="panel">
+                <div class="panel-header">
+                    <h2>Quartalsvergleich</h2>
+                </div>
+                @if (_quarterlyError is not null)
+                {
+                    <ErrorState Title="Quartalsvergleich konnte nicht geladen werden" Description="@_quarterlyError" />
+                }
+                else if (_quarterColumns.Count == 0)
+                {
+                    <EmptyState Title="Keine Quartalsdaten" Description="Es liegen noch keine Auftragsdaten für einen Quartalsvergleich vor." />
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Kennzahl</th>
+                                    @foreach ((int Year, int Quarter) column in _quarterColumns)
+                                    {
+                                        <th scope="col">Q@(column.Quarter) @(column.Year)</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (string category in _quarterCategories)
+                                {
+                                    <tr>
+                                        <th scope="row">@CategoryLabel(category)</th>
+                                        @foreach ((int Year, int Quarter) column in _quarterColumns)
+                                        {
+                                            QuarterlyKpiRowDto? cell = _quarterlyRows
+                                                .FirstOrDefault(r => r.Category == category && r.Year == column.Year && r.Quarter == column.Quarter);
+                                            <td class="numeric">
+                                                @if (cell is not null)
+                                                {
+                                                    @cell.Value.ToString("N0", Formatting.SwissCulture)
+                                                    @if (cell.YoYDeltaPercent is not null)
+                                                    {
+                                                        <br />
+                                                        <span class="@(cell.YoYDeltaPercent >= 0 ? "trend-up" : "trend-down")">
+                                                            @(cell.YoYDeltaPercent >= 0 ? "▲" : "▼") @Math.Abs(cell.YoYDeltaPercent.Value).ToString("N1", Formatting.SwissCulture)% ggü. Vorjahr
+                                                        </span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    @:—
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </article>
+
+            <article class="panel">
+                <div class="panel-header">
+                    <h2>Heute im Fokus</h2>
+                </div>
+                <ul class="focus-list">
+                    <li class="focus-item">
+                        <a href="artikel?lagerstatus=tief">
+                            <strong>@_lowStockArticles.Count Artikel unter Mindestbestand</strong>
+                            <span>Bestellung empfohlen</span>
+                        </a>
+                    </li>
+                    <li class="focus-item">
+                        <a href="kunden">
+                            <strong>@_customersWithoutAddress.Count Kundenadressen unvollständig</strong>
+                            <span>Keine gültige aktuelle Adresse hinterlegt</span>
+                        </a>
+                    </li>
+                </ul>
+            </article>
+        </div>
+
+        <div class="grid-row grid-row-2">
+            <article class="panel">
+                <div class="panel-header">
+                    <h2>Aktuelle Aufträge</h2>
+                    <a href="auftraege">Alle Aufträge anzeigen →</a>
+                </div>
+                @if (_overview.RecentOrders.Count == 0)
+                {
+                    <EmptyState Title="Noch keine Aufträge" Description="Erstellen Sie den ersten Auftrag." />
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Auftrags-Nr.</th>
+                                    <th scope="col">Kunde</th>
+                                    <th scope="col">Auftragsdatum</th>
+                                    <th scope="col">Positionen</th>
+                                    <th scope="col">Auftragswert</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (OrderListItemDto order in _overview.RecentOrders)
+                                {
+                                    <tr data-clickable="true" @onclick='() => Navigation.NavigateTo($"auftraege/{order.OrderId}")'>
+                                        <td class="numeric">@order.OrderNumber</td>
+                                        <td class="numeric">@order.CustomerNumber</td>
+                                        <td class="numeric">@Formatting.Date(order.OrderDate)</td>
+                                        <td class="numeric">@order.LineCount</td>
+                                        <td class="numeric">@Formatting.Chf(order.TotalAmount)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </article>
+
+            <article class="panel">
+                <div class="panel-header">
+                    <h2>Meistbestellte Artikel</h2>
+                    <a href="artikel">Alle Artikel anzeigen →</a>
+                </div>
+                @if (_topSellingArticles.Count == 0)
+                {
+                    <EmptyState Title="Noch keine Bestellungen" Description="Sobald Aufträge Positionen enthalten, erscheinen hier die meistbestellten Artikel." />
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Artikel-Nr.</th>
+                                    <th scope="col">Artikelbezeichnung</th>
+                                    <th scope="col">Bestellungen</th>
+                                    <th scope="col">Menge</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (TopSellingArticleDto article in _topSellingArticles)
+                                {
+                                    <tr>
+                                        <td class="numeric">@article.ArticleNumber</td>
+                                        <td>@article.ArticleName</td>
+                                        <td class="numeric">@article.OrderCount</td>
+                                        <td class="numeric">@article.TotalQuantity</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </article>
+        </div>
     </div>
-</section>
+}
 
-<div class="dashboard-grid">
-    <article class="metric-card">
-        <span class="metric-label">Architecture</span>
-        <strong>Vertical slices</strong>
-        <p>Each page maps to one Application use case.</p>
-    </article>
-    <article class="metric-card">
-        <span class="metric-label">Persistence</span>
-        <strong>EF Core + SQL Server</strong>
-        <p>Infrastructure hides database access behind repository interfaces.</p>
-    </article>
-    <article class="metric-card">
-        <span class="metric-label">UI</span>
-        <strong>Blazor Server</strong>
-        <p>Components stay thin and delegate decisions to use cases.</p>
-    </article>
-</div>
+@code {
+    private bool _isLoading = true;
+    private string? _loadError;
+    private DashboardOverviewDto? _overview;
+
+    private string? _quarterlyError;
+    private IReadOnlyList<QuarterlyKpiRowDto> _quarterlyRows = [];
+    private List<string> _quarterCategories = [];
+    private List<(int Year, int Quarter)> _quarterColumns = [];
+
+    private IReadOnlyList<TopSellingArticleDto> _topSellingArticles = [];
+    private IReadOnlyList<ArticleListItemDto> _lowStockArticles = [];
+    private IReadOnlyList<CustomerWithoutAddressDto> _customersWithoutAddress = [];
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        var overviewResult = await GetDashboardOverviewUseCase.ExecuteAsync(new GetDashboardOverviewQuery());
+        if (!overviewResult.IsSuccess)
+        {
+            _loadError = overviewResult.Error;
+            _isLoading = false;
+            return;
+        }
+
+        _overview = overviewResult.Value;
+
+        var quarterlyResult = await GetQuarterlyKpisUseCase.ExecuteAsync(new GetQuarterlyKpisQuery());
+        if (quarterlyResult.IsSuccess)
+        {
+            _quarterlyRows = quarterlyResult.Value!;
+            _quarterCategories = [.. _quarterlyRows.Select(r => r.Category).Distinct()];
+            _quarterColumns = [.. _quarterlyRows
+                .Select(r => (r.Year, r.Quarter))
+                .Distinct()
+                .OrderBy(c => c.Year).ThenBy(c => c.Quarter)
+                .TakeLast(4)];
+        }
+        else
+        {
+            _quarterlyError = quarterlyResult.Error;
+        }
+
+        var topSellingResult = await GetTopSellingArticlesUseCase.ExecuteAsync(new GetTopSellingArticlesQuery(Limit: 5));
+        _topSellingArticles = topSellingResult.IsSuccess ? topSellingResult.Value! : [];
+
+        var lowStockResult = await GetLowStockArticlesUseCase.ExecuteAsync(new GetLowStockArticlesQuery(Threshold: 20));
+        _lowStockArticles = lowStockResult.IsSuccess ? lowStockResult.Value! : [];
+
+        var missingAddressResult = await GetCustomersWithoutCurrentAddressUseCase.ExecuteAsync(new GetCustomersWithoutCurrentAddressQuery());
+        _customersWithoutAddress = missingAddressResult.IsSuccess ? missingAddressResult.Value! : [];
+
+        _isLoading = false;
+    }
+
+    private void GoToNewOrder() => Navigation.NavigateTo("auftraege/neu");
+
+    private static string CategoryLabel(string category) => category switch
+    {
+        "Anzahl Auftraege" => "Anzahl Aufträge",
+        _ => category
+    };
+}

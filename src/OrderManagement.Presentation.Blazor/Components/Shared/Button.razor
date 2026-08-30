@@ -1,0 +1,18 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<button type="@Type"
+        class="app-button app-button-@Variant.ToString().ToLowerInvariant()"
+        disabled="@Disabled"
+        @attributes="AdditionalAttributes"
+        @onclick="OnClick">
+    @ChildContent
+</button>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public ButtonVariant Variant { get; set; } = ButtonVariant.Secondary;
+    [Parameter] public string Type { get; set; } = "button";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

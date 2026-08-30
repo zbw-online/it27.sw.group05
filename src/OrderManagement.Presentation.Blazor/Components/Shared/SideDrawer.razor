@@ -1,0 +1,80 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+@implements IAsyncDisposable
+@inject IJSRuntime JsRuntime
+
+<dialog @ref="_dialogRef" class="app-drawer" role="dialog" aria-modal="true" aria-labelledby="@_titleId">
+    <div class="app-drawer-header">
+        <h2 id="@_titleId">@Title</h2>
+        <button type="button" class="app-drawer-close" aria-label="Schliessen" @onclick="RequestClose">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                <line x1="2" y1="2" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <line x1="14" y1="2" x2="2" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+        </button>
+    </div>
+    <div class="app-drawer-body">
+        @ChildContent
+    </div>
+    @if (FooterContent is not null)
+    {
+        <div class="app-drawer-footer">
+            @FooterContent
+        </div>
+    }
+</dialog>
+
+@code {
+    private readonly string _titleId = $"drawer-title-{Guid.NewGuid():N}";
+    private ElementReference _dialogRef;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<SideDrawer>? _selfReference;
+    private bool _wasOpen;
+
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        _module ??= await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/modal.js");
+
+        if (IsOpen && !_wasOpen)
+        {
+            _selfReference ??= DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("show", _dialogRef, _selfReference);
+        }
+        else if (!IsOpen && _wasOpen)
+        {
+            await _module.InvokeVoidAsync("closeDialog", _dialogRef);
+        }
+
+        _wasOpen = IsOpen;
+    }
+
+    private async Task RequestClose()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("closeDialog", _dialogRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnDialogClosed()
+    {
+        _wasOpen = false;
+        await OnClose.InvokeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _selfReference?.Dispose();
+
+        if (_module is not null)
+        {
+            await _module.DisposeAsync();
+        }
+    }
+}

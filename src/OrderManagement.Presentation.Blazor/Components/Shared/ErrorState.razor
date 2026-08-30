@@ -1,0 +1,19 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<div class="feedback-state feedback-state-error" role="alert">
+    <strong>@Title</strong>
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <span>@Description</span>
+    }
+    @if (OnRetry.HasDelegate)
+    {
+        <Button Variant="ButtonVariant.Secondary" OnClick="OnRetry">Erneut versuchen</Button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+}

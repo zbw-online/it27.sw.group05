@@ -1,0 +1,18 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+@using OrderManagement.Application.Features.Customers.GetCustomerDetails
+
+<div class="address-card">
+    <strong>@Address.Street @Address.HouseNumber</strong>
+    <span>@Address.PostalCode @Address.City, @Address.CountryCode</span>
+    <small class="numeric">
+        Gültig ab @Formatting.Date(Address.ValidFrom)
+        @if (Address.ValidTo is not null)
+        {
+            @:– @Formatting.Date(Address.ValidTo.Value)
+        }
+    </small>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CustomerAddressDto Address { get; set; } = default!;
+}

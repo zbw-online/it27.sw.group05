@@ -1,0 +1,10 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<div class="feedback-state feedback-state-loading" role="status" aria-live="polite">
+    <span class="feedback-spinner" aria-hidden="true"></span>
+    <span>@Text</span>
+</div>
+
+@code {
+    [Parameter] public string Text { get; set; } = "Wird geladen …";
+}

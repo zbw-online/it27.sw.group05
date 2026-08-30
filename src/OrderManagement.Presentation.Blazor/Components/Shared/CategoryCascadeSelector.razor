@@ -1,0 +1,146 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+@using OrderManagement.Application.DTOs.Catalog
+
+<div class="category-cascade">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <span class="category-cascade-label">@Label</span>
+    }
+
+    <div class="category-cascade-columns">
+        @for (int level = 0; level < _levelCount; level++)
+        {
+            int currentLevel = level;
+            <div class="category-cascade-column" role="group" aria-label="@LevelLabel(currentLevel)">
+                <span class="category-cascade-column-title">@LevelLabel(currentLevel)</span>
+                <ul class="category-cascade-list">
+                    @foreach (ArticleGroupHierarchyDto item in ItemsForLevel(currentLevel))
+                    {
+                        bool isSelected = _selectedPerLevel[currentLevel] == item.Id;
+                        <li>
+                            <button type="button"
+                                    class="category-cascade-item @(isSelected ? "is-selected" : string.Empty)"
+                                    aria-pressed="@isSelected"
+                                    @onclick="() => SelectAsync(currentLevel, item.Id)">
+                                @item.Name
+                                @if (HasChildren(item.Id))
+                                {
+                                    <span aria-hidden="true">›</span>
+                                }
+                            </button>
+                        </li>
+                    }
+                    @if (ItemsForLevel(currentLevel).Count == 0)
+                    {
+                        <li class="category-cascade-empty">—</li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+
+    @if (SelectedPath.Count > 0)
+    {
+        <nav class="category-cascade-breadcrumb" aria-label="Gewählter Kategoriepfad">
+            @for (int i = 0; i < SelectedPath.Count; i++)
+            {
+                @if (i > 0)
+                {
+                    <span aria-hidden="true"> &gt; </span>
+                }
+                <span>@SelectedPath[i].Name</span>
+            }
+        </nav>
+    }
+</div>
+
+@code {
+    private static readonly string[] DefaultLevelLabels = ["Hauptgruppe", "Untergruppe", "Kategorie"];
+
+    private int?[] _selectedPerLevel = [null];
+    private int _levelCount = 1;
+    private int? _appliedSelectedGroupId;
+    private IReadOnlyList<ArticleGroupHierarchyDto> _lastHierarchy = [];
+
+    [Parameter] public string Label { get; set; } = "Kategorie wählen";
+    [Parameter, EditorRequired] public IReadOnlyList<ArticleGroupHierarchyDto> Hierarchy { get; set; } = [];
+    [Parameter] public int? SelectedGroupId { get; set; }
+    [Parameter] public EventCallback<int?> SelectedGroupIdChanged { get; set; }
+
+    public IReadOnlyList<ArticleGroupHierarchyDto> SelectedPath =>
+        [.. _selectedPerLevel
+            .Where(id => id.HasValue)
+            .Select(id => Hierarchy.FirstOrDefault(g => g.Id == id!.Value))
+            .Where(g => g is not null)!];
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_lastHierarchy, Hierarchy))
+        {
+            _lastHierarchy = Hierarchy;
+            _levelCount = Math.Max(DefaultLevelLabels.Length, Hierarchy.Count == 0 ? 1 : Hierarchy.Max(g => g.Level) + 1);
+            _selectedPerLevel = new int?[_levelCount];
+            ApplyExternalSelection(SelectedGroupId);
+            return;
+        }
+
+        int? currentLeaf = _selectedPerLevel.LastOrDefault(id => id.HasValue);
+        if (SelectedGroupId != currentLeaf && SelectedGroupId != _appliedSelectedGroupId)
+        {
+            ApplyExternalSelection(SelectedGroupId);
+        }
+    }
+
+    private void ApplyExternalSelection(int? groupId)
+    {
+        _appliedSelectedGroupId = groupId;
+        Array.Clear(_selectedPerLevel);
+
+        if (!groupId.HasValue)
+        {
+            return;
+        }
+
+        ArticleGroupHierarchyDto? node = Hierarchy.FirstOrDefault(g => g.Id == groupId.Value);
+        while (node is not null && node.Level < _selectedPerLevel.Length)
+        {
+            _selectedPerLevel[node.Level] = node.Id;
+            node = node.ParentGroupId.HasValue
+                ? Hierarchy.FirstOrDefault(g => g.Id == node.ParentGroupId.Value)
+                : null;
+        }
+    }
+
+    private IReadOnlyList<ArticleGroupHierarchyDto> ItemsForLevel(int level)
+    {
+        if (level == 0)
+        {
+            return [.. Hierarchy.Where(g => g.Level == 0).OrderBy(g => g.Name)];
+        }
+
+        int? parentId = _selectedPerLevel[level - 1];
+        return parentId is null
+            ? []
+            : [.. Hierarchy.Where(g => g.Level == level && g.ParentGroupId == parentId).OrderBy(g => g.Name)];
+    }
+
+    private bool HasChildren(int groupId) => Hierarchy.Any(g => g.ParentGroupId == groupId);
+
+    private string LevelLabel(int level) =>
+        level < DefaultLevelLabels.Length ? DefaultLevelLabels[level] : $"Ebene {level + 1}";
+
+    private async Task SelectAsync(int level, int groupId)
+    {
+        for (int i = level + 1; i < _selectedPerLevel.Length; i++)
+        {
+            _selectedPerLevel[i] = null;
+        }
+
+        _selectedPerLevel[level] = _selectedPerLevel[level] == groupId ? null : groupId;
+
+        int? leaf = _selectedPerLevel.LastOrDefault(id => id.HasValue);
+        _appliedSelectedGroupId = leaf;
+        SelectedGroupId = leaf;
+        await SelectedGroupIdChanged.InvokeAsync(leaf);
+    }
+}

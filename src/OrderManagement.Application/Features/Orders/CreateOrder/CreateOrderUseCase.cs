@@ -1,5 +1,5 @@
 using OrderManagement.Application.Abstractions;
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Query;
+using OrderManagement.Application.Abstractions.Interfaces.Catalog.Command;
 using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Command;
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Query;
@@ -18,13 +18,13 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
         IOrderCommandRepository orderCommandRepository,
         IOrderQueryRepository orderQueryRepository,
         ICustomerQueryRepository customerQueryRepository,
-        IArticleQueryRepository articleQueryRepository,
+        IArticleCommandRepository articleCommandRepository,
         IUnitOfWork unitOfWork) : ICreateOrderUseCase
     {
         private readonly IOrderCommandRepository _orderCommandRepository = orderCommandRepository;
         private readonly IOrderQueryRepository _orderQueryRepository = orderQueryRepository;
         private readonly ICustomerQueryRepository _customerQueryRepository = customerQueryRepository;
-        private readonly IArticleQueryRepository _articleQueryRepository = articleQueryRepository;
+        private readonly IArticleCommandRepository _articleCommandRepository = articleCommandRepository;
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
         public async Task<Result<CreateOrderResponse>> ExecuteAsync(
@@ -72,7 +72,7 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
 
             foreach (CreateOrderLineInput lineInput in command.Lines)
             {
-                Article? article = await _articleQueryRepository.GetByIdAsync(
+                Article? article = await _articleCommandRepository.GetByIdAsync(
                     new ArticleId(lineInput.ArticleId),
                     cancellationToken);
 
@@ -87,6 +87,14 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
                 {
                     return Results.Fail<CreateOrderResponse>(addLineResult.Error!);
                 }
+
+                Result stockResult = article.UpdateStock(-lineInput.Quantity);
+                if (!stockResult.IsSuccess)
+                {
+                    return Results.Fail<CreateOrderResponse>(stockResult.Error!);
+                }
+
+                _articleCommandRepository.Update(article);
             }
 
             _orderCommandRepository.Add(order);

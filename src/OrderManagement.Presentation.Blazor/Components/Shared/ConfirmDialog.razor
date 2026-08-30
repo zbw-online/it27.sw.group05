@@ -1,0 +1,22 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<Modal IsOpen="IsOpen" Title="@Title" OnClose="OnCancel">
+    <ChildContent>
+        <p>@Message</p>
+    </ChildContent>
+    <FooterContent>
+        <Button Variant="ButtonVariant.Secondary" OnClick="OnCancel">@CancelText</Button>
+        <Button Variant="ButtonVariant.Danger" OnClick="OnConfirm" Disabled="IsBusy">@ConfirmText</Button>
+    </FooterContent>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Message { get; set; } = string.Empty;
+    [Parameter] public string ConfirmText { get; set; } = "Löschen";
+    [Parameter] public string CancelText { get; set; } = "Abbrechen";
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}
