@@ -1,5 +1,6 @@
 using OrderManagement.Application.Features.Catalog.Shared;
 using OrderManagement.Application.Features.Orders.Shared;
+
 using SharedKernel.Primitives;
 
 namespace OrderManagement.Presentation.Blazor.Components.Pages.Orders
@@ -52,7 +53,7 @@ namespace OrderManagement.Presentation.Blazor.Components.Pages.Orders
 
         public void Remove(int articleId)
         {
-            _lines.Remove(articleId);
+            _ = _lines.Remove(articleId);
             Recalculate();
         }
 

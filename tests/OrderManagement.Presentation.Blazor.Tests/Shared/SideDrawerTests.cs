@@ -10,10 +10,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
     [TestClass]
     public sealed class SideDrawerTests : Bunit.TestContext
     {
-        public SideDrawerTests()
-        {
-            JSInterop.Mode = JSRuntimeMode.Loose;
-        }
+        public SideDrawerTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
         [TestMethod]
         public void Render_ShowsTitleAndChildContent()
@@ -31,7 +28,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         {
             IRenderedComponent<SideDrawer> cut = RenderComponent<SideDrawer>(parameters => parameters
                 .Add(p => p.Title, "Neuer Kunde")
-                .Add(p => p.FooterContent, (RenderFragment)(builder => builder.AddMarkupContent(0, "<button>Speichern</button>"))));
+                .Add(p => p.FooterContent, builder => builder.AddMarkupContent(0, "<button>Speichern</button>")));
 
             Assert.AreEqual(1, cut.FindAll(".app-drawer-footer").Count);
         }

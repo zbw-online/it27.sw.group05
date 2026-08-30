@@ -10,10 +10,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
     [TestClass]
     public sealed class DateInputTests : Bunit.TestContext
     {
-        public DateInputTests()
-        {
-            JSInterop.Mode = JSRuntimeMode.Loose;
-        }
+        public DateInputTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
         [TestMethod]
         public void Render_ShowsSwissFormattedDate()

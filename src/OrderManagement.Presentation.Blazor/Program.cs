@@ -1,7 +1,5 @@
 using System.Globalization;
 
-using Microsoft.AspNetCore.Localization;
-
 using OrderManagement.Application;
 using OrderManagement.Infrastructure;
 using OrderManagement.Presentation.Blazor.Components;
@@ -12,7 +10,7 @@ namespace OrderManagement.Presentation.Blazor
     {
         public static void Main(string[] args)
         {
-            CultureInfo swissCulture = CultureInfo.GetCultureInfo("de-CH");
+            var swissCulture = CultureInfo.GetCultureInfo("de-CH");
             CultureInfo.DefaultThreadCurrentCulture = swissCulture;
             CultureInfo.DefaultThreadCurrentUICulture = swissCulture;
 
