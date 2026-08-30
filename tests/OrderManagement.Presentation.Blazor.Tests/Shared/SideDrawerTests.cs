@@ -1,6 +1,5 @@
 using Bunit;
 
-using Microsoft.AspNetCore.Components;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Presentation.Blazor.Components.Shared;
