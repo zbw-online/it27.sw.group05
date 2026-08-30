@@ -1,5 +1,7 @@
 using OrderManagement.Application.Abstractions;
+using OrderManagement.Application.Abstractions.Interfaces.Catalog.Command;
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Command;
+using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Domain.Orders.ValueObjects;
 
@@ -9,9 +11,11 @@ namespace OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity
 {
     public sealed class UpdateOrderLineQuantityUseCase(
         IOrderCommandRepository orderCommandRepository,
+        IArticleCommandRepository articleCommandRepository,
         IUnitOfWork unitOfWork) : IUpdateOrderLineQuantityUseCase
     {
         private readonly IOrderCommandRepository _orderCommandRepository = orderCommandRepository;
+        private readonly IArticleCommandRepository _articleCommandRepository = articleCommandRepository;
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
         public async Task<Result> ExecuteAsync(
@@ -24,10 +28,31 @@ namespace OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity
                 return Result.Fail("Order was not found.");
             }
 
-            Result updateResult = order.UpdateLineQuantity(new OrderLineId(command.OrderLineId), command.Quantity);
+            var lineId = new OrderLineId(command.OrderLineId);
+            OrderLine? line = order.Lines.FirstOrDefault(l => l.Id == lineId);
+            if (line is null)
+            {
+                return Result.Fail("Order line was not found.");
+            }
+
+            int previousQuantity = line.Quantity;
+
+            Result updateResult = order.UpdateLineQuantity(lineId, command.Quantity);
             if (!updateResult.IsSuccess)
             {
                 return updateResult;
+            }
+
+            Article? article = await _articleCommandRepository.GetByIdAsync(line.ArticleId, cancellationToken);
+            if (article is not null)
+            {
+                Result stockResult = article.UpdateStock(previousQuantity - command.Quantity);
+                if (!stockResult.IsSuccess)
+                {
+                    return stockResult;
+                }
+
+                _articleCommandRepository.Update(article);
             }
 
             _orderCommandRepository.Update(order);

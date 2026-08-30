@@ -1,0 +1,16 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<div class="feedback-state feedback-state-empty" role="status">
+    <strong>@Title</strong>
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <span>@Description</span>
+    }
+    @ChildContent
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -18,12 +18,17 @@ using OrderManagement.Application.Features.Customers.CreateCustomer;
 using OrderManagement.Application.Features.Customers.DeleteCustomer;
 using OrderManagement.Application.Features.Customers.GetCustomerDetails;
 using OrderManagement.Application.Features.Customers.GetCustomerForEdit;
+using OrderManagement.Application.Features.Customers.GetCustomersWithoutCurrentAddress;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
 using OrderManagement.Application.Features.Customers.UpdateCustomer;
 using OrderManagement.Application.Features.Orders.AddOrderLine;
 using OrderManagement.Application.Features.Orders.CreateOrder;
 using OrderManagement.Application.Features.Orders.DeleteOrder;
+using OrderManagement.Application.Features.Orders.GetDashboardOverview;
+using OrderManagement.Application.Features.Orders.GetNextOrderNumber;
 using OrderManagement.Application.Features.Orders.GetOrderDetails;
+using OrderManagement.Application.Features.Orders.GetQuarterlyKpis;
+using OrderManagement.Application.Features.Orders.GetTopSellingArticles;
 using OrderManagement.Application.Features.Orders.RemoveOrderLine;
 using OrderManagement.Application.Features.Orders.SearchOrders;
 using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity;
@@ -41,6 +46,7 @@ namespace OrderManagement.Application
             _ = services.AddScoped<IDeleteCustomerUseCase, DeleteCustomerUseCase>();
             _ = services.AddScoped<IGetCustomerDetailsUseCase, GetCustomerDetailsUseCase>();
             _ = services.AddScoped<IAddCustomerAddressUseCase, AddCustomerAddressUseCase>();
+            _ = services.AddScoped<IGetCustomersWithoutCurrentAddressUseCase, GetCustomersWithoutCurrentAddressUseCase>();
 
             _ = services.AddScoped<ICreateArticleUseCase, CreateArticleUseCase>();
             _ = services.AddScoped<ISearchArticlesUseCase, SearchArticlesUseCase>();
@@ -63,6 +69,10 @@ namespace OrderManagement.Application
             _ = services.AddScoped<IUpdateOrderLineQuantityUseCase, UpdateOrderLineQuantityUseCase>();
             _ = services.AddScoped<IRemoveOrderLineUseCase, RemoveOrderLineUseCase>();
             _ = services.AddScoped<IDeleteOrderUseCase, DeleteOrderUseCase>();
+            _ = services.AddScoped<IGetDashboardOverviewUseCase, GetDashboardOverviewUseCase>();
+            _ = services.AddScoped<IGetQuarterlyKpisUseCase, GetQuarterlyKpisUseCase>();
+            _ = services.AddScoped<IGetTopSellingArticlesUseCase, GetTopSellingArticlesUseCase>();
+            _ = services.AddScoped<IGetNextOrderNumberUseCase, GetNextOrderNumberUseCase>();
 
             return services;
         }

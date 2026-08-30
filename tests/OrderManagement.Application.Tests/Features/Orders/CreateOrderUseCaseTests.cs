@@ -25,15 +25,15 @@ namespace OrderManagement.Application.Tests.Features.Orders
             var orderCommandRepository = new FakeOrderCommandRepository();
             var orderQueryRepository = new FakeOrderQueryRepository();
             var customerQueryRepository = new FakeCustomerQueryRepository();
-            var articleQueryRepository = new FakeArticleQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
             var unitOfWork = new FakeUnitOfWork();
             var useCase = new CreateOrderUseCase(
-                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleQueryRepository, unitOfWork);
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
 
             Customer customer = customerQueryRepository.Seed(
                 Customer.Create("CU00001", "Doe", "Jane", "jane@example.com", null).EnsureValue());
-            Article article = articleQueryRepository.Seed(
-                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1)).EnsureValue());
+            Article article = articleCommandRepository.Seed(
+                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 10).EnsureValue());
 
             Result<CreateOrderResponse> result = await useCase.ExecuteAsync(
                 ValidCommand(customer.Id.Value, [new CreateOrderLineInput(article.Id.Value, 2)]));
@@ -46,22 +46,72 @@ namespace OrderManagement.Application.Tests.Features.Orders
         }
 
         [TestMethod]
+        public async Task ExecuteAsync_WithValidLine_ShouldReduceArticleStock()
+        {
+            var orderCommandRepository = new FakeOrderCommandRepository();
+            var orderQueryRepository = new FakeOrderQueryRepository();
+            var customerQueryRepository = new FakeCustomerQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            var useCase = new CreateOrderUseCase(
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
+
+            Customer customer = customerQueryRepository.Seed(
+                Customer.Create("CU00001", "Doe", "Jane", "jane@example.com", null).EnsureValue());
+            Article article = articleCommandRepository.Seed(
+                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 10).EnsureValue());
+
+            Result<CreateOrderResponse> result = await useCase.ExecuteAsync(
+                ValidCommand(customer.Id.Value, [new CreateOrderLineInput(article.Id.Value, 3)]));
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(7, article.Stock);
+            Assert.AreEqual(1, articleCommandRepository.Updated.Count);
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithQuantityExceedingStock_ShouldFailAndNotCommit()
+        {
+            var orderCommandRepository = new FakeOrderCommandRepository();
+            var orderQueryRepository = new FakeOrderQueryRepository();
+            var customerQueryRepository = new FakeCustomerQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            var useCase = new CreateOrderUseCase(
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
+
+            Customer customer = customerQueryRepository.Seed(
+                Customer.Create("CU00001", "Doe", "Jane", "jane@example.com", null).EnsureValue());
+            Article article = articleCommandRepository.Seed(
+                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 2).EnsureValue());
+
+            Result<CreateOrderResponse> result = await useCase.ExecuteAsync(
+                ValidCommand(customer.Id.Value, [new CreateOrderLineInput(article.Id.Value, 5)]));
+
+            Assert.IsFalse(result.IsSuccess);
+            StringAssert.Contains(result.Error, "stock");
+            Assert.AreEqual(2, article.Stock);
+            Assert.AreEqual(0, orderCommandRepository.Added.Count);
+            Assert.AreEqual(0, unitOfWork.CommitCount);
+        }
+
+        [TestMethod]
         public async Task ExecuteAsync_WithMultipleLines_ShouldSumAllLinesIntoTotal()
         {
             var orderCommandRepository = new FakeOrderCommandRepository();
             var orderQueryRepository = new FakeOrderQueryRepository();
             var customerQueryRepository = new FakeCustomerQueryRepository();
-            var articleQueryRepository = new FakeArticleQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
             var unitOfWork = new FakeUnitOfWork();
             var useCase = new CreateOrderUseCase(
-                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleQueryRepository, unitOfWork);
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
 
             Customer customer = customerQueryRepository.Seed(
                 Customer.Create("CU00001", "Doe", "Jane", "jane@example.com", null).EnsureValue());
-            Article first = articleQueryRepository.Seed(
-                Article.Create("ART-001", "Widget", 10m, "CHF", new ArticleGroupId(1)).EnsureValue());
-            Article second = articleQueryRepository.Seed(
-                Article.Create("ART-002", "Gadget", 5m, "CHF", new ArticleGroupId(1)).EnsureValue());
+            Article first = articleCommandRepository.Seed(
+                Article.Create("ART-001", "Widget", 10m, "CHF", new ArticleGroupId(1), stock: 10).EnsureValue());
+            Article second = articleCommandRepository.Seed(
+                Article.Create("ART-002", "Gadget", 5m, "CHF", new ArticleGroupId(1), stock: 10).EnsureValue());
 
             Result<CreateOrderResponse> result = await useCase.ExecuteAsync(ValidCommand(
                 customer.Id.Value,
@@ -77,14 +127,14 @@ namespace OrderManagement.Application.Tests.Features.Orders
             var orderCommandRepository = new FakeOrderCommandRepository();
             var orderQueryRepository = new FakeOrderQueryRepository();
             var customerQueryRepository = new FakeCustomerQueryRepository();
-            var articleQueryRepository = new FakeArticleQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
             var unitOfWork = new FakeUnitOfWork();
             var useCase = new CreateOrderUseCase(
-                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleQueryRepository, unitOfWork);
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
 
             Customer customer = customerQueryRepository.Seed(
                 Customer.Create("CU00001", "Doe", "Jane", "jane@example.com", null).EnsureValue());
-            Article article = articleQueryRepository.Seed(
+            Article article = articleCommandRepository.Seed(
                 Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1)).EnsureValue());
 
             Result<CreateOrderResponse> result = await useCase.ExecuteAsync(
@@ -102,10 +152,10 @@ namespace OrderManagement.Application.Tests.Features.Orders
             var orderCommandRepository = new FakeOrderCommandRepository();
             var orderQueryRepository = new FakeOrderQueryRepository();
             var customerQueryRepository = new FakeCustomerQueryRepository();
-            var articleQueryRepository = new FakeArticleQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
             var unitOfWork = new FakeUnitOfWork();
             var useCase = new CreateOrderUseCase(
-                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleQueryRepository, unitOfWork);
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
 
             Result<CreateOrderResponse> result = await useCase.ExecuteAsync(ValidCommand(999, []));
 
@@ -120,10 +170,10 @@ namespace OrderManagement.Application.Tests.Features.Orders
             var orderCommandRepository = new FakeOrderCommandRepository();
             var orderQueryRepository = new FakeOrderQueryRepository();
             var customerQueryRepository = new FakeCustomerQueryRepository();
-            var articleQueryRepository = new FakeArticleQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
             var unitOfWork = new FakeUnitOfWork();
             var useCase = new CreateOrderUseCase(
-                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleQueryRepository, unitOfWork);
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
 
             Customer customer = customerQueryRepository.Seed(
                 Customer.Create("CU00001", "Doe", "Jane", "jane@example.com", null).EnsureValue());
@@ -142,10 +192,10 @@ namespace OrderManagement.Application.Tests.Features.Orders
             var orderCommandRepository = new FakeOrderCommandRepository();
             var orderQueryRepository = new FakeOrderQueryRepository();
             var customerQueryRepository = new FakeCustomerQueryRepository();
-            var articleQueryRepository = new FakeArticleQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
             var unitOfWork = new FakeUnitOfWork();
             var useCase = new CreateOrderUseCase(
-                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleQueryRepository, unitOfWork);
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
 
             Customer customer = customerQueryRepository.Seed(
                 Customer.Create("CU00001", "Doe", "Jane", "jane@example.com", null).EnsureValue());

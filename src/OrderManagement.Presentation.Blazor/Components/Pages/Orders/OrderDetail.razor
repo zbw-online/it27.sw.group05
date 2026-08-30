@@ -1,0 +1,244 @@
+@page "/auftraege/{OrderId:int}"
+@rendermode InteractiveServer
+@using OrderManagement.Application.Features.Catalog.SearchArticles
+@using OrderManagement.Application.Features.Catalog.Shared
+@using OrderManagement.Application.Features.Orders.AddOrderLine
+@using OrderManagement.Application.Features.Orders.GetOrderDetails
+@using OrderManagement.Application.Features.Orders.RemoveOrderLine
+@using OrderManagement.Application.Features.Orders.Shared
+@using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity
+@using OrderManagement.Presentation.Blazor.Components.Shared
+@inject IGetOrderDetailsUseCase GetOrderDetailsUseCase
+@inject IUpdateOrderLineQuantityUseCase UpdateOrderLineQuantityUseCase
+@inject IRemoveOrderLineUseCase RemoveOrderLineUseCase
+@inject IAddOrderLineUseCase AddOrderLineUseCase
+@inject ISearchArticlesUseCase SearchArticlesUseCase
+@inject NavigationManager Navigation
+
+<PageTitle>Auftrag @_order?.OrderNumber – Muster AG</PageTitle>
+
+@if (_isLoading)
+{
+    <LoadingState Text="Auftrag wird geladen …" />
+}
+else if (_loadError is not null)
+{
+    <ErrorState Title="Auftrag konnte nicht geladen werden" Description="@_loadError" OnRetry="LoadAsync" />
+}
+else if (_order is not null)
+{
+    <PageHeader Title="@_order.OrderNumber" Subtitle="@($"{_order.CustomerNumber} · {_order.CustomerName}")">
+        <Actions>
+            <Button Variant="ButtonVariant.Secondary" OnClick='() => Navigation.NavigateTo("auftraege")'>Zurück zur Übersicht</Button>
+        </Actions>
+    </PageHeader>
+
+    @if (_message is not null)
+    {
+        <div class="inline-alert inline-alert-success" role="status">@_message</div>
+    }
+    @if (_error is not null)
+    {
+        <div class="inline-alert inline-alert-danger" role="alert">@_error</div>
+    }
+
+    <div class="grid-row grid-row-2">
+        <article class="panel">
+            <div class="panel-header">
+                <h2>Positionen</h2>
+            </div>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Artikel</th>
+                            <th scope="col">Einzelpreis</th>
+                            <th scope="col">Menge</th>
+                            <th scope="col">Total</th>
+                            <th scope="col"><span class="visually-hidden">Aktionen</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (OrderLineDto line in _order.Lines)
+                        {
+                            <tr>
+                                <td>@line.ArticleName</td>
+                                <td class="numeric">@Formatting.Chf(line.UnitPriceAmount)</td>
+                                <td class="numeric">
+                                    <div class="quantity-stepper">
+                                        <Button Variant="ButtonVariant.Secondary" OnClick="() => ChangeQuantityAsync(line, -1)" Disabled="@(line.Quantity <= 1 || _isBusy)" AdditionalAttributes="AriaDecrease">−</Button>
+                                        <span>@line.Quantity</span>
+                                        <Button Variant="ButtonVariant.Secondary" OnClick="() => ChangeQuantityAsync(line, 1)" Disabled="_isBusy" AdditionalAttributes="AriaIncrease">+</Button>
+                                    </div>
+                                </td>
+                                <td class="numeric">@Formatting.Chf(line.LineTotalAmount)</td>
+                                <td class="table-actions">
+                                    <Button Variant="ButtonVariant.Danger" OnClick="() => RemoveLineAsync(line)" Disabled="_isBusy">Entfernen</Button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="numeric"><strong>Total</strong></td>
+                            <td colspan="2" class="numeric"><strong>@Formatting.Chf(_order.TotalAmount)</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="form-grid" style="margin-top: var(--space-4)">
+                <div class="form-field form-field-wide">
+                    <label for="add-line-search">Artikel hinzufügen</label>
+                    <SearchField Label="Artikel suchen" Placeholder="Artikelnummer oder Bezeichnung" @bind-Value="_articleSearchTerm" OnSearch="SearchArticlesAsync" />
+                </div>
+            </div>
+            @if (_articleResults.Count > 0)
+            {
+                <ul class="add-line-results">
+                    @foreach (ArticleListItemDto article in _articleResults)
+                    {
+                        <li>
+                            <span>@article.ArticleNumber – @article.Name (@Formatting.Chf(article.PriceAmount))</span>
+                            <Button Variant="ButtonVariant.Secondary" OnClick="() => AddLineAsync(article)" Disabled="_isBusy">Hinzufügen</Button>
+                        </li>
+                    }
+                </ul>
+            }
+        </article>
+
+        <aside class="panel">
+            <div class="panel-header">
+                <h2>Lieferadresse</h2>
+            </div>
+            <p>@_order.DeliveryStreet @_order.DeliveryHouseNumber</p>
+            <p>@_order.DeliveryPostalCode @_order.DeliveryCity, @_order.DeliveryCountryCode</p>
+        </aside>
+    </div>
+}
+
+@code {
+    private static readonly Dictionary<string, object> AriaDecrease = new() { { "aria-label", "Menge verringern" } };
+    private static readonly Dictionary<string, object> AriaIncrease = new() { { "aria-label", "Menge erhöhen" } };
+
+    [Parameter] public int OrderId { get; set; }
+
+    private bool _isLoading = true;
+    private string? _loadError;
+    private string? _message;
+    private string? _error;
+    private bool _isBusy;
+    private GetOrderDetailsResponse? _order;
+
+    private string? _articleSearchTerm;
+    private readonly List<ArticleListItemDto> _articleResults = [];
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        var result = await GetOrderDetailsUseCase.ExecuteAsync(new GetOrderDetailsQuery(OrderId));
+        if (!result.IsSuccess)
+        {
+            _loadError = result.Error;
+            _isLoading = false;
+            return;
+        }
+
+        _order = result.Value;
+        _isLoading = false;
+    }
+
+    private async Task ChangeQuantityAsync(OrderLineDto line, int delta)
+    {
+        int newQuantity = line.Quantity + delta;
+        if (newQuantity < 1 || _order is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _error = null;
+
+        var result = await UpdateOrderLineQuantityUseCase.ExecuteAsync(
+            new UpdateOrderLineQuantityCommand(_order.OrderId, line.OrderLineId, newQuantity));
+
+        _isBusy = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task RemoveLineAsync(OrderLineDto line)
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _error = null;
+
+        var result = await RemoveOrderLineUseCase.ExecuteAsync(new RemoveOrderLineCommand(_order.OrderId, line.OrderLineId));
+
+        _isBusy = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _message = "Position wurde entfernt.";
+        await LoadAsync();
+    }
+
+    private async Task SearchArticlesAsync()
+    {
+        _articleResults.Clear();
+        if (string.IsNullOrWhiteSpace(_articleSearchTerm))
+        {
+            return;
+        }
+
+        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_articleSearchTerm, null));
+        if (result.IsSuccess)
+        {
+            _articleResults.AddRange(result.Value!.Take(5));
+        }
+    }
+
+    private async Task AddLineAsync(ArticleListItemDto article)
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _error = null;
+
+        var result = await AddOrderLineUseCase.ExecuteAsync(new AddOrderLineCommand(_order.OrderId, article.ArticleId, 1));
+
+        _isBusy = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _message = "Position wurde hinzugefügt.";
+        _articleResults.Clear();
+        _articleSearchTerm = null;
+        await LoadAsync();
+    }
+}

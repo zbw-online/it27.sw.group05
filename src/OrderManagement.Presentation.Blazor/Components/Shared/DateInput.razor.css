@@ -1,0 +1,41 @@
+.date-input {
+    position: relative;
+}
+
+.date-input-text {
+    font-family: var(--font-mono);
+    padding-right: calc(var(--space-4) + 20px);
+    width: 100%;
+}
+
+.date-input-icon {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    height: 24px;
+    justify-content: center;
+    position: absolute;
+    right: var(--space-2);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+}
+
+.date-input-icon:hover {
+    color: var(--color-text-primary);
+}
+
+.date-input-native {
+    height: 1px;
+    left: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    width: 1px;
+}

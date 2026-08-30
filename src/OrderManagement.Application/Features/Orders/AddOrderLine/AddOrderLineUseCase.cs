@@ -1,5 +1,5 @@
 using OrderManagement.Application.Abstractions;
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Query;
+using OrderManagement.Application.Abstractions.Interfaces.Catalog.Command;
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Command;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.ValueObjects;
@@ -12,11 +12,11 @@ namespace OrderManagement.Application.Features.Orders.AddOrderLine
 {
     public sealed class AddOrderLineUseCase(
         IOrderCommandRepository orderCommandRepository,
-        IArticleQueryRepository articleQueryRepository,
+        IArticleCommandRepository articleCommandRepository,
         IUnitOfWork unitOfWork) : IAddOrderLineUseCase
     {
         private readonly IOrderCommandRepository _orderCommandRepository = orderCommandRepository;
-        private readonly IArticleQueryRepository _articleQueryRepository = articleQueryRepository;
+        private readonly IArticleCommandRepository _articleCommandRepository = articleCommandRepository;
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
         public async Task<Result> ExecuteAsync(
@@ -29,7 +29,7 @@ namespace OrderManagement.Application.Features.Orders.AddOrderLine
                 return Result.Fail("Order was not found.");
             }
 
-            Article? article = await _articleQueryRepository.GetByIdAsync(
+            Article? article = await _articleCommandRepository.GetByIdAsync(
                 new ArticleId(command.ArticleId),
                 cancellationToken);
 
@@ -44,6 +44,13 @@ namespace OrderManagement.Application.Features.Orders.AddOrderLine
                 return addLineResult;
             }
 
+            Result stockResult = article.UpdateStock(-command.Quantity);
+            if (!stockResult.IsSuccess)
+            {
+                return stockResult;
+            }
+
+            _articleCommandRepository.Update(article);
             _orderCommandRepository.Update(order);
 
             return await _unitOfWork.CommitAsync(cancellationToken);

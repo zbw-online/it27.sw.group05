@@ -1,0 +1,645 @@
+@page "/artikel"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using OrderManagement.Application.DTOs.Catalog
+@using OrderManagement.Application.Features.Catalog.CreateArticle
+@using OrderManagement.Application.Features.Catalog.CreateArticleGroup
+@using OrderManagement.Application.Features.Catalog.DeleteArticle
+@using OrderManagement.Application.Features.Catalog.DeleteArticleGroup
+@using OrderManagement.Application.Features.Catalog.GetArticleForEdit
+@using OrderManagement.Application.Features.Catalog.GetArticleGroupForEdit
+@using OrderManagement.Application.Features.Catalog.GetArticleGroupHierarchy
+@using OrderManagement.Application.Features.Catalog.RenameArticleGroup
+@using OrderManagement.Application.Features.Catalog.SearchArticleGroups
+@using OrderManagement.Application.Features.Catalog.SearchArticles
+@using OrderManagement.Application.Features.Catalog.Shared
+@using OrderManagement.Application.Features.Catalog.UpdateArticle
+@using OrderManagement.Presentation.Blazor.Components.Shared
+@using SharedKernel.Primitives
+@inject ISearchArticlesUseCase SearchArticlesUseCase
+@inject ICreateArticleUseCase CreateArticleUseCase
+@inject IGetArticleForEditUseCase GetArticleForEditUseCase
+@inject IUpdateArticleUseCase UpdateArticleUseCase
+@inject IDeleteArticleUseCase DeleteArticleUseCase
+@inject IGetArticleGroupHierarchyUseCase GetArticleGroupHierarchyUseCase
+@inject ISearchArticleGroupsUseCase SearchArticleGroupsUseCase
+@inject ICreateArticleGroupUseCase CreateArticleGroupUseCase
+@inject IGetArticleGroupForEditUseCase GetArticleGroupForEditUseCase
+@inject IRenameArticleGroupUseCase RenameArticleGroupUseCase
+@inject IDeleteArticleGroupUseCase DeleteArticleGroupUseCase
+@inject NavigationManager Navigation
+
+<PageTitle>Artikel – Muster AG</PageTitle>
+
+<PageHeader Title="Artikel" Subtitle="@($"{_allArticles.Count} Artikel")">
+    <Actions>
+        <Button Variant="ButtonVariant.Secondary" OnClick="OpenGroupManager">Kategorien verwalten</Button>
+        <Button Variant="ButtonVariant.Primary" OnClick="StartCreateArticle">+ Neuer Artikel</Button>
+    </Actions>
+</PageHeader>
+
+@if (_message is not null)
+{
+    <div class="inline-alert inline-alert-success" role="status">@_message</div>
+}
+@if (_error is not null)
+{
+    <div class="inline-alert inline-alert-danger" role="alert">@_error</div>
+}
+
+<div class="toolbar">
+    <SearchField Label="Artikel suchen" Placeholder="Artikel suchen (Nummer, Bezeichnung)" @bind-Value="_searchTerm" OnSearch="LoadArticlesAsync" />
+    <FilterSelect Label="Lagerstatus" Value="@_stockFilter" ValueChanged="OnStockFilterChanged">
+        <option value="alle">Alle Artikel</option>
+        <option value="verfuegbar">Verfügbar</option>
+        <option value="tief">Tiefer Bestand</option>
+    </FilterSelect>
+</div>
+
+<article class="panel">
+    <div class="panel-header">
+        <h2>Kategorie wählen</h2>
+    </div>
+    <CategoryCascadeSelector Label="" Hierarchy="_hierarchy" SelectedGroupId="_selectedGroupId" SelectedGroupIdChanged="OnCategoryFilterChangedAsync" />
+</article>
+
+<article class="panel">
+    @if (_isLoading)
+    {
+        <LoadingState Text="Artikel werden geladen …" />
+    }
+    else if (_loadError is not null)
+    {
+        <ErrorState Title="Artikel konnten nicht geladen werden" Description="@_loadError" OnRetry="LoadArticlesAsync" />
+    }
+    else if (_filteredArticles.Count == 0)
+    {
+        <EmptyState Title="Keine Artikel gefunden" Description="Passen Sie Suche, Kategorie oder Lagerstatus an, oder erstellen Sie einen neuen Artikel." />
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Artikel-Nr.</th>
+                        <th scope="col">Artikelbezeichnung</th>
+                        <th scope="col">Kategoriepfad</th>
+                        <th scope="col">Preis (CHF)</th>
+                        <th scope="col">Lager</th>
+                        <th scope="col">Status</th>
+                        <th scope="col"><span class="visually-hidden">Aktionen</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ArticleListItemDto article in _pagedArticles)
+                    {
+                        <tr class="@(_selectedArticleId == article.ArticleId ? "is-selected" : string.Empty)"
+                            data-clickable="true"
+                            @onclick="() => ToggleSelection(article.ArticleId)">
+                            <td class="numeric">@article.ArticleNumber</td>
+                            <td>@article.Name</td>
+                            <td>@GroupPath(article.GroupId)</td>
+                            <td class="numeric">@article.PriceAmount.ToString("N2", Formatting.SwissCulture)</td>
+                            <td class="numeric">
+                                @article.Stock Stk.
+                                @if (article.Stock <= LowStockThreshold)
+                                {
+                                    <span class="low-stock-flag" title="Tiefer Bestand" aria-label="Tiefer Bestand">⚠</span>
+                                }
+                            </td>
+                            <td><StatusBadge Text="@(article.Status == 1 ? "Aktiv" : "Inaktiv")" Tone="@(article.Status == 1 ? StatusTone.Success : StatusTone.Neutral)" /></td>
+                            <td class="table-actions">
+                                @if (_selectedArticleId == article.ArticleId)
+                                {
+                                    <Button Variant="ButtonVariant.Secondary" OnClick="() => StartEditArticleAsync(article.ArticleId)" AdditionalAttributes="StopPropagation">Bearbeiten</Button>
+                                    <Button Variant="ButtonVariant.Danger" OnClick="() => RequestDeleteArticle(article.ArticleId, article.Name)" AdditionalAttributes="StopPropagation">Löschen</Button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <FilterSelect Label="Zeilen pro Seite" Value="@_pageSize.ToString()" ValueChanged="OnPageSizeChanged">
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+            </FilterSelect>
+            <span class="pagination-summary numeric">@PaginationSummary()</span>
+            <Pagination CurrentPage="_page" TotalPages="TotalPages" OnPageChange="ChangePage" />
+        </div>
+    }
+</article>
+
+<SideDrawer IsOpen="_isArticleDialogOpen" Title="@(_isArticleEditMode ? "Artikel bearbeiten" : "Neuer Artikel")" OnClose="CloseArticleDialog">
+    <ChildContent>
+        @if (_articleDialogError is not null)
+        {
+            <div class="inline-alert inline-alert-danger" role="alert">@_articleDialogError</div>
+        }
+        <EditForm Model="_articleForm" OnValidSubmit="SaveArticleAsync">
+            <DataAnnotationsValidator />
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="art-number">Artikel-Nr.</label>
+                    <InputText id="art-number" class="form-control" @bind-Value="_articleForm.ArticleNumber" disabled="@_isArticleEditMode" />
+                    <ValidationMessage For="() => _articleForm.ArticleNumber" />
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="art-name">Bezeichnung</label>
+                    <InputText id="art-name" class="form-control" @bind-Value="_articleForm.Name" />
+                    <ValidationMessage For="() => _articleForm.Name" />
+                </div>
+                <div class="form-field">
+                    <label for="art-price">Verkaufspreis (CHF)</label>
+                    <InputNumber id="art-price" class="form-control" @bind-Value="_articleForm.PriceAmount" />
+                    <ValidationMessage For="() => _articleForm.PriceAmount" />
+                </div>
+                <div class="form-field">
+                    <label for="art-stock">Lagerbestand</label>
+                    <InputNumber id="art-stock" class="form-control" @bind-Value="_articleForm.Stock" />
+                    <ValidationMessage For="() => _articleForm.Stock" />
+                </div>
+                <div class="form-field">
+                    <label for="art-vat">MwSt.-Satz (%)</label>
+                    <InputNumber id="art-vat" class="form-control" @bind-Value="_articleForm.VatRate" />
+                    <ValidationMessage For="() => _articleForm.VatRate" />
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="art-description">Beschreibung</label>
+                    <InputText id="art-description" class="form-control" @bind-Value="_articleForm.Description" />
+                </div>
+                <div class="form-field form-field-wide">
+                    <CategoryCascadeSelector Label="Kategoriepfad" Hierarchy="_hierarchy" SelectedGroupId="_articleForm.GroupId == 0 ? null : _articleForm.GroupId" SelectedGroupIdChanged="id => _articleForm.GroupId = id ?? 0" />
+                    @if (_articleForm.GroupId == 0)
+                    {
+                        <span class="validation-message">Bitte eine Kategorie wählen.</span>
+                    }
+                </div>
+            </div>
+            <button type="submit" class="visually-hidden" aria-hidden="true">Speichern</button>
+        </EditForm>
+    </ChildContent>
+    <FooterContent>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseArticleDialog">Abbrechen</Button>
+        <Button Variant="ButtonVariant.Primary" OnClick="SaveArticleAsync" Disabled="_isArticleSaving">@(_isArticleEditMode ? "Änderungen speichern" : "Artikel erstellen")</Button>
+    </FooterContent>
+</SideDrawer>
+
+<ConfirmDialog IsOpen="_isDeleteConfirmOpen"
+               Title="Artikel löschen"
+               Message="@($"Soll der Artikel „{_deleteTargetName}“ wirklich gelöscht werden? Dieser Vorgang kann nicht rückgängig gemacht werden.")"
+               IsBusy="_isDeleting"
+               OnConfirm="ConfirmDeleteArticleAsync"
+               OnCancel="() => _isDeleteConfirmOpen = false" />
+
+<Modal IsOpen="_isGroupManagerOpen" Title="Kategorien verwalten" OnClose="CloseGroupManager">
+    <ChildContent>
+        @if (_groupError is not null)
+        {
+            <div class="inline-alert inline-alert-danger" role="alert">@_groupError</div>
+        }
+        <EditForm Model="_groupForm" OnValidSubmit="SaveGroupAsync">
+            <DataAnnotationsValidator />
+            <div class="form-grid">
+                <div class="form-field form-field-wide">
+                    <label for="grp-name">Name</label>
+                    <InputText id="grp-name" class="form-control" @bind-Value="_groupForm.Name" />
+                    <ValidationMessage For="() => _groupForm.Name" />
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="grp-parent">Übergeordnete Gruppe</label>
+                    <InputSelect id="grp-parent" class="form-control" @bind-Value="_groupForm.ParentGroupId">
+                        <option value="0">— keine (Hauptgruppe) —</option>
+                        @foreach (ArticleGroupListItemDto g in _groups.Where(g => g.ArticleGroupId != _groupForm.ArticleGroupId))
+                        {
+                            <option value="@g.ArticleGroupId">@g.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+            <div class="form-actions">
+                <Button Type="submit" Variant="ButtonVariant.Primary" Disabled="_isGroupSaving">@(_isGroupEditMode ? "Änderungen speichern" : "Gruppe erstellen")</Button>
+                @if (_isGroupEditMode)
+                {
+                    <Button Variant="ButtonVariant.Secondary" OnClick="StartCreateGroup">Abbrechen</Button>
+                }
+            </div>
+        </EditForm>
+
+        <div class="table-scroll" style="margin-top: var(--space-4)">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Übergeordnet</th>
+                        <th scope="col"><span class="visually-hidden">Aktionen</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ArticleGroupListItemDto group in _groups)
+                    {
+                        <tr>
+                            <td>@group.Name</td>
+                            <td>@(group.ParentGroupName ?? "—")</td>
+                            <td class="table-actions">
+                                <Button Variant="ButtonVariant.Secondary" OnClick="() => StartEditGroupAsync(group.ArticleGroupId)">Bearbeiten</Button>
+                                <Button Variant="ButtonVariant.Danger" OnClick="() => DeleteGroupAsync(group.ArticleGroupId, group.Name)">Löschen</Button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseGroupManager">Schliessen</Button>
+    </FooterContent>
+</Modal>
+
+@code {
+    private const int LowStockThreshold = 20;
+    private static readonly Dictionary<string, object> StopPropagation = new() { { "onclick:stopPropagation", true } };
+
+    private readonly List<ArticleListItemDto> _allArticles = [];
+    private IReadOnlyList<ArticleGroupHierarchyDto> _hierarchy = [];
+    private IReadOnlyDictionary<int, string> _groupPathById = new Dictionary<int, string>();
+    private string? _searchTerm;
+    private string _stockFilter = "alle";
+    private int? _selectedGroupId;
+    private bool _isLoading = true;
+    private string? _loadError;
+    private string? _message;
+    private string? _error;
+
+    private int? _selectedArticleId;
+    private int _page = 1;
+    private int _pageSize = 15;
+
+    private bool _isArticleDialogOpen;
+    private bool _isArticleEditMode;
+    private bool _isArticleSaving;
+    private string? _articleDialogError;
+    private readonly ArticleFormModel _articleForm = new();
+
+    private bool _isDeleteConfirmOpen;
+    private int _deleteTargetId;
+    private string _deleteTargetName = string.Empty;
+    private bool _isDeleting;
+
+    private bool _isGroupManagerOpen;
+    private bool _isGroupEditMode;
+    private bool _isGroupSaving;
+    private string? _groupError;
+    private readonly List<ArticleGroupListItemDto> _groups = [];
+    private readonly ArticleGroupFormModel _groupForm = new();
+
+    private IReadOnlyList<ArticleListItemDto> _filteredArticles => [.. _allArticles
+        .Where(a => _stockFilter switch
+        {
+            "verfuegbar" => a.Stock > LowStockThreshold,
+            "tief" => a.Stock <= LowStockThreshold,
+            _ => true
+        })];
+
+    private IReadOnlyList<ArticleListItemDto> _pagedArticles =>
+        [.. _filteredArticles.Skip((_page - 1) * _pageSize).Take(_pageSize)];
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_filteredArticles.Count / (double)_pageSize));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Uri uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (queryParams.TryGetValue("lagerstatus", out var lagerstatus) && lagerstatus == "tief")
+        {
+            _stockFilter = "tief";
+        }
+
+        await LoadGroupHierarchyAsync();
+        await LoadArticlesAsync();
+    }
+
+    private async Task LoadGroupHierarchyAsync()
+    {
+        var result = await GetArticleGroupHierarchyUseCase.ExecuteAsync(new GetArticleGroupHierarchyQuery(null));
+        _hierarchy = result.IsSuccess ? result.Value! : [];
+        _groupPathById = result.IsSuccess
+            ? result.Value!.ToDictionary(g => g.Id, g => g.Path)
+            : new Dictionary<int, string>();
+    }
+
+    private string GroupPath(int groupId) => _groupPathById.TryGetValue(groupId, out string? path) ? path : "—";
+
+    private async Task LoadArticlesAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_searchTerm, _selectedGroupId));
+
+        _allArticles.Clear();
+        if (!result.IsSuccess)
+        {
+            _loadError = result.Error;
+            _isLoading = false;
+            return;
+        }
+
+        _allArticles.AddRange(result.Value!);
+        _page = 1;
+        _isLoading = false;
+    }
+
+    private Task OnStockFilterChanged(string? value)
+    {
+        _stockFilter = value ?? "alle";
+        _page = 1;
+        return Task.CompletedTask;
+    }
+
+    private string PaginationSummary()
+    {
+        if (_filteredArticles.Count == 0)
+        {
+            return "0 von 0";
+        }
+
+        int from = (_page - 1) * _pageSize + 1;
+        int to = Math.Min(_page * _pageSize, _filteredArticles.Count);
+        return $"{from}–{to} von {_filteredArticles.Count}";
+    }
+
+    private void ChangePage(int page) => _page = Math.Clamp(page, 1, TotalPages);
+
+    private Task OnPageSizeChanged(string? value)
+    {
+        _pageSize = int.TryParse(value, out int size) ? size : 15;
+        _page = 1;
+        return Task.CompletedTask;
+    }
+
+    private void ToggleSelection(int articleId) =>
+        _selectedArticleId = _selectedArticleId == articleId ? null : articleId;
+
+    private async Task OnCategoryFilterChangedAsync(int? groupId)
+    {
+        _selectedGroupId = groupId;
+        await LoadArticlesAsync();
+    }
+
+    private void StartCreateArticle()
+    {
+        _isArticleEditMode = false;
+        _articleDialogError = null;
+        _articleForm.Reset();
+        _isArticleDialogOpen = true;
+    }
+
+    private async Task StartEditArticleAsync(int articleId)
+    {
+        _articleDialogError = null;
+        var result = await GetArticleForEditUseCase.ExecuteAsync(new GetArticleForEditQuery(articleId));
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        GetArticleForEditResponse article = result.Value!;
+        _articleForm.ArticleId = article.ArticleId;
+        _articleForm.ArticleNumber = article.ArticleNumber;
+        _articleForm.Name = article.Name;
+        _articleForm.PriceAmount = article.PriceAmount;
+        _articleForm.Stock = article.Stock;
+        _articleForm.VatRate = article.VatRate;
+        _articleForm.Description = article.Description;
+        _articleForm.GroupId = article.GroupId;
+
+        _isArticleEditMode = true;
+        _isArticleDialogOpen = true;
+    }
+
+    private void CloseArticleDialog()
+    {
+        _isArticleDialogOpen = false;
+        _articleDialogError = null;
+    }
+
+    private async Task SaveArticleAsync()
+    {
+        if (_articleForm.GroupId == 0)
+        {
+            _articleDialogError = "Bitte eine Kategorie wählen.";
+            return;
+        }
+
+        _isArticleSaving = true;
+        _articleDialogError = null;
+
+        var result = _isArticleEditMode
+            ? await UpdateArticleUseCase.ExecuteAsync(new UpdateArticleCommand(
+                _articleForm.ArticleId, _articleForm.Name, _articleForm.PriceAmount, "CHF",
+                _articleForm.GroupId, _articleForm.Stock, _articleForm.VatRate, _articleForm.Description))
+            : await CreateArticleAsync();
+
+        if (!result.IsSuccess)
+        {
+            _articleDialogError = result.Error;
+            _isArticleSaving = false;
+            return;
+        }
+
+        _message = _isArticleEditMode ? "Artikel wurde aktualisiert." : "Artikel wurde erstellt.";
+        _isArticleDialogOpen = false;
+        _isArticleSaving = false;
+        await LoadArticlesAsync();
+    }
+
+    private async Task<Result> CreateArticleAsync()
+    {
+        var result = await CreateArticleUseCase.ExecuteAsync(new CreateArticleCommand(
+            _articleForm.ArticleNumber, _articleForm.Name, _articleForm.PriceAmount, "CHF",
+            _articleForm.GroupId, _articleForm.Stock, _articleForm.VatRate, _articleForm.Description));
+
+        return result.IsSuccess ? Result.Success() : Result.Fail(result.Error!);
+    }
+
+    private void RequestDeleteArticle(int articleId, string name)
+    {
+        _deleteTargetId = articleId;
+        _deleteTargetName = name;
+        _isDeleteConfirmOpen = true;
+    }
+
+    private async Task ConfirmDeleteArticleAsync()
+    {
+        _isDeleting = true;
+        _error = null;
+
+        var result = await DeleteArticleUseCase.ExecuteAsync(new DeleteArticleCommand(_deleteTargetId));
+
+        _isDeleting = false;
+        _isDeleteConfirmOpen = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        if (_selectedArticleId == _deleteTargetId)
+        {
+            _selectedArticleId = null;
+        }
+
+        _message = "Artikel wurde gelöscht.";
+        await LoadArticlesAsync();
+    }
+
+    private async Task OpenGroupManager()
+    {
+        _isGroupManagerOpen = true;
+        await LoadGroupsAsync();
+        StartCreateGroup();
+    }
+
+    private void CloseGroupManager() => _isGroupManagerOpen = false;
+
+    private async Task LoadGroupsAsync()
+    {
+        var result = await SearchArticleGroupsUseCase.ExecuteAsync(new SearchArticleGroupsQuery(null, null));
+        _groups.Clear();
+        if (result.IsSuccess)
+        {
+            _groups.AddRange(result.Value!);
+        }
+    }
+
+    private void StartCreateGroup()
+    {
+        _isGroupEditMode = false;
+        _groupError = null;
+        _groupForm.Reset();
+    }
+
+    private async Task StartEditGroupAsync(int groupId)
+    {
+        var result = await GetArticleGroupForEditUseCase.ExecuteAsync(new GetArticleGroupForEditQuery(groupId));
+        if (!result.IsSuccess)
+        {
+            _groupError = result.Error;
+            return;
+        }
+
+        GetArticleGroupForEditResponse group = result.Value!;
+        _groupForm.ArticleGroupId = group.ArticleGroupId;
+        _groupForm.Name = group.Name;
+        _groupForm.ParentGroupId = group.ParentGroupId ?? 0;
+        _isGroupEditMode = true;
+    }
+
+    private async Task SaveGroupAsync()
+    {
+        _isGroupSaving = true;
+        _groupError = null;
+
+        var result = _isGroupEditMode
+            ? await RenameArticleGroupUseCase.ExecuteAsync(new RenameArticleGroupCommand(_groupForm.ArticleGroupId, _groupForm.Name))
+            : await CreateGroupAsync();
+
+        _isGroupSaving = false;
+
+        if (!result.IsSuccess)
+        {
+            _groupError = result.Error;
+            return;
+        }
+
+        StartCreateGroup();
+        await LoadGroupsAsync();
+        await LoadGroupHierarchyAsync();
+        await LoadArticlesAsync();
+    }
+
+    private async Task<Result> CreateGroupAsync()
+    {
+        int? parentId = _groupForm.ParentGroupId == 0 ? null : _groupForm.ParentGroupId;
+        var result = await CreateArticleGroupUseCase.ExecuteAsync(new CreateArticleGroupCommand(_groupForm.Name, parentId));
+        return result.IsSuccess ? Result.Success() : Result.Fail(result.Error!);
+    }
+
+    private async Task DeleteGroupAsync(int groupId, string name)
+    {
+        _groupError = null;
+        var result = await DeleteArticleGroupUseCase.ExecuteAsync(new DeleteArticleGroupCommand(groupId));
+        if (!result.IsSuccess)
+        {
+            _groupError = result.Error;
+            return;
+        }
+
+        await LoadGroupsAsync();
+        await LoadGroupHierarchyAsync();
+        await LoadArticlesAsync();
+    }
+
+    private sealed class ArticleFormModel
+    {
+        public int ArticleId { get; set; }
+
+        [Required(ErrorMessage = "Artikelnummer ist erforderlich.")]
+        [StringLength(20, ErrorMessage = "Maximal 20 Zeichen.")]
+        public string ArticleNumber { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Bezeichnung ist erforderlich.")]
+        public string Name { get; set; } = string.Empty;
+
+        [Range(0, double.MaxValue, ErrorMessage = "Preis muss 0 oder grösser sein.")]
+        public decimal PriceAmount { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "Lagerbestand darf nicht negativ sein.")]
+        public int Stock { get; set; }
+
+        [Range(typeof(decimal), "0", "999.99", ErrorMessage = "MwSt.-Satz muss zwischen 0 und 999.99 liegen.")]
+        public decimal VatRate { get; set; }
+
+        public string? Description { get; set; }
+
+        public int GroupId { get; set; }
+
+        public void Reset()
+        {
+            ArticleId = 0;
+            ArticleNumber = string.Empty;
+            Name = string.Empty;
+            PriceAmount = 0;
+            Stock = 0;
+            VatRate = 0;
+            Description = null;
+            GroupId = 0;
+        }
+    }
+
+    private sealed class ArticleGroupFormModel
+    {
+        public int ArticleGroupId { get; set; }
+
+        [Required(ErrorMessage = "Name ist erforderlich.")]
+        [StringLength(150, ErrorMessage = "Maximal 150 Zeichen.")]
+        public string Name { get; set; } = string.Empty;
+
+        public int ParentGroupId { get; set; }
+
+        public void Reset()
+        {
+            ArticleGroupId = 0;
+            Name = string.Empty;
+            ParentGroupId = 0;
+        }
+    }
+}

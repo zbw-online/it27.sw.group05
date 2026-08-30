@@ -1,0 +1,161 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+@using OrderManagement.Application.Features.Orders.GetDashboardOverview
+
+<div class="trend-chart">
+    <div class="trend-chart-legend">
+        <span class="trend-chart-legend-item"><span class="trend-chart-dot trend-chart-dot-orders" aria-hidden="true"></span>Aufträge (Anzahl)</span>
+        <span class="trend-chart-legend-item"><span class="trend-chart-dot trend-chart-dot-revenue" aria-hidden="true"></span>Umsatz (CHF)</span>
+    </div>
+
+    <div class="trend-chart-grid">
+        <div class="trend-chart-axis-left" aria-hidden="true">
+            @foreach (int tick in Enumerable.Reverse(OrderTicks))
+            {
+                <span>@tick</span>
+            }
+        </div>
+
+        <svg viewBox="0 0 @SvgWidth @SvgHeight" preserveAspectRatio="none" class="trend-chart-svg" role="img" aria-labelledby="@_titleId">
+            <title id="@_titleId">Verlauf von Aufträgen und Umsatz über die letzten @Points.Count Monate</title>
+            @foreach (double y in GridLineYPositions)
+            {
+                <line class="trend-chart-gridline" x1="0" y1="@y.ToString(System.Globalization.CultureInfo.InvariantCulture)" x2="@SvgWidth" y2="@y.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+            }
+            <polyline points="@RevenuePolylinePoints" fill="none" stroke="var(--color-info)" stroke-width="2" stroke-dasharray="4 3" />
+            <polyline points="@OrdersPolylinePoints" fill="none" stroke="var(--color-primary)" stroke-width="2" />
+            @for (int i = 0; i < Points.Count; i++)
+            {
+                double x = XFor(i);
+                <circle cx="@x.ToString(System.Globalization.CultureInfo.InvariantCulture)" cy="@YFor(Points[i].OrderCount, MaxOrderTick).ToString(System.Globalization.CultureInfo.InvariantCulture)" r="2.5" fill="var(--color-primary)" />
+            }
+        </svg>
+
+        <div class="trend-chart-axis-right" aria-hidden="true">
+            @foreach (decimal tick in Enumerable.Reverse(RevenueTicks))
+            {
+                <span>@FormatAxisRevenue(tick)</span>
+            }
+        </div>
+
+        <div class="trend-chart-axis-spacer"></div>
+        <div class="trend-chart-axis-bottom">
+            @foreach (MonthlyTrendPointDto point in Points)
+            {
+                <span>@MonthAbbreviation(point.Month)</span>
+            }
+        </div>
+        <div class="trend-chart-axis-spacer"></div>
+    </div>
+
+    <table class="visually-hidden">
+        <caption>Aufträge und Umsatz pro Monat</caption>
+        <thead>
+            <tr>
+                <th scope="col">Monat</th>
+                <th scope="col">Aufträge</th>
+                <th scope="col">Umsatz (CHF)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (MonthlyTrendPointDto point in Points)
+            {
+                <tr>
+                    <td>@MonthAbbreviation(point.Month) @point.Year</td>
+                    <td>@point.OrderCount</td>
+                    <td>@point.Revenue.ToString("N0", _swissCulture)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private static readonly System.Globalization.CultureInfo _swissCulture = System.Globalization.CultureInfo.GetCultureInfo("de-CH");
+    private static readonly string[] MonthNames = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+    private const int GridLineCount = 4;
+
+    private readonly string _titleId = $"trend-{Guid.NewGuid():N}";
+
+    [Parameter, EditorRequired] public IReadOnlyList<MonthlyTrendPointDto> Points { get; set; } = [];
+
+    private const double SvgWidth = 600;
+    private const double SvgHeight = 160;
+
+    private int MaxOrders => Points.Count == 0 ? 0 : Points.Max(p => p.OrderCount);
+    private decimal MaxRevenue => Points.Count == 0 ? 0m : Points.Max(p => p.Revenue);
+
+    private int MaxOrderTick => OrderTicks.Count == 0 ? 1 : OrderTicks[^1];
+    private decimal MaxRevenueTick => RevenueTicks.Count == 0 ? 1m : RevenueTicks[^1];
+
+    private List<int> OrderTicks => BuildIntTicks(MaxOrders);
+    private List<decimal> RevenueTicks => BuildDecimalTicks(MaxRevenue);
+
+    private IEnumerable<double> GridLineYPositions => Enumerable.Range(0, GridLineCount + 1)
+        .Select(i => 5 + i * (SvgHeight - 10) / GridLineCount);
+
+    private static List<int> BuildIntTicks(int max)
+    {
+        int niceMax = NiceCeiling(max);
+        int step = niceMax / GridLineCount;
+        return step == 0
+            ? [0]
+            : [.. Enumerable.Range(0, GridLineCount + 1).Select(i => i * step)];
+    }
+
+    private static List<decimal> BuildDecimalTicks(decimal max)
+    {
+        decimal niceMax = NiceCeiling(max);
+        decimal step = niceMax / GridLineCount;
+        return step == 0m
+            ? [0m]
+            : [.. Enumerable.Range(0, GridLineCount + 1).Select(i => i * step)];
+    }
+
+    private static int NiceCeiling(int value)
+    {
+        if (value <= 0)
+        {
+            return GridLineCount;
+        }
+
+        int magnitude = (int)Math.Pow(10, Math.Floor(Math.Log10(value)));
+        int step = Math.Max(1, magnitude / 2);
+        return ((value / step) + 1) * step;
+    }
+
+    private static decimal NiceCeiling(decimal value)
+    {
+        if (value <= 0m)
+        {
+            return GridLineCount;
+        }
+
+        decimal magnitude = (decimal)Math.Pow(10, Math.Floor(Math.Log10((double)value)));
+        decimal step = Math.Max(1m, magnitude / 2m);
+        return (Math.Floor(value / step) + 1) * step;
+    }
+
+    private static string FormatAxisRevenue(decimal value)
+    {
+        return value switch
+        {
+            >= 1_000_000m => $"{(value / 1_000_000m).ToString("0.#", _swissCulture)}M",
+            >= 1_000m => $"{(value / 1_000m).ToString("0.#", _swissCulture)}k",
+            _ => value.ToString("0", _swissCulture)
+        };
+    }
+
+    private static string MonthAbbreviation(int month) => MonthNames[month - 1];
+
+    private double XFor(int index) => Points.Count <= 1 ? SvgWidth / 2 : index * (SvgWidth / (Points.Count - 1));
+
+    private double YFor(int value, int max) => SvgHeight - (value / (double)max * (SvgHeight - 10)) - 5;
+
+    private double YForRevenue(decimal value, decimal max) => SvgHeight - (double)(value / max) * (SvgHeight - 10) - 5;
+
+    private string OrdersPolylinePoints => string.Join(" ", Points.Select((p, i) =>
+        $"{XFor(i).ToString(System.Globalization.CultureInfo.InvariantCulture)},{YFor(p.OrderCount, MaxOrderTick).ToString(System.Globalization.CultureInfo.InvariantCulture)}"));
+
+    private string RevenuePolylinePoints => string.Join(" ", Points.Select((p, i) =>
+        $"{XFor(i).ToString(System.Globalization.CultureInfo.InvariantCulture)},{YForRevenue(p.Revenue, MaxRevenueTick).ToString(System.Globalization.CultureInfo.InvariantCulture)}"));
+}

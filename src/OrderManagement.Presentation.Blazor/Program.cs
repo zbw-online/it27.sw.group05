@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using OrderManagement.Application;
 using OrderManagement.Infrastructure;
 using OrderManagement.Presentation.Blazor.Components;
@@ -8,6 +10,10 @@ namespace OrderManagement.Presentation.Blazor
     {
         public static void Main(string[] args)
         {
+            var swissCulture = CultureInfo.GetCultureInfo("de-CH");
+            CultureInfo.DefaultThreadCurrentCulture = swissCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = swissCulture;
+
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
             _ = builder.Services
@@ -27,6 +33,11 @@ namespace OrderManagement.Presentation.Blazor
                 _ = app.UseExceptionHandler("/Error");
                 _ = app.UseHsts();
             }
+
+            _ = app.UseRequestLocalization(new RequestLocalizationOptions()
+                .SetDefaultCulture(swissCulture.Name)
+                .AddSupportedCultures(swissCulture.Name)
+                .AddSupportedUICultures(swissCulture.Name));
 
             _ = app.UseHttpsRedirection();
             _ = app.UseStaticFiles();

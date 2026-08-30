@@ -1,0 +1,70 @@
+.app-drawer {
+    background: var(--color-surface);
+    border-left: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+    color: var(--color-text-primary);
+    height: 100vh;
+    inset: 0 0 0 auto;
+    margin: 0;
+    max-height: 100vh;
+    max-width: min(560px, 100vw);
+    padding: 0;
+    position: fixed;
+    width: 100%;
+}
+
+.app-drawer[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.app-drawer::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.app-drawer-header {
+    align-items: center;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    flex: 0 0 auto;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+}
+
+.app-drawer-header h2 {
+    font-size: 1.1rem;
+}
+
+.app-drawer-close {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    height: var(--hit-target-min);
+    justify-content: center;
+    width: var(--hit-target-min);
+}
+
+.app-drawer-close:hover {
+    background: var(--color-elevated);
+    color: var(--color-text-primary);
+}
+
+.app-drawer-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--space-5);
+}
+
+.app-drawer-footer {
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex: 0 0 auto;
+    gap: var(--space-3);
+    justify-content: flex-end;
+    padding: var(--space-4) var(--space-5);
+}
