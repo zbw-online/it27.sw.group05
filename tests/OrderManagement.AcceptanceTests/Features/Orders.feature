@@ -96,3 +96,39 @@ Scenario: A failed operation does not leave partially persisted data
       | ART-40002      | 0        |
     Then the order creation is rejected because the quantity must be positive
     And order "ORD-2026-013" can not be found by search
+
+Scenario: An order resolves the customer address valid on the delivery date
+    Given a customer "CU30020" is registered with address "Old Street 1, 8000 Zurich, CH" valid from "2026-01-01"
+    And customer "CU30020" moved to "New Street 5, 9000 St. Gallen, CH" valid from "2026-09-01"
+    When I create order "ORD-2026-020" for customer "CU30020" with delivery date "2026-08-31" and lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    Then order "ORD-2026-020" has billing address "Old Street 1, 8000 Zurich, CH"
+    And order "ORD-2026-020" has delivery address "Old Street 1, 8000 Zurich, CH"
+
+Scenario: An order resolves the new address once it becomes valid on the delivery date
+    Given a customer "CU30021" is registered with address "Old Street 1, 8000 Zurich, CH" valid from "2026-01-01"
+    And customer "CU30021" moved to "New Street 5, 9000 St. Gallen, CH" valid from "2026-09-01"
+    When I create order "ORD-2026-021" for customer "CU30021" with delivery date "2026-09-01" and lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    Then order "ORD-2026-021" has billing address "New Street 5, 9000 St. Gallen, CH"
+    And order "ORD-2026-021" has delivery address "New Street 5, 9000 St. Gallen, CH"
+
+Scenario: Billing and delivery addresses can be overridden independently
+    When I create order "ORD-2026-022" for customer "CU30001" with delivery date "2026-09-01", billing address "Billing Street 1, 8000 Zurich, CH" and delivery address "Delivery Street 2, 9000 St. Gallen, CH" and lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    Then order "ORD-2026-022" has billing address "Billing Street 1, 8000 Zurich, CH"
+    And order "ORD-2026-022" has delivery address "Delivery Street 2, 9000 St. Gallen, CH"
+    And the billing address for order "ORD-2026-022" is manual
+    And the delivery address for order "ORD-2026-022" is manual
+
+Scenario: A submitted order keeps its resolved address snapshots when reopened
+    When I create order "ORD-2026-023" for customer "CU30001" with delivery date "2026-09-01" and lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    Then order "ORD-2026-023" has billing address "Main Street 1, 8000 Zurich, CH"
+    And order "ORD-2026-023" has delivery address "Main Street 1, 8000 Zurich, CH"
+    And the billing address for order "ORD-2026-023" is automatic
+    And the delivery address for order "ORD-2026-023" is automatic

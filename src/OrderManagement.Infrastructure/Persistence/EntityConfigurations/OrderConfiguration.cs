@@ -55,6 +55,31 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .HasColumnType("datetime2")
                 .IsRequired();
 
+            _ = builder.Property(o => o.DeliveryDate)
+                .HasColumnName("DeliveryDate")
+                .HasColumnType("date")
+                .IsRequired();
+
+            _ = builder.Property(o => o.CustomerReference)
+                .HasColumnName("CustomerReference")
+                .HasMaxLength(100);
+
+            _ = builder.Property(o => o.IsInventoryApplied)
+                .HasColumnName("IsInventoryApplied")
+                .IsRequired();
+
+            _ = builder.Property(o => o.BillingAddressSource)
+                .HasColumnName("BillingAddressSource")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            _ = builder.Property(o => o.DeliveryAddressSource)
+                .HasColumnName("DeliveryAddressSource")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
             // Total (Money) - owned, table-splitting into Orders
             _ = builder.OwnsOne(o => o.Total, m =>
             {
@@ -81,6 +106,29 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                     .HasColumnName("TotalCurrency")
                     .HasColumnType("nchar(3)")
                     .IsRequired();
+            });
+
+            // BillingAddress (Address) - owned, table-splitting into Orders
+            _ = builder.OwnsOne(o => o.BillingAddress, a =>
+            {
+                _ = a.ToTable("Orders", tb =>
+                {
+                    _ = tb.IsTemporal(ttb =>
+                    {
+                        _ = ttb.UseHistoryTable("OrdersHistory");
+                        _ = ttb.HasPeriodStart("RowValidFrom");
+                        _ = ttb.HasPeriodEnd("RowValidUntil");
+                    });
+
+                    _ = tb.Property<DateTime>("RowValidFrom").HasColumnName("RowValidFrom");
+                    _ = tb.Property<DateTime>("RowValidUntil").HasColumnName("RowValidUntil");
+                });
+
+                _ = a.Property(x => x.Street).HasColumnName("BillingStreet").HasMaxLength(200).IsRequired();
+                _ = a.Property(x => x.Number).HasColumnName("BillingHouseNumber").HasMaxLength(20).IsRequired();
+                _ = a.Property(x => x.PostalCode).HasColumnName("BillingPostalCode").HasMaxLength(20).IsRequired();
+                _ = a.Property(x => x.City).HasColumnName("BillingCity").HasMaxLength(100).IsRequired();
+                _ = a.Property(x => x.Country).HasColumnName("BillingCountryCode").HasColumnType("nchar(2)").IsRequired();
             });
 
             // DeliveryAddress (Address) - owned, table-splitting into Orders

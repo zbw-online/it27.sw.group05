@@ -38,6 +38,12 @@ namespace OrderManagement.Application.Features.Orders.AddOrderLine
                 return Result.Fail("Article was not found.");
             }
 
+            Result availabilityResult = article.EnsureAvailableForOrder();
+            if (!availabilityResult.IsSuccess)
+            {
+                return availabilityResult;
+            }
+
             Result addLineResult = order.AddLine(article.Id, article.Name, article.Price, command.Quantity);
             if (!addLineResult.IsSuccess)
             {

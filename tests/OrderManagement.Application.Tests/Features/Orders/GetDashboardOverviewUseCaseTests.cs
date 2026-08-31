@@ -9,6 +9,7 @@ using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
 
 using SharedKernel.Primitives;
 
@@ -100,7 +101,11 @@ namespace OrderManagement.Application.Tests.Features.Orders
             => Order.Create(
                 orderNumber,
                 customerId,
-                Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue())
+                new DateOnly(2026, 9, 1),
+                Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                AddressSource.Automatic,
+                Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                AddressSource.Automatic)
             .EnsureValue();
 
         private static Article ValidArticle(string articleNumber)

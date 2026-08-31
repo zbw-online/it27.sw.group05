@@ -22,7 +22,7 @@ namespace OrderManagement.Domain.Tests.Catalog
             int stock = 10,
             decimal vatRate = 7.70m,
             string? description = "Test description",
-            int status = 1) => Article.Create(
+            ArticleStatus status = ArticleStatus.Active) => Article.Create(
                 articleNr: articleNr,
                 name: name,
                 priceAmount: priceAmount,
@@ -51,7 +51,7 @@ namespace OrderManagement.Domain.Tests.Catalog
             Assert.AreEqual(10, article.Stock);
             Assert.AreEqual(7.70m, article.VatRate);
             Assert.AreEqual("Test description", article.Description);
-            Assert.AreEqual(1, article.Status);
+            Assert.AreEqual(ArticleStatus.Active, article.Status);
         }
 
         [TestMethod]
@@ -230,6 +230,97 @@ namespace OrderManagement.Domain.Tests.Catalog
 
             Assert.IsTrue(result.IsSuccess, result.Error);
             Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleMovedToGroup));
+        }
+
+        [TestMethod]
+        public void Deactivate_WhenActive_ShouldSucceedAndSetInactive()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.Deactivate();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(ArticleStatus.Inactive, article.Status);
+        }
+
+        [TestMethod]
+        public void Deactivate_WhenActive_ShouldRaiseDeactivatedEvent()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.Deactivate();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleDeactivated));
+        }
+
+        [TestMethod]
+        public void Deactivate_WhenAlreadyInactive_ShouldFail()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            article.Deactivate().EnsureSuccess();
+
+            Result result = article.Deactivate();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(ArticleStatus.Inactive, article.Status);
+        }
+
+        [TestMethod]
+        public void EnsureAvailableForOrder_WhenActive_ShouldSucceed()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.EnsureAvailableForOrder();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+        }
+
+        [TestMethod]
+        public void EnsureAvailableForOrder_WhenInactive_ShouldFailWithArticleName()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            article.Deactivate().EnsureSuccess();
+
+            Result result = article.EnsureAvailableForOrder();
+
+            Assert.IsFalse(result.IsSuccess);
+            StringAssert.Contains(result.Error, article.Name);
+        }
+
+        [TestMethod]
+        public void Reactivate_WhenInactive_ShouldSucceedAndSetActive()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            article.Deactivate().EnsureSuccess();
+
+            Result result = article.Reactivate();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(ArticleStatus.Active, article.Status);
+        }
+
+        [TestMethod]
+        public void Reactivate_WhenInactive_ShouldRaiseReactivatedEvent()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            article.Deactivate().EnsureSuccess();
+
+            Result result = article.Reactivate();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleReactivated));
+        }
+
+        [TestMethod]
+        public void Reactivate_WhenAlreadyActive_ShouldFail()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.Reactivate();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(ArticleStatus.Active, article.Status);
         }
     }
 }

@@ -1,3 +1,5 @@
+using OrderManagement.Domain.Catalog.ValueObjects;
+
 namespace OrderManagement.Application.Features.Catalog.Shared
 {
     public sealed record ArticleListItemDto(
@@ -10,5 +12,5 @@ namespace OrderManagement.Application.Features.Catalog.Shared
         string GroupName,
         int Stock,
         decimal VatRate,
-        int Status);
+        ArticleStatus Status);
 }

@@ -30,3 +30,29 @@ Scenario: Removing an article that is no longer sold
     Given article "ART-00005" named "Old Cable" already exists in group "Electronics"
     When I delete article "ART-00005"
     Then article "ART-00005" can no longer be found
+
+Scenario: A referenced article cannot be permanently deleted
+    Given article "ART-00006" named "Referenced Item" already exists in group "Electronics"
+    And a customer "CU40001" named "Order Customer" is already registered
+    And order "ORD-2026-030" already exists for customer "CU40001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-00006      | 1        |
+    When I delete article "ART-00006"
+    Then the article deletion is rejected because it is referenced by an order
+
+Scenario: A referenced article can be deactivated and disappears from the active catalogue
+    Given article "ART-00007" named "Deactivatable Item" already exists in group "Electronics"
+    And a customer "CU40002" named "Another Customer" is already registered
+    And order "ORD-2026-031" already exists for customer "CU40002" with lines:
+      | ArticleNumber | Quantity |
+      | ART-00007      | 1        |
+    When I deactivate article "ART-00007"
+    Then article "ART-00007" is inactive
+    And article "ART-00007" is excluded from the active article catalogue
+
+Scenario: Filtering by a parent category includes articles from descendant groups
+    Given the article group "Computers" exists under "Electronics"
+    And article "ART-00008" named "Desktop PC" already exists in group "Electronics"
+    And article "ART-00009" named "Laptop" already exists in group "Computers"
+    When I filter articles by category "Electronics"
+    Then the filtered article list contains "ART-00008" and "ART-00009"

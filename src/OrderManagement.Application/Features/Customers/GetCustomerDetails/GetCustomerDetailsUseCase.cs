@@ -6,9 +6,12 @@ using SharedKernel.Primitives;
 
 namespace OrderManagement.Application.Features.Customers.GetCustomerDetails
 {
-    public sealed class GetCustomerDetailsUseCase(ICustomerQueryRepository customerQueryRepository) : IGetCustomerDetailsUseCase
+    public sealed class GetCustomerDetailsUseCase(
+        ICustomerQueryRepository customerQueryRepository,
+        TimeProvider timeProvider) : IGetCustomerDetailsUseCase
     {
         private readonly ICustomerQueryRepository _customerQueryRepository = customerQueryRepository;
+        private readonly TimeProvider _timeProvider = timeProvider;
 
         public async Task<Result<GetCustomerDetailsResponse>> ExecuteAsync(
             GetCustomerDetailsQuery query,
@@ -23,7 +26,7 @@ namespace OrderManagement.Application.Features.Customers.GetCustomerDetails
                 return Results.Fail<GetCustomerDetailsResponse>("Customer was not found.");
             }
 
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime);
 
             IReadOnlyList<CustomerAddressDto> addresses = [.. customer.Addresses
                 .OrderBy(a => a.ValidFrom)

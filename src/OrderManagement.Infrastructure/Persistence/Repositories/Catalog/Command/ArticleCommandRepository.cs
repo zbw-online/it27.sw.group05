@@ -16,6 +16,13 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Comman
             => await _context.Articles
                 .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
+        public async Task<IReadOnlyList<Article>> GetByIdsAsync(
+            IReadOnlyCollection<ArticleId> ids,
+            CancellationToken cancellationToken = default)
+            => await _context.Articles
+                .Where(a => ids.Contains(a.Id))
+                .ToListAsync(cancellationToken);
+
         public void Add(Article article)
             => _context.Set<Article>().Add(article);
 

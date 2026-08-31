@@ -1,0 +1,46 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<ul class="category-flyout-menu" role="menu" aria-label="@AriaLabel">
+    @for (int index = 0; index < Items.Count; index++)
+    {
+        int currentIndex = index;
+        CategoryFlyoutItem item = Items[currentIndex];
+        bool isSelected = SelectedId == item.Id;
+        bool isFocused = IsFocusedLevel && FocusedIndex == currentIndex;
+        <li role="none">
+            <button type="button"
+                    role="menuitem"
+                    class="category-flyout-item @(isSelected ? "is-selected" : string.Empty)"
+                    data-level="@Level"
+                    data-index="@currentIndex"
+                    aria-haspopup="@(item.HasChildren ? "menu" : null)"
+                    aria-current="@(isSelected ? "true" : null)"
+                    tabindex="@(isFocused ? 0 : -1)"
+                    @onclick="() => OnActivate.InvokeAsync(item)"
+                    @onmouseenter="() => OnHoverExpand.InvokeAsync(item)"
+                    @onkeydown="e => OnKeyDown.InvokeAsync(new CategoryFlyoutKeyEvent(Level, currentIndex, item, e))">
+                <span>@item.Name</span>
+                @if (item.HasChildren)
+                {
+                    <span class="category-flyout-arrow" aria-hidden="true">&#8250;</span>
+                }
+            </button>
+        </li>
+    }
+    @if (Items.Count == 0)
+    {
+        <li class="category-flyout-empty-item">&mdash;</li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public int Level { get; set; }
+    [Parameter, EditorRequired] public IReadOnlyList<CategoryFlyoutItem> Items { get; set; } = [];
+    [Parameter] public int? SelectedId { get; set; }
+    [Parameter] public int FocusedIndex { get; set; } = -1;
+    [Parameter] public bool IsFocusedLevel { get; set; }
+    [Parameter] public string AriaLabel { get; set; } = "Kategorien";
+    [Parameter] public EventCallback<CategoryFlyoutItem> OnActivate { get; set; }
+    [Parameter] public EventCallback<CategoryFlyoutItem> OnHoverExpand { get; set; }
+    [Parameter] public EventCallback<CategoryFlyoutKeyEvent> OnKeyDown { get; set; }
+}

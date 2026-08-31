@@ -1,18 +1,44 @@
 @namespace OrderManagement.Presentation.Blazor.Components.Shared
 @using OrderManagement.Application.Features.Customers.GetCustomerDetails
 
-<div class="address-card">
-    <strong>@Address.Street @Address.HouseNumber</strong>
-    <span>@Address.PostalCode @Address.City, @Address.CountryCode</span>
-    <small class="numeric">
-        Gültig ab @Formatting.Date(Address.ValidFrom)
-        @if (Address.ValidTo is not null)
+<div class="address-card @(IsHighlighted ? "address-card-highlighted" : string.Empty)">
+    <div class="address-card-header">
+        <strong>@Address.Street @Address.HouseNumber</strong>
+        @if (ShowStatusBadge)
         {
-            @:– @Formatting.Date(Address.ValidTo.Value)
+            <StatusBadge Text="@StatusLabel" Tone="@BadgeTone" />
         }
-    </small>
+    </div>
+    <span>@Address.PostalCode @Address.City, @Address.CountryCode</span>
+    <small class="numeric">Gültig ab @Formatting.Date(Address.ValidFrom)</small>
+    @if (Address.ValidTo is not null)
+    {
+        <small class="numeric">Gültig bis @Formatting.Date(Address.ValidTo.Value)</small>
+    }
+    @if (IsHighlighted)
+    {
+        <span class="address-card-highlight-label">Nächste geplante Adresse</span>
+    }
 </div>
 
 @code {
     [Parameter, EditorRequired] public CustomerAddressDto Address { get; set; } = default!;
+    [Parameter] public bool ShowStatusBadge { get; set; }
+    [Parameter] public bool IsHighlighted { get; set; }
+
+    private string StatusLabel => Address.Status switch
+    {
+        "Current" => "Aktuell",
+        "Future" => "Zukünftig",
+        "Previous" => "Früher",
+        _ => Address.Status
+    };
+
+    private StatusTone BadgeTone => Address.Status switch
+    {
+        "Current" => StatusTone.Success,
+        "Future" => StatusTone.Info,
+        "Previous" => StatusTone.Neutral,
+        _ => StatusTone.Neutral
+    };
 }

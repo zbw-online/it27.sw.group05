@@ -35,7 +35,7 @@ namespace OrderManagement.Domain.Catalog
         public int Stock { get; private set; }
         public decimal VatRate { get; private set; }
         public string? Description { get; private set; }
-        public int Status { get; private set; } = 1;
+        public ArticleStatus Status { get; private set; } = ArticleStatus.Active;
 
         public static Result<Article> Create(
             string? articleNr,
@@ -46,7 +46,7 @@ namespace OrderManagement.Domain.Catalog
             int stock = 0,
             decimal vatRate = 0.0m,
             string? description = null,
-            int status = 1
+            ArticleStatus status = ArticleStatus.Active
             )
         {
             if (!string.IsNullOrEmpty(articleNr) && articleNr.Length > 20) return Results.Fail<Article>("ArticleNumber cannot be empty or exceed 20 characters.");
@@ -122,5 +122,29 @@ namespace OrderManagement.Domain.Catalog
             return Result.Success();
         }
 
+        public Result Deactivate()
+        {
+            if (Status == ArticleStatus.Inactive)
+                return Result.Fail("Article is already inactive.");
+
+            Status = ArticleStatus.Inactive;
+            AddDomainEvent(new ArticleDeactivated(ArticleNumber, DateTime.UtcNow));
+            return Result.Success();
+        }
+
+        public Result Reactivate()
+        {
+            if (Status == ArticleStatus.Active)
+                return Result.Fail("Article is already active.");
+
+            Status = ArticleStatus.Active;
+            AddDomainEvent(new ArticleReactivated(ArticleNumber, DateTime.UtcNow));
+            return Result.Success();
+        }
+
+        public Result EnsureAvailableForOrder()
+            => Status == ArticleStatus.Active
+                ? Result.Success()
+                : Result.Fail($"Artikel '{Name}' ist deaktiviert und kann nicht bestellt werden.");
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Application.Features.Catalog.Shared;
+using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Presentation.Blazor.Components.Pages.Orders;
 
 namespace OrderManagement.Presentation.Blazor.Tests.Orders
@@ -9,7 +10,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Orders
     public sealed class OrderCartTests
     {
         private static ArticleListItemDto Article(int id = 1, decimal price = 10m, decimal vatRate = 8.1m, int stock = 50) =>
-            new(id, $"ART-{id}", $"Artikel {id}", price, "CHF", 1, "Gruppe", stock, vatRate, 1);
+            new(id, $"ART-{id}", $"Artikel {id}", price, "CHF", 1, "Gruppe", stock, vatRate, ArticleStatus.Active);
 
         [TestMethod]
         public void Add_NewArticle_CreatesLineWithQuantityOne()

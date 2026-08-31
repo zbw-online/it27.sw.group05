@@ -21,7 +21,7 @@ GO
    2) Domain "Enums" als CHECK Constraints (int)
    =========================================================
    Customer.Status: 0=Active, 1=Inactive
-   Article.Status:  0=Active, 1=Inactive
+   Article.Status:  1=Active, 0=Inactive (matches OrderManagement.Domain.Catalog.ValueObjects.ArticleStatus)
    ArticleGroup.Status: 0=Active, 1=Inactive
    Order.Status:    0=Draft, 1=Created, 2=Paid, 3=Shipped, 4=Cancelled
    Order.PaymentMethod: 0=Invoice, 1=Card, 2=Twint, 3=Cash
@@ -54,7 +54,7 @@ CREATE TABLE dbo.CustomerAddresses
     CustomerAddressID   INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_CustomerAddresses PRIMARY KEY,
     CustomerID          INT NOT NULL,
     ValidFrom           DATE NOT NULL,
-    ValidTo             DATE NULL,                 -- NULL = aktuell gültig
+    ValidTo             DATE NULL,                 -- NULL = aktuell gÃ¼ltig
     Street              NVARCHAR(200) NOT NULL,
     HouseNumber         NVARCHAR(20)  NOT NULL,
     PostalCode          NVARCHAR(20)  NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE dbo.Articles
     VatRate          DECIMAL(5,2) NOT NULL,      -- z.B. 7.70
     Stock            INT NOT NULL,
     [Description]    NTEXT NULL,
-    Status           INT NOT NULL CONSTRAINT DF_Articles_Status DEFAULT(0),
+    Status           INT NOT NULL CONSTRAINT DF_Articles_Status DEFAULT(1),
 
     CONSTRAINT UQ_Articles_ArticleNr UNIQUE (ArticleNr),
     CONSTRAINT FK_Articles_ArticleGroups
@@ -184,17 +184,17 @@ GO
 -- Customers
 INSERT INTO dbo.Customers (CustomerNr, LastName, SurName, [E-Mail], Website, PhoneNumber, Status, PasswordHash)
 VALUES
-('C-00001','Müller','Edi','edi.mueller@example.com','https://example.com','+41 79 111 11 11',0,'hash-1'),
+('C-00001','MÃ¼ller','Edi','edi.mueller@example.com','https://example.com','+41 79 111 11 11',0,'hash-1'),
 ('C-00002','Meier','Nadine','nadine.meier@example.com',NULL,'+41 79 222 22 22',0,'hash-2'),
-('C-00003','Schmid','Joël','joel.schmid@example.com',NULL,'+41 79 333 33 33',0,'hash-3'),
+('C-00003','Schmid','JoÃ«l','joel.schmid@example.com',NULL,'+41 79 333 33 33',0,'hash-3'),
 ('C-00004','Keller','Amin','amin.keller@example.com','https://amin.dev',NULL,0,'hash-4'),
 ('C-00005','Weber','Lena','lena.weber@example.com',NULL,NULL,1,'hash-5');
 
 -- CustomerAddresses (mehrere pro Customer, historisiert)
 INSERT INTO dbo.CustomerAddresses (CustomerID, ValidFrom, ValidTo, Street, HouseNumber, PostalCode, City, CountryCode)
 VALUES
-(1,'2024-01-01','2024-12-31','Bahnhofstrasse','10','8001','Zürich','CH'),
-(1,'2025-01-01',NULL,'Seestrasse','55a','8002','Zürich','CH'),
+(1,'2024-01-01','2024-12-31','Bahnhofstrasse','10','8001','ZÃ¼rich','CH'),
+(1,'2025-01-01',NULL,'Seestrasse','55a','8002','ZÃ¼rich','CH'),
 (2,'2025-02-01',NULL,'Hauptstrasse','5','3000','Bern','CH'),
 (3,'2024-06-01','2025-05-31','Industriestrasse','21','4000','Basel','CH'),
 (3,'2025-06-01',NULL,'Rheinweg','3','4051','Basel','CH'),
@@ -207,7 +207,7 @@ VALUES
 INSERT INTO dbo.ArticleGroups ([Name], [Description], ParentGroupID, Status)
 VALUES
 ('Fenster','Root Gruppe Fenster',NULL,0),
-('Zubehör','Root Gruppe Zubehör',NULL,0),
+('ZubehÃ¶r','Root Gruppe ZubehÃ¶r',NULL,0),
 ('Dienstleistungen','Root Gruppe Dienstleistungen',NULL,0);
 
 -- Children of Fenster
@@ -217,13 +217,13 @@ VALUES
 ('Kunststofffenster','Untergruppe',1,0),
 ('Alufenster','Untergruppe',1,0);
 
--- Children of Zubehör
+-- Children of ZubehÃ¶r
 INSERT INTO dbo.ArticleGroups ([Name], [Description], ParentGroupID, Status)
 VALUES
-('Beschläge','Untergruppe',2,0),
+('BeschlÃ¤ge','Untergruppe',2,0),
 ('Dichtungen','Untergruppe',2,0);
 
--- Child of Beschläge
+-- Child of BeschlÃ¤ge
 INSERT INTO dbo.ArticleGroups ([Name], [Description], ParentGroupID, Status)
 VALUES
 ('Scharniere','Untergruppe',7,0);
@@ -231,26 +231,26 @@ VALUES
 -- Articles (10+)
 INSERT INTO dbo.Articles (ArticleNr, [Name], ArticleGroupID, PriceAmount, PriceCurrency, VatRate, Stock, [Description], Status)
 VALUES
-('A-1000','Holzfenster Standard 80x120',4, 450.00,'CHF',7.70, 25, 'Standard Holzfenster',0),
-('A-1001','Holzfenster Premium 90x130',4, 620.00,'CHF',7.70, 10, 'Premium Holzfenster',0),
-('A-2000','Kunststofffenster Basic 80x120',5, 320.00,'CHF',7.70, 40, 'Basic Kunststofffenster',0),
-('A-2001','Kunststofffenster Comfort 90x130',5, 410.00,'CHF',7.70, 18, 'Comfort Kunststofffenster',0),
-('A-3000','Alufenster Slim 80x120',6, 780.00,'CHF',7.70, 8, 'Alu Slim',0),
-('A-4000','Beschlag Set Standard',7, 35.50,'CHF',7.70, 200,'Beschläge Set',0),
-('A-4001','Dichtung EPDM 10m',8, 12.90,'CHF',7.70, 500,'Dichtung',0),
-('A-4100','Scharnier HeavyDuty',9, 9.90,'CHF',7.70, 300,'Scharnier',0),
-('S-9000','Montage vor Ort',3, 150.00,'CHF',7.70, 9999,'Dienstleistung Montage',0),
-('S-9001','Wartungspaket 1 Jahr',3,  90.00,'CHF',7.70, 9999,'Dienstleistung Wartung',0);
+('A-1000','Holzfenster Standard 80x120',4, 450.00,'CHF',7.70, 25, 'Standard Holzfenster',1),
+('A-1001','Holzfenster Premium 90x130',4, 620.00,'CHF',7.70, 10, 'Premium Holzfenster',1),
+('A-2000','Kunststofffenster Basic 80x120',5, 320.00,'CHF',7.70, 40, 'Basic Kunststofffenster',1),
+('A-2001','Kunststofffenster Comfort 90x130',5, 410.00,'CHF',7.70, 18, 'Comfort Kunststofffenster',1),
+('A-3000','Alufenster Slim 80x120',6, 780.00,'CHF',7.70, 8, 'Alu Slim',1),
+('A-4000','Beschlag Set Standard',7, 35.50,'CHF',7.70, 200,'BeschlÃ¤ge Set',1),
+('A-4001','Dichtung EPDM 10m',8, 12.90,'CHF',7.70, 500,'Dichtung',1),
+('A-4100','Scharnier HeavyDuty',9, 9.90,'CHF',7.70, 300,'Scharnier',1),
+('S-9000','Montage vor Ort',3, 150.00,'CHF',7.70, 9999,'Dienstleistung Montage',1),
+('S-9001','Wartungspaket 1 Jahr',3,  90.00,'CHF',7.70, 9999,'Dienstleistung Wartung',1);
 
--- Orders (Lieferadresse = Snapshot; in der Praxis kommt sie aus "aktuell gültiger CustomerAddress")
+-- Orders (Lieferadresse = Snapshot; in der Praxis kommt sie aus "aktuell gÃ¼ltiger CustomerAddress")
 INSERT INTO dbo.Orders
 (OrderNr, CustomerID, OrderDate, Status, PaymentMethod, TotalAmount, TotalCurrency,
  DeliveryStreet, DeliveryHouseNumber, DeliveryPostalCode, DeliveryCity, DeliveryCountryCode)
 VALUES
-('O-2025-0001',1,'2025-08-01',1,0,0,'CHF','Seestrasse','55a','8002','Zürich','CH'),
+('O-2025-0001',1,'2025-08-01',1,0,0,'CHF','Seestrasse','55a','8002','ZÃ¼rich','CH'),
 ('O-2025-0002',2,'2025-08-03',2,1,0,'CHF','Hauptstrasse','5','3000','Bern','CH'),
 ('O-2025-0003',3,'2025-08-05',1,2,0,'CHF','Rheinweg','3','4051','Basel','CH'),
-('O-2025-0004',1,'2025-08-10',3,0,0,'CHF','Seestrasse','55a','8002','Zürich','CH'),
+('O-2025-0004',1,'2025-08-10',3,0,0,'CHF','Seestrasse','55a','8002','ZÃ¼rich','CH'),
 ('O-2025-0005',4,'2025-08-12',1,3,0,'CHF','Marktgasse','7','9000','St. Gallen','CH'),
 ('O-2025-0006',3,'2025-08-20',4,0,0,'CHF','Rheinweg','3','4051','Basel','CH');
 
@@ -289,5 +289,15 @@ JOIN (
     FROM dbo.OrderLines
     GROUP BY OrderID
 ) x ON x.OrderID = o.OrderID;
+
+-- Article-Lagerbestand um bereits verkaufte Mengen reduzieren (damit Seed-Daten konsistent sind)
+UPDATE a
+SET Stock = a.Stock - x.SumQuantity
+FROM dbo.Articles a
+JOIN (
+    SELECT ArticleID, SUM(Quantity) AS SumQuantity
+    FROM dbo.OrderLines
+    GROUP BY ArticleID
+) x ON x.ArticleID = a.ArticleID;
 
 GO

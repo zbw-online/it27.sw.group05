@@ -7,6 +7,8 @@
 @using OrderManagement.Application.Features.Orders.RemoveOrderLine
 @using OrderManagement.Application.Features.Orders.Shared
 @using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity
+@using OrderManagement.Domain.Catalog.ValueObjects
+@using OrderManagement.Domain.Orders.ValueObjects
 @using OrderManagement.Presentation.Blazor.Components.Shared
 @inject IGetOrderDetailsUseCase GetOrderDetailsUseCase
 @inject IUpdateOrderLineQuantityUseCase UpdateOrderLineQuantityUseCase
@@ -32,6 +34,20 @@ else if (_order is not null)
             <Button Variant="ButtonVariant.Secondary" OnClick='() => Navigation.NavigateTo("auftraege")'>Zurück zur Übersicht</Button>
         </Actions>
     </PageHeader>
+
+    <div class="grid-row grid-row-2">
+        <div>
+            <h3>Liefertermin</h3>
+            <p class="numeric">@Formatting.Date(_order.DeliveryDate)</p>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_order.CustomerReference))
+        {
+            <div>
+                <h3>Kundenreferenz</h3>
+                <p>@_order.CustomerReference</p>
+            </div>
+        }
+    </div>
 
     @if (_message is not null)
     {
@@ -109,10 +125,18 @@ else if (_order is not null)
 
         <aside class="panel">
             <div class="panel-header">
+                <h2>Rechnungsadresse</h2>
+            </div>
+            <p>@_order.BillingStreet @_order.BillingHouseNumber</p>
+            <p>@_order.BillingPostalCode @_order.BillingCity, @_order.BillingCountryCode</p>
+            <StatusBadge Text="@AddressSourceLabel(_order.BillingAddressSource)" Tone="@AddressSourceTone(_order.BillingAddressSource)" />
+
+            <div class="panel-header" style="margin-top: var(--space-4)">
                 <h2>Lieferadresse</h2>
             </div>
             <p>@_order.DeliveryStreet @_order.DeliveryHouseNumber</p>
             <p>@_order.DeliveryPostalCode @_order.DeliveryCity, @_order.DeliveryCountryCode</p>
+            <StatusBadge Text="@AddressSourceLabel(_order.DeliveryAddressSource)" Tone="@AddressSourceTone(_order.DeliveryAddressSource)" />
         </aside>
     </div>
 }
@@ -134,6 +158,12 @@ else if (_order is not null)
     private readonly List<ArticleListItemDto> _articleResults = [];
 
     protected override Task OnInitializedAsync() => LoadAsync();
+
+    private static string AddressSourceLabel(AddressSource source) =>
+        source == AddressSource.Manual ? "Manuell geändert" : "Automatisch für Liefertermin";
+
+    private static StatusTone AddressSourceTone(AddressSource source) =>
+        source == AddressSource.Manual ? StatusTone.Warning : StatusTone.Info;
 
     private async Task LoadAsync()
     {
@@ -209,7 +239,7 @@ else if (_order is not null)
             return;
         }
 
-        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_articleSearchTerm, null));
+        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_articleSearchTerm, null, ArticleStatus.Active));
         if (result.IsSuccess)
         {
             _articleResults.AddRange(result.Value!.Take(5));

@@ -47,5 +47,10 @@ namespace OrderManagement.Application.Tests.Fakes.Catalog
 
         public Task<Article?> GetByIdAsync(ArticleId id, CancellationToken cancellationToken = default)
             => Task.FromResult(_articles.GetValueOrDefault(id));
+
+        public Task<IReadOnlyList<Article>> GetByIdsAsync(IReadOnlyCollection<ArticleId> ids, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Article>>([.. ids
+                .Select(id => _articles.GetValueOrDefault(id))
+                .Where(article => article is not null)!]);
     }
 }

@@ -5,6 +5,7 @@ using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
 using OrderManagement.Infrastructure.Persistence;
 
 using SharedKernel.Primitives;
@@ -91,7 +92,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             int stock = 10,
             decimal vatRate = 7.70m,
             string? description = null,
-            int status = 1)
+            ArticleStatus status = ArticleStatus.Active)
         {
             ArticleGroupId effectiveGroupId = groupId ?? (await CreatePersistedArticleGroupAsync(dbContext)).Id;
             articleNumber ??= NextArticleNumber();
@@ -123,7 +124,8 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             OrderManagementDbContext dbContext,
             CustomerId? customerId = null,
             string? orderNumber = null,
-            DateTime? orderDate = null)
+            DateTime? orderDate = null,
+            DateOnly? deliveryDate = null)
         {
             CustomerId effectiveCustomerId = customerId ?? (await CreatePersistedCustomerAsync(dbContext)).Id;
             orderNumber ??= NextOrderNumber();
@@ -133,7 +135,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             Result<Order> result = Order.Create(
                 orderNumber: orderNumber,
                 customerId: effectiveCustomerId,
-                deliveryAddress: address);
+                deliveryDate: deliveryDate ?? DateOnly.FromDateTime(orderDate ?? DateTime.Today),
+                billingAddress: address,
+                billingAddressSource: AddressSource.Automatic,
+                deliveryAddress: address,
+                deliveryAddressSource: AddressSource.Automatic);
 
             Assert.IsTrue(result.IsSuccess, result.Error);
 

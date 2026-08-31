@@ -1,4 +1,7 @@
 trigger:
+  branches:
+    include:
+      - main
   tags:
     include:
       - 'Abgabe_*'
@@ -23,11 +26,38 @@ variables:
 - name: pdfOutputFolder
   value: '$(Build.ArtifactStagingDirectory)/pdf'
 
+- name: publishOutputFolder
+  value: '$(Build.ArtifactStagingDirectory)/publish'
+
+- name: migrationBundleFolder
+  value: '$(Build.ArtifactStagingDirectory)/migrations'
+
+- name: dockerImageName
+  value: 'ordermanagement-blazor'
+
+# isReleaseTag: this run was triggered by an 'Abgabe_*' tag - only these runs create a
+# GitHub Release, so an ordinary push to main never produces a duplicate/uncontrolled release.
+- name: isReleaseTag
+  value: $[startsWith(variables['Build.SourceBranch'], 'refs/tags/Abgabe_')]
+
+# Set this project/pipeline variable to a real Docker registry service connection name to
+# enable pushing the built image. Left empty, the image is still built and validated locally
+# on the agent, but never pushed anywhere.
+- name: dockerRegistryServiceConnection
+  value: ''
+
 steps:
 - checkout: self
   clean: true
 
 - task: UseDotNet@2
+  displayName: Install .NET 8 SDK
+  inputs:
+    packageType: sdk
+    version: '8.0.x'
+
+- task: UseDotNet@2
+  displayName: Install .NET 9 SDK
   inputs:
     packageType: sdk
     version: 9.x
@@ -38,7 +68,10 @@ steps:
 - script: dotnet format --verify-no-changes
   displayName: Verify formatting
 
-- script: dotnet test --configuration $(buildConfiguration) --no-restore
+- script: dotnet build --configuration $(buildConfiguration) --no-restore
+  displayName: Build
+
+- script: dotnet test --configuration $(buildConfiguration) --no-build
   displayName: Run tests
 
 - script: |
@@ -78,6 +111,107 @@ steps:
     publishLocation: 'pipeline'
 
 - script: |
+    dotnet publish "src/OrderManagement.Presentation.Blazor/OrderManagement.Presentation.Blazor.csproj" \
+      --configuration $(buildConfiguration) \
+      --no-restore \
+      --output "$(publishOutputFolder)"
+  displayName: Publish Blazor Server application
+
+- task: PublishPipelineArtifact@1
+  displayName: Publish application artifact
+  inputs:
+    targetPath: '$(publishOutputFolder)'
+    artifact: 'BlazorAppPublish'
+    publishLocation: 'pipeline'
+
+- script: |
+    set -euo pipefail
+
+    dotnet tool install --global dotnet-ef
+
+    mkdir -p "$(migrationBundleFolder)"
+
+    dotnet ef migrations bundle \
+      --project src/OrderManagement.Infrastructure \
+      --startup-project src/OrderManagement.Presentation.Blazor \
+      --configuration $(buildConfiguration) \
+      --self-contained \
+      --output "$(migrationBundleFolder)/efbundle" \
+      --force
+  displayName: Build EF Core migration bundle
+
+- task: PublishPipelineArtifact@1
+  displayName: Publish migration bundle artifact
+  inputs:
+    targetPath: '$(migrationBundleFolder)'
+    artifact: 'MigrationBundle'
+    publishLocation: 'pipeline'
+
+- script: |
+    set -euo pipefail
+    docker build -t "$(dockerImageName):$(Build.BuildId)" -f Dockerfile .
+  displayName: Build production Docker image
+
+- script: |
+    set -euo pipefail
+
+    IMAGE="$(dockerImageName):$(Build.BuildId)"
+    CONTAINER="validate-$(Build.BuildId)"
+
+    # Smoke-test only: the app never migrates automatically on startup, so it must come
+    # up and serve requests even without a reachable database.
+    docker run -d --rm --name "$CONTAINER" -p 18080:8080 \
+      -e ConnectionStrings__OrderManagement="Server=unreachable;Database=OrderManagement;User Id=sa;Password=Placeholder_Not_Real!;TrustServerCertificate=True;Connect Timeout=1;" \
+      "$IMAGE"
+
+    READY=false
+    for _ in $(seq 1 20); do
+      if curl -sf -o /dev/null "http://localhost:18080/"; then
+        READY=true
+        break
+      fi
+      sleep 1
+    done
+
+    docker logs "$CONTAINER" || true
+    docker stop "$CONTAINER" || true
+
+    if [ "$READY" != "true" ]; then
+      echo "##vso[task.logissue type=error]Docker image did not start and serve HTTP requests within the expected time."
+      exit 1
+    fi
+
+    echo "Docker image validated: image starts and serves requests."
+  displayName: Validate production Docker image
+
+- script: |
+    set -euo pipefail
+    echo "$(dockerImageName):$(Build.BuildId)" > "$(Build.ArtifactStagingDirectory)/docker-image-tag.txt"
+  displayName: Record built image tag
+
+- task: PublishPipelineArtifact@1
+  displayName: Publish Docker image tag artifact
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)/docker-image-tag.txt'
+    artifact: 'DockerImageTag'
+    publishLocation: 'pipeline'
+
+# Only pushes when dockerRegistryServiceConnection has been set to a real Docker registry
+# service connection (see the variable above). No registry is configured by default, so this
+# step is a no-op until the project wires one up.
+- task: Docker@2
+  displayName: Push Docker image to registry
+  condition: and(succeeded(), ne(variables['dockerRegistryServiceConnection'], ''))
+  inputs:
+    containerRegistry: '$(dockerRegistryServiceConnection)'
+    repository: '$(dockerImageName)'
+    command: 'buildAndPush'
+    Dockerfile: 'Dockerfile'
+    tags: |
+      $(Build.BuildId)
+      latest
+
+- script: |
     set -euo pipefail
 
     TAG_NAME="$(Build.SourceBranchName)"
@@ -114,7 +248,8 @@ steps:
     fi
 
     gh release upload "$TAG_NAME" "${pdfs[@]}" --repo "$GH_REPO" --clobber
-  displayName: Create GitHub Release + upload PDFs
+  displayName: Create GitHub Release + upload PDFs (Abgabe_* tags only)
+  condition: and(succeeded(), eq(variables['isReleaseTag'], 'True'))
   env:
     GH_TOKEN: $(GITHUB_TOKEN)
     GITHUB_TOKEN: $(GITHUB_TOKEN)

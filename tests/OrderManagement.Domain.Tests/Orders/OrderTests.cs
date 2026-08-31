@@ -17,8 +17,10 @@ namespace OrderManagement.Tests.Domain.Orders
         public void Create_WithValidData_CreatesTransientOrder()
         {
             // Arrange
+            Address billingAddress = ValidAddress();
             Address deliveryAddress = ValidAddress();
             CustomerId customerId = new(42);
+            DateOnly deliveryDate = new(2026, 9, 6);
 
             DateTime before = DateTime.UtcNow;
 
@@ -26,7 +28,11 @@ namespace OrderManagement.Tests.Domain.Orders
             Result<Order> result = Order.Create(
                 "ORD-2026-001",
                 customerId,
-                deliveryAddress);
+                deliveryDate,
+                billingAddress,
+                AddressSource.Automatic,
+                deliveryAddress,
+                AddressSource.Automatic);
 
             DateTime after = DateTime.UtcNow;
 
@@ -40,7 +46,12 @@ namespace OrderManagement.Tests.Domain.Orders
 
             Assert.AreEqual("ORD-2026-001", order.OrderNumber.Value);
             Assert.AreEqual(customerId, order.CustomerId);
+            Assert.AreEqual(deliveryDate, order.DeliveryDate);
+            Assert.AreEqual(billingAddress, order.BillingAddress);
+            Assert.AreEqual(AddressSource.Automatic, order.BillingAddressSource);
             Assert.AreEqual(deliveryAddress, order.DeliveryAddress);
+            Assert.AreEqual(AddressSource.Automatic, order.DeliveryAddressSource);
+            Assert.IsNull(order.CustomerReference);
 
             Assert.AreEqual(0, order.Lines.Count);
             Assert.AreEqual(0m, order.Total.Amount);
@@ -48,6 +59,100 @@ namespace OrderManagement.Tests.Domain.Orders
 
             Assert.IsTrue(order.OrderDate >= before);
             Assert.IsTrue(order.OrderDate <= after);
+
+            Assert.IsTrue(order.IsInventoryApplied);
+        }
+
+        [TestMethod]
+        public void MarkInventoryApplied_WhenNotYetApplied_ShouldSucceed()
+        {
+            Order order = ValidOrder();
+            typeof(Order).GetProperty(nameof(Order.IsInventoryApplied))!.SetValue(order, false);
+
+            Result result = order.MarkInventoryApplied();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(order.IsInventoryApplied);
+        }
+
+        [TestMethod]
+        public void MarkInventoryApplied_WhenAlreadyApplied_ShouldFail()
+        {
+            Order order = ValidOrder();
+
+            Result result = order.MarkInventoryApplied();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.IsTrue(order.IsInventoryApplied);
+        }
+
+        [TestMethod]
+        public void Create_WithManualOverridesAndDifferentAddresses_StoresBothIndependently()
+        {
+            // Arrange
+            Result<Address> billingResult = Address.Create("Rechnungsweg", "1", "8000", "Zurich", "CH");
+            Result<Address> deliveryResult = Address.Create("Lieferweg", "2", "9000", "St. Gallen", "CH");
+
+            // Act
+            Result<Order> result = Order.Create(
+                "ORD-2026-010",
+                new CustomerId(1),
+                new DateOnly(2026, 9, 1),
+                billingResult.EnsureValue(),
+                AddressSource.Manual,
+                deliveryResult.EnsureValue(),
+                AddressSource.Manual,
+                "  Projekt XY  ");
+
+            // Assert
+            Assert.IsTrue(result.IsSuccess, result.Error);
+
+            Order order = result.EnsureValue();
+
+            Assert.AreEqual(billingResult.EnsureValue(), order.BillingAddress);
+            Assert.AreEqual(deliveryResult.EnsureValue(), order.DeliveryAddress);
+            Assert.AreNotEqual(order.BillingAddress, order.DeliveryAddress);
+            Assert.AreEqual(AddressSource.Manual, order.BillingAddressSource);
+            Assert.AreEqual(AddressSource.Manual, order.DeliveryAddressSource);
+            Assert.AreEqual("Projekt XY", order.CustomerReference);
+        }
+
+        [TestMethod]
+        public void Create_WithBlankCustomerReference_StoresNull()
+        {
+            // Act
+            Result<Order> result = Order.Create(
+                "ORD-2026-011",
+                new CustomerId(1),
+                new DateOnly(2026, 9, 1),
+                ValidAddress(),
+                AddressSource.Automatic,
+                ValidAddress(),
+                AddressSource.Automatic,
+                "   ");
+
+            // Assert
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsNull(result.EnsureValue().CustomerReference);
+        }
+
+        [TestMethod]
+        public void Create_WithTooLongCustomerReference_ReturnsFailure()
+        {
+            // Act
+            Result<Order> result = Order.Create(
+                "ORD-2026-012",
+                new CustomerId(1),
+                new DateOnly(2026, 9, 1),
+                ValidAddress(),
+                AddressSource.Automatic,
+                ValidAddress(),
+                AddressSource.Automatic,
+                new string('X', 101));
+
+            // Assert
+            Assert.IsFalse(result.IsSuccess);
+            StringAssert.Contains(result.Error!, "CustomerReference");
         }
 
         [TestMethod]
@@ -60,7 +165,11 @@ namespace OrderManagement.Tests.Domain.Orders
             Result<Order> result = Order.Create(
                 "ORD-2026-002",
                 new CustomerId(1),
-                deliveryAddress);
+                new DateOnly(2026, 9, 1),
+                deliveryAddress,
+                AddressSource.Automatic,
+                deliveryAddress,
+                AddressSource.Automatic);
 
             // Assert
             Assert.IsTrue(result.IsSuccess, result.Error);
@@ -87,7 +196,11 @@ namespace OrderManagement.Tests.Domain.Orders
             Result<Order> result = Order.Create(
                 "INVALID",
                 new CustomerId(1),
-                deliveryAddress);
+                new DateOnly(2026, 9, 1),
+                deliveryAddress,
+                AddressSource.Automatic,
+                deliveryAddress,
+                AddressSource.Automatic);
 
             // Assert
             Assert.IsFalse(result.IsSuccess);
@@ -105,7 +218,11 @@ namespace OrderManagement.Tests.Domain.Orders
             Result<Order> result = Order.Create(
                 "ORD-2026-003",
                 CustomerId.Empty,
-                deliveryAddress);
+                new DateOnly(2026, 9, 1),
+                deliveryAddress,
+                AddressSource.Automatic,
+                deliveryAddress,
+                AddressSource.Automatic);
 
             // Assert
             Assert.IsFalse(result.IsSuccess);
@@ -465,7 +582,11 @@ namespace OrderManagement.Tests.Domain.Orders
         private static Order ValidOrder() => Order.Create(
                     "ORD-2026-999",
                     new CustomerId(1),
-                    ValidAddress())
+                    new DateOnly(2026, 9, 1),
+                    ValidAddress(),
+                    AddressSource.Automatic,
+                    ValidAddress(),
+                    AddressSource.Automatic)
                 .EnsureValue();
 
         private static Address ValidAddress() => Address.Create(

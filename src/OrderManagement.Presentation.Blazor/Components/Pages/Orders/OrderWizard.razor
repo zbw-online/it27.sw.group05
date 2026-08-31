@@ -5,15 +5,18 @@
 @using OrderManagement.Application.Features.Catalog.SearchArticles
 @using OrderManagement.Application.Features.Catalog.Shared
 @using OrderManagement.Application.Features.Customers.GetCustomerDetails
+@using OrderManagement.Application.Features.Customers.PreviewAddressForDate
 @using OrderManagement.Application.Features.Customers.SearchCustomers
 @using OrderManagement.Application.Features.Customers.Shared
 @using OrderManagement.Application.Features.Orders.CreateOrder
 @using OrderManagement.Application.Features.Orders.GetNextOrderNumber
 @using OrderManagement.Application.Features.Orders.Shared
+@using OrderManagement.Domain.Catalog.ValueObjects
 @using OrderManagement.Presentation.Blazor.Components.Shared
 @using SharedKernel.Primitives
 @inject ISearchCustomersUseCase SearchCustomersUseCase
 @inject IGetCustomerDetailsUseCase GetCustomerDetailsUseCase
+@inject IPreviewAddressForDateUseCase PreviewAddressForDateUseCase
 @inject ISearchArticlesUseCase SearchArticlesUseCase
 @inject IGetNextOrderNumberUseCase GetNextOrderNumberUseCase
 @inject IGetArticleGroupHierarchyUseCase GetArticleGroupHierarchyUseCase
@@ -65,7 +68,7 @@
                     }
                     else
                     {
-                        <span class="trend-down">Keine aktuelle Adresse hinterlegt – bitte anderen Kunden wählen oder Adresse ergänzen.</span>
+                        <span class="trend-down">Keine aktuelle Adresse hinterlegt – Adresse kann beim Liefertermin oder manuell erfasst werden.</span>
                     }
                 </div>
                 <Button Variant="ButtonVariant.Secondary" OnClick="ClearSelectedCustomer">Kunde ändern</Button>
@@ -85,7 +88,7 @@
         }
 
         <div class="form-actions">
-            <Button Variant="ButtonVariant.Primary" OnClick="GoToPositionsAsync" Disabled="@(_selectedCustomer?.CurrentAddress is null)">Weiter zu Positionen →</Button>
+            <Button Variant="ButtonVariant.Primary" OnClick="GoToPositionsAsync" Disabled="@(_selectedCustomer is null)">Weiter zu Positionen →</Button>
         </div>
     </article>
 }
@@ -98,11 +101,6 @@ else if (_step == 2)
             {
                 <p><strong>@_selectedCustomer.FullName</strong></p>
                 <p class="numeric">@_selectedCustomer.CustomerNumber</p>
-                @if (_selectedCustomer.CurrentAddress is not null)
-                {
-                    <p>@_selectedCustomer.CurrentAddress.Street @_selectedCustomer.CurrentAddress.HouseNumber</p>
-                    <p>@_selectedCustomer.CurrentAddress.PostalCode @_selectedCustomer.CurrentAddress.City</p>
-                }
                 <Button Variant="ButtonVariant.Secondary" OnClick="() => _step = 1">Kunde ändern</Button>
             }
         </aside>
@@ -170,7 +168,7 @@ else if (_step == 2)
 
             <div class="form-field">
                 <label for="delivery-date">Liefertermin</label>
-                <DateInput Id="delivery-date" @bind-Value="_deliveryDate" />
+                <DateInput Id="delivery-date" @bind-Value="_deliveryDate" @bind-Value:after="RefreshAddressPreviewsAsync" />
             </div>
             <div class="form-field">
                 <label for="customer-reference">Ihre Referenz</label>
@@ -213,13 +211,62 @@ else if (_step == 2)
                 </dl>
             }
 
-            @if (_selectedCustomer?.CurrentAddress is not null)
-            {
-                <div class="inline-alert inline-alert-success">✓ Lieferadresse bestätigt</div>
-            }
+            <div class="address-section">
+                <h3>Rechnungsadresse</h3>
+                @if (_isBillingManual)
+                {
+                    <div class="form-grid">
+                        <input class="form-control" placeholder="Strasse" @bind="_billingStreet" aria-label="Rechnungsadresse Strasse" />
+                        <input class="form-control" placeholder="Nr." @bind="_billingHouseNumber" aria-label="Rechnungsadresse Hausnummer" />
+                        <input class="form-control" placeholder="PLZ" @bind="_billingPostalCode" aria-label="Rechnungsadresse PLZ" />
+                        <input class="form-control" placeholder="Ort" @bind="_billingCity" aria-label="Rechnungsadresse Ort" />
+                        <input class="form-control" placeholder="Land" @bind="_billingCountry" aria-label="Rechnungsadresse Land" maxlength="2" />
+                    </div>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="ResetBillingToAutomatic">Auf Kundenadresse zurücksetzen</Button>
+                }
+                else if (_billingAutoPreview?.HasValidAddress == true)
+                {
+                    <p>@_billingAutoPreview.Street @_billingAutoPreview.HouseNumber</p>
+                    <p>@_billingAutoPreview.PostalCode @_billingAutoPreview.City, @_billingAutoPreview.CountryCode</p>
+                    <StatusBadge Text="Automatisch für Liefertermin" Tone="StatusTone.Info" />
+                    <Button Variant="ButtonVariant.Secondary" OnClick="StartBillingOverride">Rechnungsadresse ändern</Button>
+                }
+                else
+                {
+                    <div class="inline-alert inline-alert-danger" role="alert">Für den gewählten Liefertermin ist keine gültige Kundenadresse hinterlegt. Bitte erfassen Sie eine manuelle Adresse.</div>
+                    <Button Variant="ButtonVariant.Primary" OnClick="StartBillingOverride">Rechnungsadresse erfassen</Button>
+                }
+            </div>
+
+            <div class="address-section">
+                <h3>Lieferadresse</h3>
+                @if (_isDeliveryManual)
+                {
+                    <div class="form-grid">
+                        <input class="form-control" placeholder="Strasse" @bind="_deliveryStreet" aria-label="Lieferadresse Strasse" />
+                        <input class="form-control" placeholder="Nr." @bind="_deliveryHouseNumber" aria-label="Lieferadresse Hausnummer" />
+                        <input class="form-control" placeholder="PLZ" @bind="_deliveryPostalCode" aria-label="Lieferadresse PLZ" />
+                        <input class="form-control" placeholder="Ort" @bind="_deliveryCity" aria-label="Lieferadresse Ort" />
+                        <input class="form-control" placeholder="Land" @bind="_deliveryCountry" aria-label="Lieferadresse Land" maxlength="2" />
+                    </div>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="ResetDeliveryToAutomatic">Auf Kundenadresse zurücksetzen</Button>
+                }
+                else if (_deliveryAutoPreview?.HasValidAddress == true)
+                {
+                    <p>@_deliveryAutoPreview.Street @_deliveryAutoPreview.HouseNumber</p>
+                    <p>@_deliveryAutoPreview.PostalCode @_deliveryAutoPreview.City, @_deliveryAutoPreview.CountryCode</p>
+                    <StatusBadge Text="Automatisch für Liefertermin" Tone="StatusTone.Info" />
+                    <Button Variant="ButtonVariant.Secondary" OnClick="StartDeliveryOverride">Lieferadresse ändern</Button>
+                }
+                else
+                {
+                    <div class="inline-alert inline-alert-danger" role="alert">Für den gewählten Liefertermin ist keine gültige Kundenadresse hinterlegt. Bitte erfassen Sie eine manuelle Adresse.</div>
+                    <Button Variant="ButtonVariant.Primary" OnClick="StartDeliveryOverride">Lieferadresse erfassen</Button>
+                }
+            </div>
 
             <div class="form-actions">
-                <Button Variant="ButtonVariant.Primary" OnClick="() => _step = 3" Disabled="_cart.Count == 0">Weiter zur Prüfung →</Button>
+                <Button Variant="ButtonVariant.Primary" OnClick="() => _step = 3" Disabled="@(_cart.Count == 0 || !BillingAddressReady || !DeliveryAddressReady)">Weiter zur Prüfung →</Button>
             </div>
         </aside>
     </div>
@@ -236,27 +283,28 @@ else if (_step == 3 && _selectedCustomer is not null)
                 <p class="numeric">@_selectedCustomer.CustomerNumber · @_selectedCustomer.Email</p>
             </div>
             <div>
-                <h3>Rechnungs- und Lieferadresse</h3>
-                @if (_selectedCustomer.CurrentAddress is not null)
+                <h3>Liefertermin</h3>
+                <p class="numeric">@Formatting.Date(DateOnly.FromDateTime(_deliveryDate))</p>
+                @if (!string.IsNullOrWhiteSpace(_customerReference))
                 {
-                    <p>@_selectedCustomer.CurrentAddress.Street @_selectedCustomer.CurrentAddress.HouseNumber</p>
-                    <p>@_selectedCustomer.CurrentAddress.PostalCode @_selectedCustomer.CurrentAddress.City, @_selectedCustomer.CurrentAddress.CountryCode</p>
+                    <p><strong>Ihre Referenz:</strong> @_customerReference</p>
                 }
             </div>
         </div>
 
         <div class="grid-row grid-row-2" style="margin-top: var(--space-4)">
             <div>
-                <h3>Liefertermin</h3>
-                <p class="numeric">@Formatting.Date(DateOnly.FromDateTime(_deliveryDate))</p>
+                <h3>Rechnungsadresse</h3>
+                <p>@BillingAddressLine1</p>
+                <p>@BillingAddressLine2</p>
+                <StatusBadge Text="@(_isBillingManual ? "Manuell geändert" : "Automatisch für Liefertermin")" Tone="@(_isBillingManual ? StatusTone.Warning : StatusTone.Info)" />
             </div>
-            @if (!string.IsNullOrWhiteSpace(_customerReference))
-            {
-                <div>
-                    <h3>Ihre Referenz</h3>
-                    <p>@_customerReference</p>
-                </div>
-            }
+            <div>
+                <h3>Lieferadresse</h3>
+                <p>@DeliveryAddressLine1</p>
+                <p>@DeliveryAddressLine2</p>
+                <StatusBadge Text="@(_isDeliveryManual ? "Manuell geändert" : "Automatisch für Liefertermin")" Tone="@(_isDeliveryManual ? StatusTone.Warning : StatusTone.Info)" />
+            </div>
         </div>
 
         <h3 style="margin-top: var(--space-5)">Positionen</h3>
@@ -317,8 +365,52 @@ else if (_step == 3 && _selectedCustomer is not null)
     private DateTime _deliveryDate = DateTime.Today.AddDays(7);
     private string? _customerReference;
 
+    private PreviewAddressForDateResponse? _billingAutoPreview;
+    private PreviewAddressForDateResponse? _deliveryAutoPreview;
+
+    private bool _isBillingManual;
+    private bool _isDeliveryManual;
+
+    private string _billingStreet = string.Empty;
+    private string _billingHouseNumber = string.Empty;
+    private string _billingPostalCode = string.Empty;
+    private string _billingCity = string.Empty;
+    private string _billingCountry = "CH";
+
+    private string _deliveryStreet = string.Empty;
+    private string _deliveryHouseNumber = string.Empty;
+    private string _deliveryPostalCode = string.Empty;
+    private string _deliveryCity = string.Empty;
+    private string _deliveryCountry = "CH";
+
     private bool _isSubmitting;
     private string? _submitError;
+
+    private bool BillingAddressReady => _isBillingManual
+        ? !string.IsNullOrWhiteSpace(_billingStreet) && !string.IsNullOrWhiteSpace(_billingHouseNumber)
+            && !string.IsNullOrWhiteSpace(_billingPostalCode) && !string.IsNullOrWhiteSpace(_billingCity)
+        : _billingAutoPreview?.HasValidAddress == true;
+
+    private bool DeliveryAddressReady => _isDeliveryManual
+        ? !string.IsNullOrWhiteSpace(_deliveryStreet) && !string.IsNullOrWhiteSpace(_deliveryHouseNumber)
+            && !string.IsNullOrWhiteSpace(_deliveryPostalCode) && !string.IsNullOrWhiteSpace(_deliveryCity)
+        : _deliveryAutoPreview?.HasValidAddress == true;
+
+    private string BillingAddressLine1 => _isBillingManual
+        ? $"{_billingStreet} {_billingHouseNumber}"
+        : $"{_billingAutoPreview?.Street} {_billingAutoPreview?.HouseNumber}";
+
+    private string BillingAddressLine2 => _isBillingManual
+        ? $"{_billingPostalCode} {_billingCity}, {_billingCountry}"
+        : $"{_billingAutoPreview?.PostalCode} {_billingAutoPreview?.City}, {_billingAutoPreview?.CountryCode}";
+
+    private string DeliveryAddressLine1 => _isDeliveryManual
+        ? $"{_deliveryStreet} {_deliveryHouseNumber}"
+        : $"{_deliveryAutoPreview?.Street} {_deliveryAutoPreview?.HouseNumber}";
+
+    private string DeliveryAddressLine2 => _isDeliveryManual
+        ? $"{_deliveryPostalCode} {_deliveryCity}, {_deliveryCountry}"
+        : $"{_deliveryAutoPreview?.PostalCode} {_deliveryAutoPreview?.City}, {_deliveryAutoPreview?.CountryCode}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -354,6 +446,7 @@ else if (_step == 3 && _selectedCustomer is not null)
         {
             _selectedCustomer = result.Value;
             _customerResults.Clear();
+            await RefreshAddressPreviewsAsync();
         }
     }
 
@@ -361,11 +454,70 @@ else if (_step == 3 && _selectedCustomer is not null)
     {
         _selectedCustomer = null;
         _customerSearchTerm = null;
+        _billingAutoPreview = null;
+        _deliveryAutoPreview = null;
+    }
+
+    private async Task RefreshAddressPreviewsAsync()
+    {
+        if (_selectedCustomer is null)
+        {
+            return;
+        }
+
+        var query = new PreviewAddressForDateQuery(_selectedCustomer.CustomerId, DateOnly.FromDateTime(_deliveryDate));
+        var result = await PreviewAddressForDateUseCase.ExecuteAsync(query);
+
+        PreviewAddressForDateResponse? preview = result.IsSuccess ? result.Value : null;
+        _billingAutoPreview = preview;
+        _deliveryAutoPreview = preview;
+    }
+
+    private void StartBillingOverride()
+    {
+        if (_billingAutoPreview?.HasValidAddress == true && string.IsNullOrEmpty(_billingStreet))
+        {
+            _billingStreet = _billingAutoPreview.Street ?? string.Empty;
+            _billingHouseNumber = _billingAutoPreview.HouseNumber ?? string.Empty;
+            _billingPostalCode = _billingAutoPreview.PostalCode ?? string.Empty;
+            _billingCity = _billingAutoPreview.City ?? string.Empty;
+            _billingCountry = _billingAutoPreview.CountryCode ?? "CH";
+        }
+
+        _isBillingManual = true;
+    }
+
+    private void ResetBillingToAutomatic()
+    {
+        _isBillingManual = false;
+        _billingStreet = _billingHouseNumber = _billingPostalCode = _billingCity = string.Empty;
+        _billingCountry = "CH";
+    }
+
+    private void StartDeliveryOverride()
+    {
+        if (_deliveryAutoPreview?.HasValidAddress == true && string.IsNullOrEmpty(_deliveryStreet))
+        {
+            _deliveryStreet = _deliveryAutoPreview.Street ?? string.Empty;
+            _deliveryHouseNumber = _deliveryAutoPreview.HouseNumber ?? string.Empty;
+            _deliveryPostalCode = _deliveryAutoPreview.PostalCode ?? string.Empty;
+            _deliveryCity = _deliveryAutoPreview.City ?? string.Empty;
+            _deliveryCountry = _deliveryAutoPreview.CountryCode ?? "CH";
+        }
+
+        _isDeliveryManual = true;
+    }
+
+    private void ResetDeliveryToAutomatic()
+    {
+        _isDeliveryManual = false;
+        _deliveryStreet = _deliveryHouseNumber = _deliveryPostalCode = _deliveryCity = string.Empty;
+        _deliveryCountry = "CH";
     }
 
     private async Task GoToPositionsAsync()
     {
-        if (_selectedCustomer?.CurrentAddress is null)
+        if (_selectedCustomer is null)
         {
             return;
         }
@@ -387,7 +539,7 @@ else if (_step == 3 && _selectedCustomer is not null)
     private async Task SearchArticlesAsync()
     {
         _isArticlesLoading = true;
-        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_articleSearchTerm, _selectedGroupId));
+        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_articleSearchTerm, _selectedGroupId, ArticleStatus.Active));
         _articleResults.Clear();
         if (result.IsSuccess)
         {
@@ -413,7 +565,8 @@ else if (_step == 3 && _selectedCustomer is not null)
 
     private async Task SubmitOrderAsync()
     {
-        if (_isSubmitting || _selectedCustomer?.CurrentAddress is null || _orderNumber is null)
+        if (_isSubmitting || _selectedCustomer is null || _orderNumber is null
+            || !BillingAddressReady || !DeliveryAddressReady)
         {
             return;
         }
@@ -423,14 +576,21 @@ else if (_step == 3 && _selectedCustomer is not null)
 
         List<CreateOrderLineInput> lines = [.. _cart.Lines.Select(l => new CreateOrderLineInput(l.ArticleId, l.Quantity))];
 
+        AddressOverrideInput? billingOverride = _isBillingManual
+            ? new AddressOverrideInput(_billingStreet, _billingHouseNumber, _billingPostalCode, _billingCity, _billingCountry)
+            : null;
+
+        AddressOverrideInput? deliveryOverride = _isDeliveryManual
+            ? new AddressOverrideInput(_deliveryStreet, _deliveryHouseNumber, _deliveryPostalCode, _deliveryCity, _deliveryCountry)
+            : null;
+
         var command = new CreateOrderCommand(
             _orderNumber,
             _selectedCustomer.CustomerId,
-            _selectedCustomer.CurrentAddress.Street,
-            _selectedCustomer.CurrentAddress.HouseNumber,
-            _selectedCustomer.CurrentAddress.PostalCode,
-            _selectedCustomer.CurrentAddress.City,
-            _selectedCustomer.CurrentAddress.CountryCode,
+            DateOnly.FromDateTime(_deliveryDate),
+            _customerReference,
+            billingOverride,
+            deliveryOverride,
             lines);
 
         var result = await CreateOrderUseCase.ExecuteAsync(command);

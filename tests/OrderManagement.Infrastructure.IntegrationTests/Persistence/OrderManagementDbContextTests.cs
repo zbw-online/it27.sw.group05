@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
 
 namespace OrderManagement.Infrastructure.IntegrationTests.Persistence
 {
@@ -40,7 +41,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence
             Order order = Order.Create(
                 "ORD-2026-401",
                 customer.Id,
-                InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
+                new DateOnly(2026, 9, 1),
+                InfrastructureTestDataFactory.CreateValidAddress(),
+                AddressSource.Automatic,
+                InfrastructureTestDataFactory.CreateValidAddress(),
+                AddressSource.Automatic).EnsureValue();
 
             order.AddLine(article.Id, article.Name, article.Price, 2).EnsureSuccess();
 

@@ -2,12 +2,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 using OrderManagement.Application.Features.Catalog.CreateArticle;
 using OrderManagement.Application.Features.Catalog.CreateArticleGroup;
+using OrderManagement.Application.Features.Catalog.DeactivateArticle;
 using OrderManagement.Application.Features.Catalog.DeleteArticle;
 using OrderManagement.Application.Features.Catalog.DeleteArticleGroup;
 using OrderManagement.Application.Features.Catalog.GetArticleForEdit;
 using OrderManagement.Application.Features.Catalog.GetArticleGroupForEdit;
 using OrderManagement.Application.Features.Catalog.GetArticleGroupHierarchy;
 using OrderManagement.Application.Features.Catalog.GetLowStockArticles;
+using OrderManagement.Application.Features.Catalog.ReactivateArticle;
+using OrderManagement.Application.Features.Catalog.ReconcileInventory;
 using OrderManagement.Application.Features.Catalog.RenameArticleGroup;
 using OrderManagement.Application.Features.Catalog.SearchArticleGroups;
 using OrderManagement.Application.Features.Catalog.SearchArticles;
@@ -19,6 +22,7 @@ using OrderManagement.Application.Features.Customers.DeleteCustomer;
 using OrderManagement.Application.Features.Customers.GetCustomerDetails;
 using OrderManagement.Application.Features.Customers.GetCustomerForEdit;
 using OrderManagement.Application.Features.Customers.GetCustomersWithoutCurrentAddress;
+using OrderManagement.Application.Features.Customers.PreviewAddressForDate;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
 using OrderManagement.Application.Features.Customers.UpdateCustomer;
 using OrderManagement.Application.Features.Orders.AddOrderLine;
@@ -39,6 +43,8 @@ namespace OrderManagement.Application
     {
         public static IServiceCollection AddOrderManagementApplication(this IServiceCollection services)
         {
+            _ = services.AddSingleton(TimeProvider.System);
+
             _ = services.AddScoped<ICreateCustomerUseCase, CreateCustomerUseCase>();
             _ = services.AddScoped<ISearchCustomersUseCase, SearchCustomersUseCase>();
             _ = services.AddScoped<IGetCustomerForEditUseCase, GetCustomerForEditUseCase>();
@@ -47,6 +53,7 @@ namespace OrderManagement.Application
             _ = services.AddScoped<IGetCustomerDetailsUseCase, GetCustomerDetailsUseCase>();
             _ = services.AddScoped<IAddCustomerAddressUseCase, AddCustomerAddressUseCase>();
             _ = services.AddScoped<IGetCustomersWithoutCurrentAddressUseCase, GetCustomersWithoutCurrentAddressUseCase>();
+            _ = services.AddScoped<IPreviewAddressForDateUseCase, PreviewAddressForDateUseCase>();
 
             _ = services.AddScoped<ICreateArticleUseCase, CreateArticleUseCase>();
             _ = services.AddScoped<ISearchArticlesUseCase, SearchArticlesUseCase>();
@@ -54,6 +61,9 @@ namespace OrderManagement.Application
             _ = services.AddScoped<IGetLowStockArticlesUseCase, GetLowStockArticlesUseCase>();
             _ = services.AddScoped<IUpdateArticleUseCase, UpdateArticleUseCase>();
             _ = services.AddScoped<IDeleteArticleUseCase, DeleteArticleUseCase>();
+            _ = services.AddScoped<IDeactivateArticleUseCase, DeactivateArticleUseCase>();
+            _ = services.AddScoped<IReactivateArticleUseCase, ReactivateArticleUseCase>();
+            _ = services.AddScoped<IReconcileInventoryUseCase, ReconcileInventoryUseCase>();
             _ = services.AddScoped<IUpdateArticleStockUseCase, UpdateArticleStockUseCase>();
             _ = services.AddScoped<ICreateArticleGroupUseCase, CreateArticleGroupUseCase>();
             _ = services.AddScoped<ISearchArticleGroupsUseCase, SearchArticleGroupsUseCase>();

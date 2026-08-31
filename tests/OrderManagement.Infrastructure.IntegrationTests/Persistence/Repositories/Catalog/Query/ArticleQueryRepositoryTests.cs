@@ -70,17 +70,17 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
             Article lowActive = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(
                 DbContext,
                 stock: 2,
-                status: 1);
+                status: ArticleStatus.Active);
 
             _ = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(
                 DbContext,
                 stock: 20,
-                status: 1);
+                status: ArticleStatus.Active);
 
             _ = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(
                 DbContext,
                 stock: 1,
-                status: 0);
+                status: ArticleStatus.Inactive);
 
             DbContext.ChangeTracker.Clear();
 

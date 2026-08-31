@@ -28,7 +28,11 @@ namespace OrderManagement.Application.Tests.Features.Orders
             Order order = Order.Create(
                     "ORD-2026-001",
                     new CustomerId(1),
-                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue())
+                    new DateOnly(2026, 9, 1),
+                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                    AddressSource.Automatic,
+                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                    AddressSource.Automatic)
                 .EnsureValue();
 
             Article first = articleCommandRepository.Seed(
@@ -64,7 +68,11 @@ namespace OrderManagement.Application.Tests.Features.Orders
             Order order = Order.Create(
                     "ORD-2026-001",
                     new CustomerId(1),
-                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue())
+                    new DateOnly(2026, 9, 1),
+                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                    AddressSource.Automatic,
+                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                    AddressSource.Automatic)
                 .EnsureValue();
 
             Article article = articleCommandRepository.Seed(
@@ -108,7 +116,11 @@ namespace OrderManagement.Application.Tests.Features.Orders
             Order order = Order.Create(
                     "ORD-2026-001",
                     new CustomerId(1),
-                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue())
+                    new DateOnly(2026, 9, 1),
+                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                    AddressSource.Automatic,
+                    Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                    AddressSource.Automatic)
                 .EnsureValue();
 
             _ = orderCommandRepository.Seed(order);

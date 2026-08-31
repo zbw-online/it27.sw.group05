@@ -1,3 +1,4 @@
+using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Domain.Orders.ValueObjects;
@@ -17,6 +18,13 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Orders.Query
             CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<Order>> GetPendingOrdersAsync(
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Order>> GetUnreconciledOrdersAsync(
+            CancellationToken cancellationToken = default);
+
+        Task<bool> ExistsOrderLineForArticleAsync(
+            ArticleId articleId,
             CancellationToken cancellationToken = default);
     }
 }

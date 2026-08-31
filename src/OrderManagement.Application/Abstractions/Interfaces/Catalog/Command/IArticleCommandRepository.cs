@@ -10,5 +10,9 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Catalog.Command
         Task<Article?> GetByIdAsync(
             ArticleId id,
             CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Article>> GetByIdsAsync(
+            IReadOnlyCollection<ArticleId> ids,
+            CancellationToken cancellationToken = default);
     }
 }

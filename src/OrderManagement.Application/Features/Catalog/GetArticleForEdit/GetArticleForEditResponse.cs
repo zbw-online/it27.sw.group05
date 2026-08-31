@@ -1,3 +1,5 @@
+using OrderManagement.Domain.Catalog.ValueObjects;
+
 namespace OrderManagement.Application.Features.Catalog.GetArticleForEdit
 {
     public sealed record GetArticleForEditResponse(
@@ -10,5 +12,5 @@ namespace OrderManagement.Application.Features.Catalog.GetArticleForEdit
         int Stock,
         decimal VatRate,
         string? Description,
-        int Status);
+        ArticleStatus Status);
 }

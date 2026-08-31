@@ -1,45 +1,20 @@
-using Microsoft.Data.SqlClient;
+using OrderManagement.TestSupport;
 
 using Reqnroll;
-
-using Testcontainers.MsSql;
 
 namespace OrderManagement.AcceptanceTests.Support
 {
     [Binding]
     public sealed class AssemblySetup
     {
-        private static MsSqlContainer? _container;
+        private static readonly SqlServerTestContainer Container = new();
 
-        internal static string MasterConnectionString { get; private set; } = default!;
+        internal static string MasterConnectionString => Container.MasterConnectionString;
 
         [BeforeTestRun]
-        public static async Task BeforeTestRunAsync()
-        {
-            _container = new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-                .WithPassword("Test@1234!")
-                .Build();
-
-            await _container.StartAsync();
-
-            var builder = new SqlConnectionStringBuilder(_container.GetConnectionString())
-            {
-                InitialCatalog = "master",
-                TrustServerCertificate = true,
-                MultipleActiveResultSets = true
-            };
-
-            MasterConnectionString = builder.ConnectionString;
-        }
+        public static async Task BeforeTestRunAsync() => await Container.StartAsync();
 
         [AfterTestRun]
-        public static async Task AfterTestRunAsync()
-        {
-            if (_container is not null)
-            {
-                await _container.DisposeAsync();
-            }
-        }
+        public static async Task AfterTestRunAsync() => await Container.DisposeAsync();
     }
 }
