@@ -17,14 +17,7 @@ namespace OrderManagement.Application.Features.Catalog.GetLowStockArticles
             GetLowStockArticlesQuery query,
             CancellationToken cancellationToken = default)
         {
-            if (query.Threshold < 0)
-            {
-                return Results.Fail<IReadOnlyList<ArticleListItemDto>>("Threshold cannot be negative.");
-            }
-
-            IReadOnlyList<Article> articles = await _articleQueryRepository.GetLowStockAsync(
-                query.Threshold,
-                cancellationToken);
+            IReadOnlyList<Article> articles = await _articleQueryRepository.GetLowStockAsync(cancellationToken);
 
             IReadOnlyList<ArticleGroup> groups = await _articleGroupQueryRepository.GetListAsync(cancellationToken);
             var groupNames = groups.ToDictionary(g => g.Id.Value, g => g.Name);
@@ -41,6 +34,8 @@ namespace OrderManagement.Application.Features.Catalog.GetLowStockArticles
                     a.ArticleGroupId.Value,
                     groupNames.TryGetValue(a.ArticleGroupId.Value, out string? gName) ? gName : string.Empty,
                     a.Stock,
+                    a.ReorderPoint,
+                    a.StockLevel,
                     a.VatRate,
                     a.Status))];
 

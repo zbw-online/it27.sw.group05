@@ -298,7 +298,7 @@ else if (_overview is not null)
         var topSellingResult = await GetTopSellingArticlesUseCase.ExecuteAsync(new GetTopSellingArticlesQuery(Limit: 5));
         _topSellingArticles = topSellingResult.IsSuccess ? topSellingResult.Value! : [];
 
-        var lowStockResult = await GetLowStockArticlesUseCase.ExecuteAsync(new GetLowStockArticlesQuery(Threshold: 20));
+        var lowStockResult = await GetLowStockArticlesUseCase.ExecuteAsync(new GetLowStockArticlesQuery());
         _lowStockArticles = lowStockResult.IsSuccess ? lowStockResult.Value! : [];
 
         var missingAddressResult = await GetCustomersWithoutCurrentAddressUseCase.ExecuteAsync(new GetCustomersWithoutCurrentAddressQuery());

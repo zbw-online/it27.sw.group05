@@ -49,7 +49,7 @@ namespace OrderManagement.AcceptanceTests.Steps
             int groupId = context.ArticleGroupIdsByName[groupName];
 
             _lastCreateResult = await createArticleUseCase.ExecuteAsync(new CreateArticleCommand(
-                articleNumber, name, price, "CHF", groupId, stock, 7.7m, null));
+                articleNumber, name, price, "CHF", groupId, stock, 20, 7.7m, null));
 
             if (_lastCreateResult.Value.IsSuccess)
             {
@@ -163,7 +163,7 @@ namespace OrderManagement.AcceptanceTests.Steps
             int groupId = context.ArticleGroupIdsByName[groupName];
 
             Result<CreateArticleResponse> result = await createArticleUseCase.ExecuteAsync(
-                new CreateArticleCommand(articleNumber, name, price, "CHF", groupId, stock, 7.7m, null));
+                new CreateArticleCommand(articleNumber, name, price, "CHF", groupId, stock, 20, 7.7m, null));
 
             Assert.IsTrue(result.IsSuccess, result.Error);
             context.ArticleIdsByNumber[articleNumber] = result.Value!.ArticleId;

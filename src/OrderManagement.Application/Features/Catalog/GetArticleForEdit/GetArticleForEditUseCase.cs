@@ -28,6 +28,7 @@ namespace OrderManagement.Application.Features.Catalog.GetArticleForEdit
                 article.Price.Currency,
                 article.ArticleGroupId.Value,
                 article.Stock,
+                article.ReorderPoint,
                 article.VatRate,
                 article.Description,
                 article.Status));

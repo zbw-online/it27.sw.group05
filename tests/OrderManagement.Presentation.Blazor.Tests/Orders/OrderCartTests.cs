@@ -9,8 +9,14 @@ namespace OrderManagement.Presentation.Blazor.Tests.Orders
     [TestClass]
     public sealed class OrderCartTests
     {
-        private static ArticleListItemDto Article(int id = 1, decimal price = 10m, decimal vatRate = 8.1m, int stock = 50) =>
-            new(id, $"ART-{id}", $"Artikel {id}", price, "CHF", 1, "Gruppe", stock, vatRate, ArticleStatus.Active);
+        private static ArticleListItemDto Article(int id = 1, decimal price = 10m, decimal vatRate = 8.1m, int stock = 50, int reorderPoint = 20) =>
+            new(id, $"ART-{id}", $"Artikel {id}", price, "CHF", 1, "Gruppe", stock, reorderPoint, StockLevelFor(stock, reorderPoint), vatRate, ArticleStatus.Active);
+
+        private static StockLevel StockLevelFor(int stock, int reorderPoint) => stock == 0
+            ? StockLevel.OutOfStock
+            : stock <= reorderPoint
+                ? StockLevel.Low
+                : StockLevel.Available;
 
         [TestMethod]
         public void Add_NewArticle_CreatesLineWithQuantityOne()
@@ -88,6 +94,20 @@ namespace OrderManagement.Presentation.Blazor.Tests.Orders
             cart.Remove(1);
 
             Assert.AreEqual(0, cart.Lines.Count);
+        }
+
+        [TestMethod]
+        public void Add_PropagatesTheArticlesDomainDerivedStockLevelOntoTheCartLine()
+        {
+            OrderCart cart = new();
+
+            cart.Add(Article(1, stock: 10, reorderPoint: 20));
+            cart.Add(Article(2, stock: 0, reorderPoint: 20));
+            cart.Add(Article(3, stock: 50, reorderPoint: 20));
+
+            Assert.AreEqual(StockLevel.Low, cart.Lines.Single(l => l.ArticleId == 1).StockLevel);
+            Assert.AreEqual(StockLevel.OutOfStock, cart.Lines.Single(l => l.ArticleId == 2).StockLevel);
+            Assert.AreEqual(StockLevel.Available, cart.Lines.Single(l => l.ArticleId == 3).StockLevel);
         }
 
         [TestMethod]

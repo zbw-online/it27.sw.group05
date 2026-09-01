@@ -41,11 +41,10 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query
                 .ToListAsync(cancellationToken);
 
         public async Task<IReadOnlyList<Article>> GetLowStockAsync(
-            int threshold,
             CancellationToken cancellationToken = default)
             => await _context.Set<Article>()
                 .AsNoTracking()
-                .Where(a => a.Stock < threshold && a.Status == ArticleStatus.Active)
+                .Where(a => a.Status == ArticleStatus.Active && a.Stock <= a.ReorderPoint)
                 .ToListAsync(cancellationToken);
 
         public async Task<IReadOnlyList<Article>> SearchAsync(

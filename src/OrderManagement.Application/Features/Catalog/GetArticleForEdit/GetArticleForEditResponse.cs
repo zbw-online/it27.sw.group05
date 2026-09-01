@@ -10,6 +10,7 @@ namespace OrderManagement.Application.Features.Catalog.GetArticleForEdit
         string PriceCurrency,
         int GroupId,
         int Stock,
+        int ReorderPoint,
         decimal VatRate,
         string? Description,
         ArticleStatus Status);

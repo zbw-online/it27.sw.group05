@@ -11,6 +11,8 @@ namespace OrderManagement.Application.Features.Catalog.Shared
         int GroupId,
         string GroupName,
         int Stock,
+        int ReorderPoint,
+        StockLevel StockLevel,
         decimal VatRate,
         ArticleStatus Status);
 }

@@ -90,6 +90,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             decimal priceAmount = 10.00m,
             string priceCurrency = "CHF",
             int stock = 10,
+            int reorderPoint = 20,
             decimal vatRate = 7.70m,
             string? description = null,
             ArticleStatus status = ArticleStatus.Active)
@@ -105,6 +106,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests
                 priceCurrency: priceCurrency,
                 groupId: effectiveGroupId,
                 stock: stock,
+                reorderPoint: reorderPoint,
                 vatRate: vatRate,
                 description: description,
                 status: status);
@@ -130,15 +132,13 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             CustomerId effectiveCustomerId = customerId ?? (await CreatePersistedCustomerAsync(dbContext)).Id;
             orderNumber ??= NextOrderNumber();
 
-            Address address = CreateValidAddress();
-
             Result<Order> result = Order.Create(
                 orderNumber: orderNumber,
                 customerId: effectiveCustomerId,
                 deliveryDate: deliveryDate ?? DateOnly.FromDateTime(orderDate ?? DateTime.Today),
-                billingAddress: address,
+                billingAddress: CreateValidAddress(),
                 billingAddressSource: AddressSource.Automatic,
-                deliveryAddress: address,
+                deliveryAddress: CreateValidAddress(),
                 deliveryAddressSource: AddressSource.Automatic);
 
             Assert.IsTrue(result.IsSuccess, result.Error);

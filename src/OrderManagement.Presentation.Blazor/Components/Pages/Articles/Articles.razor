@@ -58,6 +58,7 @@
         <option value="alle">Alle Artikel</option>
         <option value="verfuegbar">Verfügbar</option>
         <option value="tief">Tiefer Bestand</option>
+        <option value="nichtAmLager">Nicht an Lager</option>
     </FilterSelect>
     <FilterSelect Label="Status" Value="@_statusFilter" ValueChanged="OnStatusFilterChangedAsync">
         <option value="alle">Alle</option>
@@ -91,6 +92,8 @@
                         <th scope="col">Kategoriepfad</th>
                         <th scope="col">Preis (CHF)</th>
                         <th scope="col">Lager</th>
+                        <th scope="col">Meldebestand</th>
+                        <th scope="col">Lagerstatus</th>
                         <th scope="col">Status</th>
                         <th scope="col"><span class="visually-hidden">Aktionen</span></th>
                     </tr>
@@ -105,13 +108,9 @@
                             <td>@article.Name</td>
                             <td>@GroupPath(article.GroupId)</td>
                             <td class="numeric">@article.PriceAmount.ToString("N2", Formatting.SwissCulture)</td>
-                            <td class="numeric">
-                                @article.Stock Stk.
-                                @if (article.Stock <= LowStockThreshold)
-                                {
-                                    <span class="low-stock-flag" title="Tiefer Bestand" aria-label="Tiefer Bestand">⚠</span>
-                                }
-                            </td>
+                            <td class="numeric">@article.Stock Stk.</td>
+                            <td class="numeric">@article.ReorderPoint Stk.</td>
+                            <td><StatusBadge Text="@StockLevelLabel(article.StockLevel)" Tone="@StockLevelTone(article.StockLevel)" /></td>
                             <td><StatusBadge Text="@(article.Status == ArticleStatus.Active ? "Aktiv" : "Inaktiv")" Tone="@(article.Status == ArticleStatus.Active ? StatusTone.Success : StatusTone.Neutral)" /></td>
                             <td class="table-actions">
                                 @if (_selectedArticleId == article.ArticleId)
@@ -177,6 +176,12 @@
                     <ValidationMessage For="() => _articleForm.Stock" />
                 </div>
                 <div class="form-field">
+                    <label for="art-reorder-point">Meldebestand</label>
+                    <InputNumber id="art-reorder-point" class="form-control" @bind-Value="_articleForm.ReorderPoint" />
+                    <small>Ab diesem Bestand wird der Artikel als «Tiefer Bestand» markiert.</small>
+                    <ValidationMessage For="() => _articleForm.ReorderPoint" />
+                </div>
+                <div class="form-field">
                     <label for="art-vat">MwSt.-Satz (%)</label>
                     <InputNumber id="art-vat" class="form-control" @bind-Value="_articleForm.VatRate" />
                     <ValidationMessage For="() => _articleForm.VatRate" />
@@ -186,7 +191,7 @@
                     <InputText id="art-description" class="form-control" @bind-Value="_articleForm.Description" />
                 </div>
                 <div class="form-field form-field-wide">
-                    <CategoryCascadeSelector Label="Kategoriepfad" Hierarchy="_hierarchy" SelectedGroupId="_articleForm.GroupId == 0 ? null : _articleForm.GroupId" SelectedGroupIdChanged="id => _articleForm.GroupId = id ?? 0" />
+                    <CategoryCascadeSelector Label="Kategoriepfad" Hierarchy="_hierarchy" SelectedGroupId="_articleForm.GroupId == 0 ? null : _articleForm.GroupId" SelectedGroupIdChanged="id => _articleForm.GroupId = id ?? 0" Mode="CategorySelectorMode.InlineDrilldown" />
                     @if (_articleForm.GroupId == 0)
                     {
                         <span class="validation-message">Bitte eine Kategorie wählen.</span>
@@ -274,7 +279,6 @@
 </Modal>
 
 @code {
-    private const int LowStockThreshold = 20;
     private static readonly Dictionary<string, object> StopPropagation = new() { { "onclick:stopPropagation", true } };
 
     private readonly List<ArticleListItemDto> _allArticles = [];
@@ -314,10 +318,25 @@
     private IReadOnlyList<ArticleListItemDto> _filteredArticles => [.. _allArticles
         .Where(a => _stockFilter switch
         {
-            "verfuegbar" => a.Stock > LowStockThreshold,
-            "tief" => a.Stock <= LowStockThreshold,
+            "verfuegbar" => a.StockLevel == StockLevel.Available,
+            "tief" => a.StockLevel == StockLevel.Low,
+            "nichtAmLager" => a.StockLevel == StockLevel.OutOfStock,
             _ => true
         })];
+
+    private static string StockLevelLabel(StockLevel level) => level switch
+    {
+        StockLevel.Available => "Verfügbar",
+        StockLevel.Low => "Tiefer Bestand",
+        _ => "Nicht an Lager"
+    };
+
+    private static StatusTone StockLevelTone(StockLevel level) => level switch
+    {
+        StockLevel.Available => StatusTone.Success,
+        StockLevel.Low => StatusTone.Warning,
+        _ => StatusTone.Danger
+    };
 
     private IReadOnlyList<ArticleListItemDto> _pagedArticles =>
         [.. _filteredArticles.Skip((_page - 1) * _pageSize).Take(_pageSize)];
@@ -443,6 +462,7 @@
         _articleForm.Name = article.Name;
         _articleForm.PriceAmount = article.PriceAmount;
         _articleForm.Stock = article.Stock;
+        _articleForm.ReorderPoint = article.ReorderPoint;
         _articleForm.VatRate = article.VatRate;
         _articleForm.Description = article.Description;
         _articleForm.GroupId = article.GroupId;
@@ -471,7 +491,7 @@
         var result = _isArticleEditMode
             ? await UpdateArticleUseCase.ExecuteAsync(new UpdateArticleCommand(
                 _articleForm.ArticleId, _articleForm.Name, _articleForm.PriceAmount, "CHF",
-                _articleForm.GroupId, _articleForm.Stock, _articleForm.VatRate, _articleForm.Description))
+                _articleForm.GroupId, _articleForm.Stock, _articleForm.ReorderPoint, _articleForm.VatRate, _articleForm.Description))
             : await CreateArticleAsync();
 
         if (!result.IsSuccess)
@@ -491,7 +511,7 @@
     {
         var result = await CreateArticleUseCase.ExecuteAsync(new CreateArticleCommand(
             _articleForm.ArticleNumber, _articleForm.Name, _articleForm.PriceAmount, "CHF",
-            _articleForm.GroupId, _articleForm.Stock, _articleForm.VatRate, _articleForm.Description));
+            _articleForm.GroupId, _articleForm.Stock, _articleForm.ReorderPoint, _articleForm.VatRate, _articleForm.Description));
 
         return result.IsSuccess ? Result.Success() : Result.Fail(result.Error!);
     }
@@ -662,6 +682,9 @@
         [Range(0, int.MaxValue, ErrorMessage = "Lagerbestand darf nicht negativ sein.")]
         public int Stock { get; set; }
 
+        [Range(0, int.MaxValue, ErrorMessage = "Der Meldebestand darf nicht negativ sein.")]
+        public int ReorderPoint { get; set; } = 20;
+
         [Range(typeof(decimal), "0", "999.99", ErrorMessage = "MwSt.-Satz muss zwischen 0 und 999.99 liegen.")]
         public decimal VatRate { get; set; }
 
@@ -676,6 +699,7 @@
             Name = string.Empty;
             PriceAmount = 0;
             Stock = 0;
+            ReorderPoint = 20;
             VatRate = 0;
             Description = null;
             GroupId = 0;

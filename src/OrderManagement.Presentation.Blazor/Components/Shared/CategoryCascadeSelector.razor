@@ -8,7 +8,7 @@
         <button type="button"
                 class="category-flyout-trigger"
                 @ref="_triggerRef"
-                aria-haspopup="menu"
+                aria-haspopup="@(IsInline ? "false" : "menu")"
                 aria-expanded="@(_isOpen ? "true" : "false")"
                 aria-controls="@_menuId"
                 @onclick="ToggleOpenAsync"
@@ -30,7 +30,7 @@
 
     @if (_isOpen)
     {
-        <div class="category-flyout-panels @(_isFlippedLeft ? "is-flipped" : string.Empty)" id="@_menuId" @ref="_panelsRef">
+        <div class="category-flyout-panels @(IsInline ? "is-inline" : string.Empty)" id="@_menuId" @ref="_panelsRef">
             @if (IsLoading)
             {
                 <div class="category-flyout-status">
@@ -43,9 +43,9 @@
                     <EmptyState Title="Keine Kategorien vorhanden" Description="Es sind noch keine Kategorien angelegt." />
                 </div>
             }
-            else if (_isCompact)
+            else if (EffectiveCompact)
             {
-                <div class="category-flyout-drilldown">
+                <div class="category-flyout-drilldown" role="@(IsInline ? null : "dialog")" aria-label="@(IsInline ? null : "Kategorie auswählen")">
                     <div class="category-flyout-breadcrumb-bar">
                         @if (_expandedPath.Count > 0)
                         {
@@ -99,8 +99,8 @@
 
     private bool _isOpen;
     private bool _isCompact;
-    private bool _isFlippedLeft;
     private bool _pendingFocusMove;
+    private bool _repositionRegistered;
     private int _focusedLevel;
     private int _focusedIndex = -1;
 
@@ -115,6 +115,10 @@
     [Parameter] public int? SelectedGroupId { get; set; }
     [Parameter] public EventCallback<int?> SelectedGroupIdChanged { get; set; }
     [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public CategorySelectorMode Mode { get; set; } = CategorySelectorMode.Auto;
+
+    private bool IsInline => Mode == CategorySelectorMode.InlineDrilldown;
+    private bool EffectiveCompact => IsInline || _isCompact;
 
     private string ClosedValueText => SelectedGroupId.HasValue
         ? Hierarchy.FirstOrDefault(g => g.Id == SelectedGroupId.Value)?.Path ?? "Alle Kategorien"
@@ -131,19 +135,34 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_isOpen && _pendingFocusMove)
+        if (!_isOpen || _module is null)
+        {
+            return;
+        }
+
+        if (_pendingFocusMove)
         {
             _pendingFocusMove = false;
-            if (_module is not null)
-            {
-                await _module.InvokeVoidAsync("focusItem", _panelsRef, _focusedLevel, _focusedIndex);
-                bool flip = await _module.InvokeAsync<bool>("shouldFlipLeft", _containerRef, _panelsRef);
-                if (flip != _isFlippedLeft)
-                {
-                    _isFlippedLeft = flip;
-                    StateHasChanged();
-                }
-            }
+            await _module.InvokeVoidAsync("focusItem", _panelsRef, _focusedLevel, _focusedIndex);
+        }
+
+        if (IsInline)
+        {
+            return;
+        }
+
+        bool compact = await _module.InvokeAsync<bool>("applyPlacement", _triggerRef, _panelsRef, _expandedPath.Count);
+
+        if (!_repositionRegistered)
+        {
+            _repositionRegistered = true;
+            await _module.InvokeVoidAsync("registerReposition", _triggerRef, _panelsRef, _selfRef);
+        }
+
+        if (compact != _isCompact)
+        {
+            _isCompact = compact;
+            StateHasChanged();
         }
     }
 
@@ -214,8 +233,11 @@
         _focusedLevel = _expandedPath.Count;
         _focusedIndex = Math.Max(0, ItemsForLevel(_focusedLevel).ToList().FindIndex(i => i.Id == SelectedGroupId));
         _isOpen = true;
-        _isCompact = await _module.InvokeAsync<bool>("isCompactViewport");
-        await _module.InvokeVoidAsync("registerOutsideClick", _containerRef, _selfRef);
+
+        if (!IsInline)
+        {
+            await _module.InvokeVoidAsync("registerOutsideClick", _containerRef, _selfRef);
+        }
 
         _pendingFocusMove = true;
     }
@@ -223,11 +245,13 @@
     private async Task CloseAsync(bool restoreFocus)
     {
         _isOpen = false;
-        _isFlippedLeft = false;
+        _isCompact = false;
+        _repositionRegistered = false;
 
-        if (_module is not null)
+        if (_module is not null && !IsInline)
         {
             await _module.InvokeVoidAsync("unregisterOutsideClick");
+            await _module.InvokeVoidAsync("unregisterReposition");
         }
 
         if (restoreFocus)
@@ -242,6 +266,16 @@
         if (_isOpen)
         {
             await CloseAsync(restoreFocus: false);
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void OnCompactChangedAsync(bool compact)
+    {
+        if (compact != _isCompact)
+        {
+            _isCompact = compact;
             StateHasChanged();
         }
     }
@@ -380,7 +414,12 @@
     {
         if (_module is not null)
         {
-            await _module.InvokeVoidAsync("unregisterOutsideClick");
+            if (!IsInline)
+            {
+                await _module.InvokeVoidAsync("unregisterOutsideClick");
+                await _module.InvokeVoidAsync("unregisterReposition");
+            }
+
             await _module.DisposeAsync();
         }
 

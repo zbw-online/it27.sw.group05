@@ -13,8 +13,8 @@ namespace OrderManagement.Application.Tests.Features.Catalog
     [TestClass]
     public sealed class CreateArticleUseCaseTests
     {
-        private static CreateArticleCommand ValidCommand(string articleNumber = "ART-001")
-            => new(articleNumber, "Widget", 9.99m, "CHF", 1, 10, 7.7m, "A useful widget");
+        private static CreateArticleCommand ValidCommand(string articleNumber = "ART-001", int reorderPoint = 20)
+            => new(articleNumber, "Widget", 9.99m, "CHF", 1, 10, reorderPoint, 7.7m, "A useful widget");
 
         [TestMethod]
         public async Task ExecuteAsync_WithValidCommand_ShouldPersistArticleAndCommit()
@@ -58,11 +58,41 @@ namespace OrderManagement.Application.Tests.Features.Catalog
             var useCase = new CreateArticleUseCase(commandRepository, queryRepository, unitOfWork);
 
             Result<CreateArticleResponse> result = await useCase.ExecuteAsync(
-                new CreateArticleCommand("ART-002", "Widget", 9.99m, "CHF", 1, -1, 7.7m, null));
+                new CreateArticleCommand("ART-002", "Widget", 9.99m, "CHF", 1, -1, 20, 7.7m, null));
 
             Assert.IsFalse(result.IsSuccess);
             Assert.AreEqual(0, commandRepository.Added.Count);
             Assert.AreEqual(0, unitOfWork.CommitCount);
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithNegativeReorderPoint_ShouldFailBeforeTouchingRepositories()
+        {
+            var commandRepository = new FakeArticleCommandRepository();
+            var queryRepository = new FakeArticleQueryRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            var useCase = new CreateArticleUseCase(commandRepository, queryRepository, unitOfWork);
+
+            Result<CreateArticleResponse> result = await useCase.ExecuteAsync(
+                new CreateArticleCommand("ART-002", "Widget", 9.99m, "CHF", 1, 10, -1, 7.7m, null));
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, commandRepository.Added.Count);
+            Assert.AreEqual(0, unitOfWork.CommitCount);
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithValidCommand_ShouldPropagateReorderPointToPersistedArticle()
+        {
+            var commandRepository = new FakeArticleCommandRepository();
+            var queryRepository = new FakeArticleQueryRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            var useCase = new CreateArticleUseCase(commandRepository, queryRepository, unitOfWork);
+
+            Result<CreateArticleResponse> result = await useCase.ExecuteAsync(ValidCommand(reorderPoint: 8));
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(8, commandRepository.Added.Single().ReorderPoint);
         }
     }
 }

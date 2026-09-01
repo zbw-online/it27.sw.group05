@@ -103,6 +103,11 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
 
             _ = builder.Property(a => a.Stock).IsRequired();
 
+            _ = builder.Property(a => a.ReorderPoint)
+                .HasColumnName("ReorderPoint")
+                .HasDefaultValue(20)
+                .IsRequired();
+
             _ = builder.Property(a => a.VatRate)
                 .HasPrecision(5, 2)
                 .IsRequired();

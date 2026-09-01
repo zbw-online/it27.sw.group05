@@ -7,6 +7,7 @@ namespace OrderManagement.Application.Features.Catalog.CreateArticle
         string PriceCurrency,
         int GroupId,
         int Stock,
+        int ReorderPoint,
         decimal VatRate,
         string? Description);
 }

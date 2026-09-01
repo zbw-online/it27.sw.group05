@@ -77,19 +77,26 @@
     display: flex;
     left: 0;
     max-height: min(420px, calc(100vh - 160px));
+    max-width: calc(100vw - 16px);
     position: absolute;
     top: calc(100% + var(--space-2));
     z-index: 40;
 }
 
-.category-flyout-panels.is-flipped {
-    left: auto;
-    right: 0;
+.category-flyout-panels.is-inline {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    box-shadow: none;
+    max-height: none;
+    max-width: none;
+    position: static;
+    width: 100%;
+    z-index: auto;
 }
 
 .category-flyout-panel-wrapper {
     border-right: 1px solid var(--color-border);
-    max-height: min(420px, calc(100vh - 160px));
+    max-height: inherit;
     overflow-y: auto;
     width: 220px;
 }
@@ -138,4 +145,13 @@
 .category-flyout-drilldown ::deep .category-flyout-menu {
     max-height: min(360px, calc(100vh - 210px));
     overflow-y: auto;
+}
+
+.category-flyout-panels.is-inline .category-flyout-status,
+.category-flyout-panels.is-inline .category-flyout-drilldown {
+    width: 100%;
+}
+
+.category-flyout-panels.is-inline .category-flyout-drilldown ::deep .category-flyout-menu {
+    max-height: 280px;
 }

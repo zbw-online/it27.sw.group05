@@ -578,16 +578,31 @@
     color: #fff;
 }
 
+.wizard-content {
+    container-name: wizard;
+    container-type: inline-size;
+}
+
 .wizard-columns {
     display: grid;
     gap: var(--space-4);
-    grid-template-columns: minmax(220px, 280px) minmax(320px, 1fr) minmax(340px, 390px);
+    grid-template-columns: 1fr;
     align-items: start;
 }
 
 .wizard-summary {
-    position: sticky;
-    top: var(--space-4);
+    position: static;
+}
+
+@container wizard (min-width: 1240px) {
+    .wizard-columns {
+        grid-template-columns: minmax(220px, 280px) minmax(320px, 1fr) minmax(340px, 390px);
+    }
+
+    .wizard-summary {
+        position: sticky;
+        top: var(--space-4);
+    }
 }
 
 .selected-customer-card {
@@ -673,8 +688,3 @@
     padding-top: var(--space-2);
 }
 
-@media (max-width: 1100px) {
-    .wizard-columns {
-        grid-template-columns: 1fr;
-    }
-}

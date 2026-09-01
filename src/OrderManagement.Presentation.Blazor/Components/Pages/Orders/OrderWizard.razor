@@ -94,6 +94,7 @@
 }
 else if (_step == 2)
 {
+    <div class="wizard-content">
     <div class="wizard-columns">
         <aside class="panel">
             <div class="panel-header"><h2>Kunde</h2></div>
@@ -140,9 +141,9 @@ else if (_step == 2)
                                     <td class="numeric">@article.ArticleNumber</td>
                                     <td>
                                         @article.Name
-                                        @if (article.Stock <= LowStockThreshold)
+                                        @if (article.StockLevel != StockLevel.Available)
                                         {
-                                            <span class="low-stock-flag" title="Tiefer Bestand" aria-label="Tiefer Bestand">⚠</span>
+                                            <span class="low-stock-flag" title="@StockLevelLabel(article.StockLevel)" aria-label="@StockLevelLabel(article.StockLevel)">⚠</span>
                                         }
                                     </td>
                                     <td class="numeric">@article.Stock Stk.</td>
@@ -188,9 +189,9 @@ else if (_step == 2)
                             <div class="cart-line-info">
                                 <strong>@line.ArticleName</strong>
                                 <span class="numeric">@line.ArticleNumber</span>
-                                @if (line.Stock <= LowStockThreshold)
+                                @if (line.StockLevel != StockLevel.Available)
                                 {
-                                    <span class="low-stock-flag" title="Tiefer Bestand">⚠ Tiefer Bestand</span>
+                                    <span class="low-stock-flag" title="@StockLevelLabel(line.StockLevel)">⚠ @StockLevelLabel(line.StockLevel)</span>
                                 }
                             </div>
                             <div class="quantity-stepper">
@@ -270,6 +271,7 @@ else if (_step == 2)
             </div>
         </aside>
     </div>
+    </div>
 }
 else if (_step == 3 && _selectedCustomer is not null)
 {
@@ -346,7 +348,12 @@ else if (_step == 3 && _selectedCustomer is not null)
 }
 
 @code {
-    private const int LowStockThreshold = 20;
+    private static string StockLevelLabel(StockLevel level) => level switch
+    {
+        StockLevel.Low => "Tiefer Bestand",
+        StockLevel.OutOfStock => "Nicht an Lager",
+        _ => "Verfügbar"
+    };
 
     private int _step = 1;
     private string? _orderNumber;

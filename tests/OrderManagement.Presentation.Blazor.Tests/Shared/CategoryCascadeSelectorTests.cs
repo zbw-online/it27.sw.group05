@@ -286,43 +286,49 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         }
 
         [TestMethod]
-        public void NearRightViewportEdge_FlipsPanelsToOpenLeft()
+        public void WhenPlacementCannotFitEitherSide_SwitchesToCompactSingleLevelDrillDown()
         {
-            _ = JSInterop.Setup<bool>("shouldFlipLeft", _ => true).SetResult(true);
+            _ = JSInterop.Setup<bool>("applyPlacement", _ => true).SetResult(true);
 
             IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
+
             cut.WaitForAssertion(
-                () => Assert.IsTrue(cut.Find(".category-flyout-panels").ClassList.Contains("is-flipped")),
+                () => Assert.AreEqual(1, cut.FindAll(".category-flyout-drilldown").Count),
                 TimeSpan.FromSeconds(3));
+            Assert.AreEqual(1, cut.FindAll(".category-flyout-menu").Count);
+            Assert.AreEqual(0, cut.FindAll(".category-flyout-back").Count);
         }
 
         [TestMethod]
-        public void AwayFromViewportEdge_DoesNotFlipPanels()
+        public void WhenPlacementFitsOnASide_KeepsCascadingPanels()
         {
-            _ = JSInterop.Setup<bool>("shouldFlipLeft", _ => true).SetResult(false);
+            _ = JSInterop.Setup<bool>("applyPlacement", _ => true).SetResult(false);
 
             IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
 
-            Assert.IsFalse(cut.Find(".category-flyout-panels").ClassList.Contains("is-flipped"));
+            cut.WaitForAssertion(
+                () => Assert.AreEqual(0, cut.FindAll(".category-flyout-drilldown").Count),
+                TimeSpan.FromSeconds(3));
+            Assert.AreEqual(1, cut.FindAll(".category-flyout-panel-wrapper").Count);
         }
 
         [TestMethod]
         public void CompactViewport_ShowsSingleLevelDrillDownWithBackButtonAndBreadcrumb()
         {
-            _ = JSInterop.Setup<bool>("isCompactViewport").SetResult(true);
+            _ = JSInterop.Setup<bool>("applyPlacement", _ => true).SetResult(true);
 
             IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
+            cut.WaitForAssertion(() => Assert.AreEqual(1, cut.FindAll(".category-flyout-drilldown").Count), TimeSpan.FromSeconds(3));
 
-            Assert.AreEqual(1, cut.FindAll(".category-flyout-drilldown").Count);
             Assert.AreEqual(1, cut.FindAll(".category-flyout-menu").Count);
             Assert.AreEqual(0, cut.FindAll(".category-flyout-back").Count);
             StringAssert.Contains(cut.Find(".category-flyout-drilldown-breadcrumb").TextContent, "Alle Kategorien");
@@ -338,6 +344,46 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
 
             Assert.AreEqual(0, cut.FindAll(".category-flyout-back").Count);
             StringAssert.Contains(cut.Find(".category-flyout-menu").TextContent, "Bürobedarf");
+        }
+
+        [TestMethod]
+        public void InlineDrilldownMode_NeverOpensAsOverlayAndStaysCompact()
+        {
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy)
+                .Add(p => p.Mode, CategorySelectorMode.InlineDrilldown));
+
+            cut.Find(".category-flyout-trigger").Click();
+
+            Assert.AreEqual(1, cut.FindAll(".category-flyout-panels.is-inline").Count);
+            Assert.AreEqual(1, cut.FindAll(".category-flyout-drilldown").Count);
+            Assert.AreEqual(0, cut.FindAll(".category-flyout-panel-wrapper").Count);
+        }
+
+        [TestMethod]
+        public void InlineDrilldownMode_SupportsArbitraryDepthViaBackNavigation()
+        {
+            ArticleGroupHierarchyDto[] deepHierarchy =
+            [
+                new(1, "Ebene-Root", null, 0, "Ebene-Root"),
+                new(2, "Ebene-Zwei", 1, 1, "Ebene-Root > Ebene-Zwei"),
+                new(3, "Ebene-Drei", 2, 2, "Ebene-Root > Ebene-Zwei > Ebene-Drei")
+            ];
+
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, deepHierarchy)
+                .Add(p => p.Mode, CategorySelectorMode.InlineDrilldown));
+
+            cut.Find(".category-flyout-trigger").Click();
+            cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Ebene-Root")).Click();
+            cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Ebene-Zwei")).Click();
+
+            StringAssert.Contains(cut.Find(".category-flyout-drilldown-breadcrumb").TextContent, "Ebene-Zwei");
+            StringAssert.Contains(cut.Find(".category-flyout-menu").TextContent, "Ebene-Drei");
+
+            cut.Find(".category-flyout-back").Click();
+            StringAssert.Contains(cut.Find(".category-flyout-drilldown-breadcrumb").TextContent, "Ebene-Root");
+            StringAssert.Contains(cut.Find(".category-flyout-menu").TextContent, "Ebene-Zwei");
         }
     }
 }

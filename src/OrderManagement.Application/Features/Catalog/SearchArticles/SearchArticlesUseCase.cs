@@ -42,6 +42,8 @@ namespace OrderManagement.Application.Features.Catalog.SearchArticles
                     a.ArticleGroupId.Value,
                     groupNames.TryGetValue(a.ArticleGroupId.Value, out string? gName) ? gName : string.Empty,
                     a.Stock,
+                    a.ReorderPoint,
+                    a.StockLevel,
                     a.VatRate,
                     a.Status))];
 

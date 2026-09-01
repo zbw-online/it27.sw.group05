@@ -21,15 +21,16 @@ namespace OrderManagement.Application.Tests.Features.Catalog
             var useCase = new UpdateArticleUseCase(commandRepository, unitOfWork);
 
             Article article = commandRepository.Seed(
-                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 5).EnsureValue());
+                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 5, reorderPoint: 3).EnsureValue());
 
             Result result = await useCase.ExecuteAsync(new UpdateArticleCommand(
-                article.Id.Value, "Widget", 12.50m, "CHF", 2, 8, 7.7m, "Updated"));
+                article.Id.Value, "Widget", 12.50m, "CHF", 2, 8, 15, 7.7m, "Updated"));
 
             Assert.IsTrue(result.IsSuccess, result.Error);
             Assert.AreEqual(12.50m, article.Price.Amount);
             Assert.AreEqual(2, article.ArticleGroupId.Value);
             Assert.AreEqual(8, article.Stock);
+            Assert.AreEqual(15, article.ReorderPoint);
             Assert.AreEqual(1, commandRepository.Updated.Count);
             Assert.AreEqual(1, unitOfWork.CommitCount);
         }
@@ -42,7 +43,7 @@ namespace OrderManagement.Application.Tests.Features.Catalog
             var useCase = new UpdateArticleUseCase(commandRepository, unitOfWork);
 
             Result result = await useCase.ExecuteAsync(new UpdateArticleCommand(
-                999, "Widget", 12.50m, "CHF", 2, 8, 7.7m, null));
+                999, "Widget", 12.50m, "CHF", 2, 8, 20, 7.7m, null));
 
             Assert.IsFalse(result.IsSuccess);
             Assert.AreEqual(0, unitOfWork.CommitCount);
@@ -59,10 +60,47 @@ namespace OrderManagement.Application.Tests.Features.Catalog
                 Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 5).EnsureValue());
 
             Result result = await useCase.ExecuteAsync(new UpdateArticleCommand(
-                article.Id.Value, "Widget", 9.99m, "CHF", 1, -10, 7.7m, null));
+                article.Id.Value, "Widget", 9.99m, "CHF", 1, -10, 20, 7.7m, null));
 
             Assert.IsFalse(result.IsSuccess);
             Assert.AreEqual(0, commandRepository.Updated.Count);
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithNegativeReorderPoint_ShouldFail()
+        {
+            var commandRepository = new FakeArticleCommandRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            var useCase = new UpdateArticleUseCase(commandRepository, unitOfWork);
+
+            Article article = commandRepository.Seed(
+                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 5, reorderPoint: 20).EnsureValue());
+
+            Result result = await useCase.ExecuteAsync(new UpdateArticleCommand(
+                article.Id.Value, "Widget", 9.99m, "CHF", 1, 5, -1, 7.7m, null));
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(20, article.ReorderPoint);
+            Assert.AreEqual(0, commandRepository.Updated.Count);
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithOnlyReorderPointChanged_ShouldUpdateReorderPointAndLeaveOtherFieldsUnchanged()
+        {
+            var commandRepository = new FakeArticleCommandRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            var useCase = new UpdateArticleUseCase(commandRepository, unitOfWork);
+
+            Article article = commandRepository.Seed(
+                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 5, reorderPoint: 20).EnsureValue());
+
+            Result result = await useCase.ExecuteAsync(new UpdateArticleCommand(
+                article.Id.Value, "Widget", 9.99m, "CHF", 1, 5, 12, 7.7m, article.Description));
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(12, article.ReorderPoint);
+            Assert.AreEqual(5, article.Stock);
+            Assert.AreEqual(9.99m, article.Price.Amount);
         }
     }
 }

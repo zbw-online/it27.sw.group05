@@ -20,6 +20,7 @@ namespace OrderManagement.Domain.Tests.Catalog
             string priceCurrency = "CHF",
             ArticleGroupId? groupId = null,
             int stock = 10,
+            int reorderPoint = 20,
             decimal vatRate = 7.70m,
             string? description = "Test description",
             ArticleStatus status = ArticleStatus.Active) => Article.Create(
@@ -29,6 +30,7 @@ namespace OrderManagement.Domain.Tests.Catalog
                 priceCurrency: priceCurrency,
                 groupId: groupId ?? ValidGroupId,
                 stock: stock,
+                reorderPoint: reorderPoint,
                 vatRate: vatRate,
                 description: description,
                 status: status);
@@ -321,6 +323,135 @@ namespace OrderManagement.Domain.Tests.Catalog
 
             Assert.IsFalse(result.IsSuccess);
             Assert.AreEqual(ArticleStatus.Active, article.Status);
+        }
+
+        [TestMethod]
+        public void Create_WithNegativeReorderPoint_ShouldFail()
+        {
+            Result<Article> result = CreateValidArticle(reorderPoint: -1);
+
+            Assert.IsFalse(result.IsSuccess);
+        }
+
+        [TestMethod]
+        public void Create_WithReorderPoint_ShouldSetReorderPoint()
+        {
+            Article article = CreateValidArticle(reorderPoint: 15).EnsureValue();
+
+            Assert.AreEqual(15, article.ReorderPoint);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenStockIsZero_ShouldBeOutOfStock()
+        {
+            Article article = CreateValidArticle(stock: 0, reorderPoint: 20).EnsureValue();
+
+            Assert.AreEqual(StockLevel.OutOfStock, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenStockIsBelowReorderPoint_ShouldBeLow()
+        {
+            Article article = CreateValidArticle(stock: 5, reorderPoint: 20).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Low, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenStockEqualsReorderPoint_ShouldBeLow()
+        {
+            Article article = CreateValidArticle(stock: 20, reorderPoint: 20).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Low, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenStockIsAboveReorderPoint_ShouldBeAvailable()
+        {
+            Article article = CreateValidArticle(stock: 21, reorderPoint: 20).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenReorderPointIsZeroAndStockIsZero_ShouldBeOutOfStock()
+        {
+            Article article = CreateValidArticle(stock: 0, reorderPoint: 0).EnsureValue();
+
+            Assert.AreEqual(StockLevel.OutOfStock, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenReorderPointIsZeroAndStockIsPositive_ShouldBeAvailable()
+        {
+            Article article = CreateValidArticle(stock: 1, reorderPoint: 0).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void ChangeReorderPoint_WithNegativeValue_ShouldFail()
+        {
+            Article article = CreateValidArticle(reorderPoint: 20).EnsureValue();
+
+            Result result = article.ChangeReorderPoint(-1);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(20, article.ReorderPoint);
+        }
+
+        [TestMethod]
+        public void ChangeReorderPoint_WithValidValue_ShouldUpdateReorderPointOnlyAndRecomputeStockLevel()
+        {
+            Article article = CreateValidArticle(stock: 15, reorderPoint: 20).EnsureValue();
+            Assert.AreEqual(StockLevel.Low, article.StockLevel);
+
+            Result result = article.ChangeReorderPoint(10);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(10, article.ReorderPoint);
+            Assert.AreEqual(15, article.Stock);
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void ChangeReorderPoint_WithValidValue_ShouldRaiseReorderPointChangedEvent()
+        {
+            Article article = CreateValidArticle(reorderPoint: 20).EnsureValue();
+
+            Result result = article.ChangeReorderPoint(10);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleReorderPointChanged));
+        }
+
+        [TestMethod]
+        public void UpdateStock_AcrossReorderPointBoundary_ShouldRecomputeStockLevel()
+        {
+            Article article = CreateValidArticle(stock: 21, reorderPoint: 20).EnsureValue();
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+
+            Result decreaseResult = article.UpdateStock(-1);
+            Assert.IsTrue(decreaseResult.IsSuccess, decreaseResult.Error);
+            Assert.AreEqual(StockLevel.Low, article.StockLevel);
+
+            Result depleteResult = article.UpdateStock(-20);
+            Assert.IsTrue(depleteResult.IsSuccess, depleteResult.Error);
+            Assert.AreEqual(StockLevel.OutOfStock, article.StockLevel);
+
+            Result increaseResult = article.UpdateStock(25);
+            Assert.IsTrue(increaseResult.IsSuccess, increaseResult.Error);
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void TwoArticles_WithSameStockButDifferentReorderPoints_ShouldHaveDifferentStockLevels()
+        {
+            Article lenient = CreateValidArticle(articleNr: "ART-000002", stock: 10, reorderPoint: 5).EnsureValue();
+            Article strict = CreateValidArticle(articleNr: "ART-000003", stock: 10, reorderPoint: 15).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Available, lenient.StockLevel);
+            Assert.AreEqual(StockLevel.Low, strict.StockLevel);
         }
     }
 }

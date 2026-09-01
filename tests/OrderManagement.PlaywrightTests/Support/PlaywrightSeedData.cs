@@ -11,8 +11,8 @@ namespace OrderManagement.PlaywrightTests.Support
         internal const string RootCategoryName = "Elektronik";
         internal const string LeafCategoryName = "USB-C Kabel";
 
-        internal static readonly DateOnly OldAddressValidTo = new(2026, 8, 31);
-        internal static readonly DateOnly NewAddressValidFrom = new(2026, 9, 1);
+        internal static readonly DateOnly OldAddressValidTo = new(2026, 9, 1);
+        internal static readonly DateOnly NewAddressValidFrom = new(2026, 9, 2);
 
         internal static async Task SeedAsync(OrderManagementDbContext dbContext)
         {

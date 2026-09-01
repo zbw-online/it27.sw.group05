@@ -64,6 +64,15 @@ namespace OrderManagement.Application.Features.Catalog.UpdateArticle
                 }
             }
 
+            if (command.ReorderPoint != article.ReorderPoint)
+            {
+                Result reorderPointResult = article.ChangeReorderPoint(command.ReorderPoint);
+                if (!reorderPointResult.IsSuccess)
+                {
+                    return reorderPointResult;
+                }
+            }
+
             _articleCommandRepository.Update(article);
 
             return await _unitOfWork.CommitAsync(cancellationToken);
