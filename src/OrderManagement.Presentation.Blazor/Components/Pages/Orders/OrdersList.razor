@@ -89,7 +89,7 @@
 
 <ConfirmDialog IsOpen="_isDeleteConfirmOpen"
                Title="Auftrag löschen"
-               Message="@($"Soll der Auftrag „{_deleteTargetNumber}“ wirklich gelöscht werden? Dieser Vorgang kann nicht rückgängig gemacht werden.")"
+               Message="@DeleteConfirmMessage()"
                IsBusy="_isDeleting"
                OnConfirm="ConfirmDeleteAsync"
                OnCancel="() => _isDeleteConfirmOpen = false" />
@@ -170,6 +170,11 @@
         _deleteTargetNumber = orderNumber;
         _isDeleteConfirmOpen = true;
     }
+
+    private string DeleteConfirmMessage() =>
+        $"Soll der Auftrag «{_deleteTargetNumber}» endgültig gelöscht werden?\n" +
+        "Die bereits abgezogenen Artikelmengen werden dem Lagerbestand wieder gutgeschrieben.\n" +
+        "Dieser Vorgang kann nicht rückgängig gemacht werden.";
 
     private async Task ConfirmDeleteAsync()
     {

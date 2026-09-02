@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject IJSRuntime JsRuntime
 
 <a href="#main-content" class="skip-link">Zum Inhalt springen</a>
 
@@ -19,3 +20,14 @@
     <a href="" class="reload">Neu laden</a>
     <a class="dismiss" aria-label="Meldung schliessen">🗙</a>
 </div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            IJSObjectReference module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/appReady.js");
+            await module.InvokeVoidAsync("markInteractive");
+        }
+    }
+}

@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.AcceptanceTests.Support;
+using OrderManagement.Application.Features.Catalog.GetArticleForEdit;
 using OrderManagement.Application.Features.Orders.CreateOrder;
 using OrderManagement.Application.Features.Orders.DeleteOrder;
 using OrderManagement.Application.Features.Orders.GetOrderDetails;
@@ -24,13 +25,19 @@ namespace OrderManagement.AcceptanceTests.Steps
         IGetOrderDetailsUseCase getOrderDetailsUseCase,
         IUpdateOrderLineQuantityUseCase updateOrderLineQuantityUseCase,
         IDeleteOrderUseCase deleteOrderUseCase,
+        IGetArticleForEditUseCase getArticleForEditUseCase,
         AcceptanceTestContext context)
     {
+        private const string StockScenarioArticleNumber = "ART-40001";
+        private const string StockScenarioOrderNumber = "ORD-2026-090";
+        private const int StockScenarioQuantity = 3;
+
         private static readonly DateOnly DefaultDeliveryDate = new(2026, 9, 1);
         private static readonly AddressOverrideInput DefaultAddress = new("Main Street", "1", "8000", "Zurich", "CH");
 
         private Result<CreateOrderResponse>? _lastCreateResult;
         private IReadOnlyList<OrderListItemDto>? _lastSearchResult;
+        private int _stockScenarioStockBeforeDeduction;
 
         [Given(@"order ""([^""]*)"" already exists for customer ""([^""]*)"" with lines:")]
         public async Task GivenOrderAlreadyExistsForCustomerWithLines(string orderNumber, string customerNumber, Table linesTable)
@@ -116,6 +123,46 @@ namespace OrderManagement.AcceptanceTests.Steps
             int orderId = context.OrderIdsByNumber[orderNumber];
             Result result = await deleteOrderUseCase.ExecuteAsync(new DeleteOrderCommand(orderId));
             Assert.IsTrue(result.IsSuccess, result.Error);
+        }
+
+        [Given(@"an article has a defined stock")]
+        public async Task GivenAnArticleHasADefinedStock()
+        {
+            GetArticleForEditResponse article = await GetArticleAsync(StockScenarioArticleNumber);
+            _stockScenarioStockBeforeDeduction = article.Stock;
+        }
+
+        [Given(@"an order deducted a quantity of that article")]
+        public async Task GivenAnOrderDeductedAQuantityOfThatArticle()
+        {
+            var linesTable = new Table("ArticleNumber", "Quantity");
+            linesTable.AddRow(StockScenarioArticleNumber, StockScenarioQuantity.ToString(CultureInfo.InvariantCulture));
+
+            await CreateOrderAsync(StockScenarioOrderNumber, "CU30001", linesTable);
+            Assert.IsTrue(_lastCreateResult!.Value.IsSuccess, _lastCreateResult.Value.Error);
+        }
+
+        [When(@"the Sachbearbeiter deletes the complete order")]
+        public async Task WhenTheSachbearbeiterDeletesTheCompleteOrder()
+            => await WhenIDeleteOrder(StockScenarioOrderNumber);
+
+        [Then(@"the order is no longer available")]
+        public async Task ThenTheOrderIsNoLongerAvailable()
+            => await ThenOrderCanNoLongerBeFound(StockScenarioOrderNumber);
+
+        [Then(@"all order lines are removed")]
+        public async Task ThenAllOrderLinesAreRemoved()
+        {
+            Result<IReadOnlyList<OrderListItemDto>> result = await searchOrdersUseCase.ExecuteAsync(new SearchOrdersQuery(StockScenarioOrderNumber));
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsFalse(result.Value!.Any(o => o.OrderNumber == StockScenarioOrderNumber));
+        }
+
+        [Then(@"the deducted quantity is restored to the article stock")]
+        public async Task ThenTheDeductedQuantityIsRestoredToTheArticleStock()
+        {
+            GetArticleForEditResponse article = await GetArticleAsync(StockScenarioArticleNumber);
+            Assert.AreEqual(_stockScenarioStockBeforeDeduction, article.Stock);
         }
 
         [Then(@"order ""([^""]*)"" is created successfully")]
@@ -262,6 +309,14 @@ namespace OrderManagement.AcceptanceTests.Steps
         {
             int orderId = context.OrderIdsByNumber[orderNumber];
             Result<GetOrderDetailsResponse> result = await getOrderDetailsUseCase.ExecuteAsync(new GetOrderDetailsQuery(orderId));
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            return result.Value!;
+        }
+
+        private async Task<GetArticleForEditResponse> GetArticleAsync(string articleNumber)
+        {
+            int articleId = context.ArticleIdsByNumber[articleNumber];
+            Result<GetArticleForEditResponse> result = await getArticleForEditUseCase.ExecuteAsync(new GetArticleForEditQuery(articleId));
             Assert.IsTrue(result.IsSuccess, result.Error);
             return result.Value!;
         }

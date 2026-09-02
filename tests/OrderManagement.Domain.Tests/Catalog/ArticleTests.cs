@@ -200,6 +200,17 @@ namespace OrderManagement.Domain.Tests.Catalog
         }
 
         [TestMethod]
+        public void UpdateStock_IncreaseBeyondMaximumValue_ShouldFail()
+        {
+            Article article = CreateValidArticle(stock: int.MaxValue - 1).EnsureValue();
+
+            Result result = article.UpdateStock(5);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(int.MaxValue - 1, article.Stock);
+        }
+
+        [TestMethod]
         public void ChangeGroup_WithAssignedGroupId_ShouldSucceed()
         {
             Article article = CreateValidArticle().EnsureValue();

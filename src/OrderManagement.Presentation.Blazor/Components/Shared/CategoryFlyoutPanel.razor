@@ -17,7 +17,6 @@
                     aria-current="@(isSelected ? "true" : null)"
                     tabindex="@(isFocused ? 0 : -1)"
                     @onclick="() => OnActivate.InvokeAsync(item)"
-                    @onmouseenter="() => OnHoverExpand.InvokeAsync(item)"
                     @onkeydown="e => OnKeyDown.InvokeAsync(new CategoryFlyoutKeyEvent(Level, currentIndex, item, e))">
                 <span>@item.Name</span>
                 @if (item.HasChildren)
@@ -41,6 +40,5 @@
     [Parameter] public bool IsFocusedLevel { get; set; }
     [Parameter] public string AriaLabel { get; set; } = "Kategorien";
     [Parameter] public EventCallback<CategoryFlyoutItem> OnActivate { get; set; }
-    [Parameter] public EventCallback<CategoryFlyoutItem> OnHoverExpand { get; set; }
     [Parameter] public EventCallback<CategoryFlyoutKeyEvent> OnKeyDown { get; set; }
 }

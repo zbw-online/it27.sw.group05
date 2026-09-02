@@ -2,6 +2,7 @@ using OrderManagement.Application.Abstractions;
 using OrderManagement.Application.Abstractions.Interfaces.Catalog.Command;
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Command;
 using OrderManagement.Domain.Catalog;
+using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Domain.Orders.ValueObjects;
 
@@ -25,22 +26,64 @@ namespace OrderManagement.Application.Features.Orders.DeleteOrder
             Order? order = await _orderCommandRepository.GetByIdAsync(new OrderId(command.OrderId), cancellationToken);
             if (order is null)
             {
-                return Result.Fail("Order was not found.");
+                return Result.Fail("Auftrag wurde nicht gefunden.");
             }
 
-            foreach (OrderLine line in order.Lines)
+            if (order.IsInventoryApplied)
             {
-                Article? article = await _articleCommandRepository.GetByIdAsync(line.ArticleId, cancellationToken);
-                if (article is not null)
+                Result restoreResult = await RestoreStockAsync(order, cancellationToken);
+                if (!restoreResult.IsSuccess)
                 {
-                    _ = article.UpdateStock(line.Quantity);
-                    _articleCommandRepository.Update(article);
+                    return restoreResult;
                 }
             }
 
             _orderCommandRepository.Remove(order);
 
             return await _unitOfWork.CommitAsync(cancellationToken);
+        }
+
+        private async Task<Result> RestoreStockAsync(Order order, CancellationToken cancellationToken)
+        {
+            Dictionary<int, int> quantityByArticleId = [];
+            foreach (OrderLine line in order.Lines)
+            {
+                quantityByArticleId[line.ArticleId.Value] =
+                    quantityByArticleId.GetValueOrDefault(line.ArticleId.Value) + line.Quantity;
+            }
+
+            if (quantityByArticleId.Count == 0)
+            {
+                return Result.Success();
+            }
+
+            List<ArticleId> articleIds = [.. quantityByArticleId.Keys.Select(id => new ArticleId(id))];
+            IReadOnlyList<Article> loadedArticles = await _articleCommandRepository.GetByIdsAsync(articleIds, cancellationToken);
+            var articlesById = loadedArticles.ToDictionary(a => a.Id.Value);
+
+            foreach (int articleId in quantityByArticleId.Keys)
+            {
+                if (!articlesById.ContainsKey(articleId))
+                {
+                    return Result.Fail($"Artikel mit ID {articleId} wurde nicht gefunden. Der Auftrag wurde nicht gelöscht.");
+                }
+            }
+
+            foreach ((int articleId, int quantity) in quantityByArticleId)
+            {
+                Result stockResult = articlesById[articleId].UpdateStock(quantity);
+                if (!stockResult.IsSuccess)
+                {
+                    return stockResult;
+                }
+            }
+
+            foreach (Article article in articlesById.Values)
+            {
+                _articleCommandRepository.Update(article);
+            }
+
+            return Result.Success();
         }
     }
 }

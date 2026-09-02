@@ -113,8 +113,12 @@ namespace OrderManagement.Domain.Catalog
             if (delta < 0 && Stock + delta < 0)
                 return Result.Fail("Cannot reduce stock below zero.");
 
+            long newStock = (long)Stock + delta;
+            if (newStock > int.MaxValue)
+                return Result.Fail("Stock cannot exceed the maximum representable value.");
+
             int oldStock = Stock;
-            Stock += delta;
+            Stock = (int)newStock;
 
             AddDomainEvent(new ArticleStockChanged(ArticleNumber, oldStock, Stock, DateTime.UtcNow));
             return Result.Success();

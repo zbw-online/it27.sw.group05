@@ -139,6 +139,43 @@ namespace OrderManagement.Presentation.Blazor.Tests.Articles
             Assert.AreEqual("7", reorderPointInput.Value);
         }
 
+        [TestMethod]
+        public void CreateArticleForm_CategoryPicker_RequiresDeliberateApply_ThenShowsChosenPath()
+        {
+            IRenderedComponent<ArticlesPage> cut = RenderPage([]);
+
+            FindButtonByText(cut, "Neuer Artikel").Click();
+
+            StringAssert.Contains(cut.Markup, "Kategorie wählen");
+            StringAssert.Contains(cut.Markup, "Bitte eine Kategorie wählen.");
+
+            FindButtonByText(cut, "Kategorie wählen").Click();
+            Assert.AreEqual(1, cut.FindAll(".category-tree-picker").Count);
+
+            cut.Find(".category-tree-label").Click();
+            FindButtonByText(cut, "Übernehmen").Click();
+
+            Assert.AreEqual(0, cut.FindAll(".category-tree-picker").Count);
+            StringAssert.Contains(cut.Markup, "Kategorie ändern");
+            Assert.IsFalse(cut.Markup.Contains("Bitte eine Kategorie wählen.", StringComparison.Ordinal));
+        }
+
+        [TestMethod]
+        public void Toolbar_HasArticlesToolbarClass_AndCategorySelectorPrecedesSearchFieldInDom()
+        {
+            IRenderedComponent<ArticlesPage> cut = RenderPage([]);
+
+            IElement toolbar = cut.Find(".articles-toolbar");
+            string toolbarHtml = toolbar.OuterHtml;
+
+            int categoryIndex = toolbarHtml.IndexOf("category-flyout-trigger", StringComparison.Ordinal);
+            int searchIndex = toolbarHtml.IndexOf("search-field-input", StringComparison.Ordinal);
+
+            Assert.IsTrue(categoryIndex >= 0, "Expected the category selector inside the articles toolbar.");
+            Assert.IsTrue(searchIndex >= 0, "Expected the search field inside the articles toolbar.");
+            Assert.IsTrue(categoryIndex < searchIndex, "The category selector must appear before the search field in the DOM.");
+        }
+
         private static IElement FindButtonByText(IRenderedComponent<ArticlesPage> cut, string text) =>
             cut.FindAll("button").Single(b => b.TextContent.Contains(text, StringComparison.Ordinal));
 

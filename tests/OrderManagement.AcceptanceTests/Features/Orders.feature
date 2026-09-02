@@ -89,6 +89,14 @@ Scenario: Deleting an order also removes its order lines
     When I delete order "ORD-2026-012"
     Then order "ORD-2026-012" can no longer be found
 
+Scenario: Auftrag vollständig löschen und Lagerbestand wiederherstellen
+    Given an article has a defined stock
+    And an order deducted a quantity of that article
+    When the Sachbearbeiter deletes the complete order
+    Then the order is no longer available
+    And all order lines are removed
+    And the deducted quantity is restored to the article stock
+
 Scenario: A failed operation does not leave partially persisted data
     When I create order "ORD-2026-013" for customer "CU30001" with lines:
       | ArticleNumber | Quantity |

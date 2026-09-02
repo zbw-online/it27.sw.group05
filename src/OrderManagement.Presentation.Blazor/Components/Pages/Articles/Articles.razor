@@ -52,8 +52,8 @@
     <div class="inline-alert inline-alert-danger" role="alert">@_error</div>
 }
 
-<div class="toolbar">
-    <SearchField Label="Artikel suchen" Placeholder="Artikel suchen (Nummer, Bezeichnung)" @bind-Value="_searchTerm" OnSearch="LoadArticlesAsync" />
+<div class="toolbar articles-toolbar">
+    <CategoryCascadeSelector Label="Kategorie" Hierarchy="_hierarchy" SelectedGroupId="_selectedGroupId" SelectedGroupIdChanged="OnCategoryFilterChangedAsync" />
     <FilterSelect Label="Lagerstatus" Value="@_stockFilter" ValueChanged="OnStockFilterChanged">
         <option value="alle">Alle Artikel</option>
         <option value="verfuegbar">Verfügbar</option>
@@ -65,7 +65,7 @@
         <option value="aktiv">Aktiv</option>
         <option value="inaktiv">Inaktiv</option>
     </FilterSelect>
-    <CategoryCascadeSelector Label="Kategorie" Hierarchy="_hierarchy" SelectedGroupId="_selectedGroupId" SelectedGroupIdChanged="OnCategoryFilterChangedAsync" />
+    <SearchField Label="Artikel suchen" Placeholder="Artikel suchen (Nummer, Bezeichnung)" @bind-Value="_searchTerm" OnSearch="LoadArticlesAsync" />
 </div>
 
 <article class="panel">
@@ -146,7 +146,7 @@
     }
 </article>
 
-<SideDrawer IsOpen="_isArticleDialogOpen" Title="@(_isArticleEditMode ? "Artikel bearbeiten" : "Neuer Artikel")" OnClose="CloseArticleDialog">
+<SideDrawer IsOpen="_isArticleDialogOpen" Title="@(_isArticleEditMode ? "Artikel bearbeiten" : "Neuer Artikel")" Size="DrawerSize.Wide" OnClose="CloseArticleDialog">
     <ChildContent>
         @if (_articleDialogError is not null)
         {
@@ -155,6 +155,31 @@
         <EditForm Model="_articleForm" OnValidSubmit="SaveArticleAsync">
             <DataAnnotationsValidator />
             <div class="form-grid">
+                <div class="form-field @(_isCategoryPickerOpen ? "form-field-wide" : string.Empty)">
+                    <label>Kategorie</label>
+                    @if (_articleForm.GroupId == 0)
+                    {
+                        <Button Type="button" Variant="ButtonVariant.Secondary" OnClick="OpenCategoryPicker">Kategorie wählen</Button>
+                        @if (!_isCategoryPickerOpen)
+                        {
+                            <span class="validation-message">Bitte eine Kategorie wählen.</span>
+                        }
+                    }
+                    else
+                    {
+                        <div class="category-picker-current">
+                            <span class="category-picker-current-path">@GroupPath(_articleForm.GroupId)</span>
+                            <Button Type="button" Variant="ButtonVariant.Secondary" OnClick="OpenCategoryPicker">Kategorie ändern</Button>
+                        </div>
+                    }
+                    @if (_isCategoryPickerOpen)
+                    {
+                        <CategoryTreePicker Hierarchy="_hierarchy"
+                                            SelectedGroupId="_articleForm.GroupId == 0 ? null : _articleForm.GroupId"
+                                            OnApply="ApplyCategorySelection"
+                                            OnCancel="() => _isCategoryPickerOpen = false" />
+                    }
+                </div>
                 <div class="form-field">
                     <label for="art-number">Artikel-Nr.</label>
                     <InputText id="art-number" class="form-control" @bind-Value="_articleForm.ArticleNumber" disabled="@_isArticleEditMode" />
@@ -189,13 +214,6 @@
                 <div class="form-field form-field-wide">
                     <label for="art-description">Beschreibung</label>
                     <InputText id="art-description" class="form-control" @bind-Value="_articleForm.Description" />
-                </div>
-                <div class="form-field form-field-wide">
-                    <CategoryCascadeSelector Label="Kategoriepfad" Hierarchy="_hierarchy" SelectedGroupId="_articleForm.GroupId == 0 ? null : _articleForm.GroupId" SelectedGroupIdChanged="id => _articleForm.GroupId = id ?? 0" Mode="CategorySelectorMode.InlineDrilldown" />
-                    @if (_articleForm.GroupId == 0)
-                    {
-                        <span class="validation-message">Bitte eine Kategorie wählen.</span>
-                    }
                 </div>
             </div>
             <button type="submit" class="visually-hidden" aria-hidden="true">Speichern</button>
@@ -300,6 +318,7 @@
     private bool _isArticleDialogOpen;
     private bool _isArticleEditMode;
     private bool _isArticleSaving;
+    private bool _isCategoryPickerOpen;
     private string? _articleDialogError;
     private readonly ArticleFormModel _articleForm = new();
 
@@ -442,6 +461,7 @@
     {
         _isArticleEditMode = false;
         _articleDialogError = null;
+        _isCategoryPickerOpen = false;
         _articleForm.Reset();
         _isArticleDialogOpen = true;
     }
@@ -468,13 +488,23 @@
         _articleForm.GroupId = article.GroupId;
 
         _isArticleEditMode = true;
+        _isCategoryPickerOpen = false;
         _isArticleDialogOpen = true;
     }
 
     private void CloseArticleDialog()
     {
         _isArticleDialogOpen = false;
+        _isCategoryPickerOpen = false;
         _articleDialogError = null;
+    }
+
+    private void OpenCategoryPicker() => _isCategoryPickerOpen = true;
+
+    private void ApplyCategorySelection(int groupId)
+    {
+        _articleForm.GroupId = groupId;
+        _isCategoryPickerOpen = false;
     }
 
     private async Task SaveArticleAsync()

@@ -2,7 +2,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JsRuntime
 
-<dialog @ref="_dialogRef" class="app-drawer" role="dialog" aria-modal="true" aria-labelledby="@_titleId">
+<dialog @ref="_dialogRef" class="app-drawer @SizeCssClass" role="dialog" aria-modal="true" aria-labelledby="@_titleId">
     <div class="app-drawer-header">
         <h2 id="@_titleId">@Title</h2>
         <button type="button" class="app-drawer-close" aria-label="Schliessen" @onclick="RequestClose">
@@ -32,9 +32,17 @@
 
     [Parameter] public bool IsOpen { get; set; }
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public DrawerSize Size { get; set; } = DrawerSize.Default;
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? FooterContent { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+
+    private string SizeCssClass => Size switch
+    {
+        DrawerSize.Wide => "app-drawer-wide",
+        DrawerSize.FullScreen => "app-drawer-fullscreen",
+        _ => string.Empty
+    };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

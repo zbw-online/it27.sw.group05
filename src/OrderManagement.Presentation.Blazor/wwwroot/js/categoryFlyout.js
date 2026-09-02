@@ -20,20 +20,16 @@ function computePlacement(triggerElement, panelsElement, levelCount) {
     const spaceBelow = viewport.height - triggerRect.bottom - SAFETY_MARGIN;
     const spaceAbove = triggerRect.top - SAFETY_MARGIN;
     const spaceRight = viewport.width - triggerRect.left - SAFETY_MARGIN;
-    const spaceLeft = triggerRect.right - SAFETY_MARGIN;
 
     const placement = (spaceBelow >= naturalHeight || spaceBelow >= spaceAbove) ? "below" : "above";
     const availableHeight = Math.max(MIN_PANEL_HEIGHT, placement === "below" ? spaceBelow : spaceAbove);
 
-    const align = (spaceRight >= naturalWidth || spaceRight >= spaceLeft) ? "left" : "right";
-
     const panelCount = levelCount + 1;
     const requiredCascadeWidth = PANEL_COLUMN_WIDTH * panelCount;
-    const compact = spaceRight < requiredCascadeWidth && spaceLeft < requiredCascadeWidth;
+    const compact = spaceRight < requiredCascadeWidth;
 
     return {
         placement,
-        align,
         compact,
         maxHeight: Math.floor(availableHeight),
         viewport
@@ -93,13 +89,8 @@ export function applyPlacement(triggerElement, panelsElement, levelCount) {
         style.top = "auto";
     }
 
-    if (result.align === "left") {
-        style.left = `${Math.round(triggerRect.left)}px`;
-        style.right = "auto";
-    } else {
-        style.right = `${Math.round(result.viewport.width - triggerRect.right)}px`;
-        style.left = "auto";
-    }
+    style.left = `${Math.round(triggerRect.left)}px`;
+    style.right = "auto";
 
     clampToViewport(panelsElement, result.viewport);
 

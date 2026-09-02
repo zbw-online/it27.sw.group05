@@ -62,7 +62,6 @@
                                          IsFocusedLevel="_focusedLevel == _expandedPath.Count"
                                          AriaLabel="@LevelLabel(_expandedPath.Count)"
                                          OnActivate="item => ActivateAsync(_expandedPath.Count, item)"
-                                         OnHoverExpand="item => HoverExpand(_expandedPath.Count, item)"
                                          OnKeyDown="OnItemKeyDownAsync" />
                 </div>
             }
@@ -79,7 +78,6 @@
                                              IsFocusedLevel="_focusedLevel == currentLevel"
                                              AriaLabel="@LevelLabel(currentLevel)"
                                              OnActivate="item => ActivateAsync(currentLevel, item)"
-                                             OnHoverExpand="item => HoverExpand(currentLevel, item)"
                                              OnKeyDown="OnItemKeyDownAsync" />
                     </div>
                 }
@@ -311,18 +309,6 @@
         else
         {
             await CommitSelectionAsync(item.Id);
-        }
-    }
-
-    private void HoverExpand(int level, CategoryFlyoutItem item)
-    {
-        if (item.HasChildren)
-        {
-            ExpandLevel(level, item.Id!.Value);
-        }
-        else
-        {
-            _expandedPath = [.. _expandedPath.Take(level)];
         }
     }
 

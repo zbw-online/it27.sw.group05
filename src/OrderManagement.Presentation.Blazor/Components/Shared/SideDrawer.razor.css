@@ -18,6 +18,28 @@
     flex-direction: column;
 }
 
+.app-drawer.app-drawer-wide {
+    max-width: min(75vw, 100vw);
+}
+
+@media (max-width: 1366px) {
+    .app-drawer.app-drawer-wide {
+        height: 100dvh;
+        inset: 0;
+        max-height: 100dvh;
+        max-width: 100vw;
+        width: 100dvw;
+    }
+}
+
+.app-drawer.app-drawer-fullscreen {
+    height: 100dvh;
+    inset: 0;
+    max-height: 100dvh;
+    max-width: 100vw;
+    width: 100dvw;
+}
+
 .app-drawer::backdrop {
     background: rgba(0, 0, 0, 0.6);
 }

@@ -25,7 +25,7 @@ namespace OrderManagement.Application.Features.Orders.RemoveOrderLine
             Order? order = await _orderCommandRepository.GetByIdAsync(new OrderId(command.OrderId), cancellationToken);
             if (order is null)
             {
-                return Result.Fail("Order was not found.");
+                return Result.Fail("Auftrag wurde nicht gefunden.");
             }
 
             var lineId = new OrderLineId(command.OrderLineId);

@@ -23,7 +23,7 @@ namespace OrderManagement.Application.Features.Orders.GetOrderDetails
             Order? order = await _orderQueryRepository.GetByIdAsync(new OrderId(query.OrderId), cancellationToken);
             if (order is null)
             {
-                return Results.Fail<GetOrderDetailsResponse>("Order was not found.");
+                return Results.Fail<GetOrderDetailsResponse>("Auftrag wurde nicht gefunden.");
             }
 
             Customer? customer = await _customerQueryRepository.GetByIdAsync(order.CustomerId, cancellationToken);

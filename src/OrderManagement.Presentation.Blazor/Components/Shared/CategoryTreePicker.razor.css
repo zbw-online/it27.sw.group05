@@ -1,0 +1,89 @@
+.category-tree-picker {
+    background: var(--color-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+}
+
+.category-tree-picker-pending {
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.category-tree-picker-pending strong {
+    color: var(--color-text-primary);
+}
+
+.category-tree-picker-tree {
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.category-tree-root {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.category-tree-picker-empty {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    padding: var(--space-3);
+}
+
+.category-tree-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.category-tree-search-result {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2);
+    text-align: left;
+    width: 100%;
+}
+
+.category-tree-search-result:hover {
+    background: var(--color-surface);
+}
+
+.category-tree-search-result:focus-visible {
+    box-shadow: var(--focus-ring);
+    outline: none;
+}
+
+.category-tree-search-result.is-selected {
+    background: var(--color-primary-bg);
+}
+
+.category-tree-search-result-name {
+    color: var(--color-text-primary);
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.category-tree-search-result-path {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+}
+
+.category-tree-picker-actions {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: flex-end;
+}
