@@ -12,9 +12,11 @@ namespace OrderManagement.PlaywrightTests.Scenarios
         public async Task OpeningCustomerRow_ShowsCurrentAndFutureAddressSections()
         {
             _ = await Page.GotoAsync($"{PlaywrightAppFixture.BaseUrl}/kunden");
-            await Expect(Page.Locator("tbody tr").First).ToBeVisibleAsync();
-            await Page.WaitForTimeoutAsync(1500);
-            await Page.Locator("tbody tr", new() { HasText = PlaywrightSeedData.CustomerWithFutureMoveNumber }).ClickAsync();
+            await Page.WaitForBlazorInteractiveAsync();
+
+            ILocator customerRow = Page.Locator("tbody tr", new() { HasText = PlaywrightSeedData.CustomerWithFutureMoveNumber });
+            await Expect(customerRow).ToBeVisibleAsync();
+            await customerRow.ClickAsync();
 
             ILocator header = Page.Locator(".customer-detail-header");
             await Expect(header).ToContainTextAsync(PlaywrightSeedData.CustomerWithFutureMoveNumber, new() { Timeout = 20_000 });

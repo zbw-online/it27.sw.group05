@@ -1,5 +1,7 @@
 using System.Globalization;
 
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 using OrderManagement.Application;
 using OrderManagement.Application.Features.Catalog.ReconcileInventory;
 using OrderManagement.Infrastructure;
@@ -28,6 +30,14 @@ namespace OrderManagement.Presentation.Blazor
 
             _ = builder.Services.AddOrderManagementApplication();
             _ = builder.Services.AddOrderManagementInfrastructure(connectionString);
+
+            string? fixedUtcNow = builder.Configuration["Testing:FixedUtcNow"];
+            if (!string.IsNullOrWhiteSpace(fixedUtcNow))
+            {
+                var fixedNow = DateTimeOffset.Parse(
+                    fixedUtcNow, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+                _ = builder.Services.Replace(ServiceDescriptor.Singleton<TimeProvider>(new FixedTimeProvider(fixedNow)));
+            }
 
             WebApplication app = builder.Build();
 
@@ -111,6 +121,15 @@ namespace OrderManagement.Presentation.Blazor
                 : apply
                     ? "Abgleich wurde NICHT angewendet (Konflikte vorhanden)."
                     : "Testlauf abgeschlossen. Keine Änderungen wurden vorgenommen. Mit --apply erneut ausführen, um den Abgleich anzuwenden.");
+        }
+
+        private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+        {
+            private readonly DateTimeOffset _now = now;
+
+            public override DateTimeOffset GetUtcNow() => _now;
+
+            public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
         }
     }
 }

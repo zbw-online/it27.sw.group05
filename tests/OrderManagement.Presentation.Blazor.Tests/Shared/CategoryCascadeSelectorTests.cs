@@ -54,10 +54,15 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void EnterOnTrigger_OpensMenu()
         {
+            // A focused <button> fires a native click when Enter is pressed, in addition to keydown.
+            // Reproduce both events, as a real browser would, to guard against the keydown handler
+            // also opening the menu and racing that synthetic click back closed.
             IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
-            cut.Find(".category-flyout-trigger").KeyDown(new KeyboardEventArgs { Key = "Enter" });
+            IElement trigger = cut.Find(".category-flyout-trigger");
+            trigger.KeyDown(new KeyboardEventArgs { Key = "Enter" });
+            trigger.Click();
 
             Assert.AreEqual(1, cut.FindAll(".category-flyout-panels").Count);
         }

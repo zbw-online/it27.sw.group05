@@ -211,15 +211,15 @@
 
     private async Task OnTriggerKeyDownAsync(KeyboardEventArgs e)
     {
-        if (_isOpen)
+        // Enter and Space are deliberately not handled here: a focused <button> already
+        // triggers a native click for those keys, which OnClick/ToggleOpenAsync handles.
+        // Opening here too would race the synthetic click and immediately close the menu again.
+        if (_isOpen || e.Key != "ArrowDown")
         {
             return;
         }
 
-        if (e.Key is "Enter" or " " or "ArrowDown")
-        {
-            await OpenAsync();
-        }
+        await OpenAsync();
     }
 
     private async Task OpenAsync()
@@ -364,12 +364,11 @@
 
     private async Task OnItemKeyDownAsync(CategoryFlyoutKeyEvent keyEvent)
     {
+        // Enter and Space are deliberately not handled here: a focused <button> already
+        // triggers a native click for those keys, which OnActivate/ActivateAsync handles.
+        // Activating here too would race the synthetic click and double-invoke selection.
         switch (keyEvent.Args.Key)
         {
-            case "Enter":
-            case " ":
-                await ActivateAsync(keyEvent.Level, keyEvent.Item);
-                break;
             case "ArrowRight":
                 if (keyEvent.Item.HasChildren)
                 {

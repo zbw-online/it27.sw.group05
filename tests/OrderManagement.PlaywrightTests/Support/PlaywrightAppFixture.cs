@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Net.Sockets;
 
 using Microsoft.EntityFrameworkCore;
@@ -11,13 +13,41 @@ namespace OrderManagement.PlaywrightTests.Support
     [TestClass]
     public static class PlaywrightAppFixture
     {
+        private const int MaxCapturedOutputLines = 200;
+
         private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromSeconds(60);
         private static readonly SqlServerTestContainer Container = new();
+        private static readonly BoundedLog StandardOutput = new(MaxCapturedOutputLines);
+        private static readonly BoundedLog StandardError = new(MaxCapturedOutputLines);
 
         private static Process? _appProcess;
 
         internal static string BaseUrl { get; private set; } = default!;
         internal static string ConnectionString { get; private set; } = default!;
+
+        internal static bool HasApplicationProcessExited => _appProcess?.HasExited ?? true;
+
+        internal static int? ApplicationExitCode => _appProcess is { HasExited: true } process ? process.ExitCode : null;
+
+        internal static IReadOnlyList<string> GetRecentStandardOutput() => StandardOutput.Snapshot();
+
+        internal static IReadOnlyList<string> GetRecentStandardError() => StandardError.Snapshot();
+
+        internal static IReadOnlyList<string> BuildApplicationDiagnostics()
+        {
+            var lines = new List<string>
+            {
+                $"Application process exited: {HasApplicationProcessExited} (exit code: {ApplicationExitCode?.ToString(CultureInfo.InvariantCulture) ?? "n/a"})",
+                "Recent application stdout:",
+            };
+            lines.AddRange(FormatLines(GetRecentStandardOutput()));
+            lines.Add("Recent application stderr:");
+            lines.AddRange(FormatLines(GetRecentStandardError()));
+            return lines;
+        }
+
+        private static IEnumerable<string> FormatLines(IReadOnlyList<string> lines)
+            => lines.Count == 0 ? ["  (none)"] : lines.Select(line => $"  {line}");
 
         [AssemblyInitialize]
         public static async Task AssemblyInitializeAsync(TestContext _)
@@ -91,15 +121,17 @@ namespace OrderManagement.PlaywrightTests.Support
             startInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
             startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
             startInfo.Environment["ConnectionStrings__OrderManagement"] = ConnectionString;
+            startInfo.Environment["Testing__FixedUtcNow"] = PlaywrightSeedData.ReferenceNow.ToString("O", CultureInfo.InvariantCulture);
 
             var process = new Process { StartInfo = startInfo };
 
             // The app's stdout/stderr must be drained even though nothing here needs the content:
             // ProcessStartInfo redirects them into a fixed-size OS pipe, and once the app's own
             // request/EF Core logging fills that pipe, the app process blocks on its next write -
-            // hanging every subsequent request the tests depend on.
-            process.OutputDataReceived += (_, _) => { };
-            process.ErrorDataReceived += (_, _) => { };
+            // hanging every subsequent request the tests depend on. A bounded ring buffer keeps a
+            // recent tail for diagnostics without letting captured output grow unbounded.
+            process.OutputDataReceived += (_, e) => { if (e.Data is not null) StandardOutput.Add(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) StandardError.Add(e.Data); };
             _ = process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
@@ -111,24 +143,43 @@ namespace OrderManagement.PlaywrightTests.Support
             using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             using var deadlineCts = new CancellationTokenSource(ReadinessTimeout);
 
+            string lastResult = "no attempt completed";
+
             while (!deadlineCts.IsCancellationRequested)
             {
+                if (HasApplicationProcessExited)
+                {
+                    throw new InvalidOperationException(BuildReadinessFailureMessage(
+                        baseUrl, $"the application process exited before becoming ready (exit code: {ApplicationExitCode?.ToString(CultureInfo.InvariantCulture) ?? "n/a"})"));
+                }
+
                 try
                 {
                     HttpResponseMessage response = await httpClient.GetAsync(baseUrl, deadlineCts.Token);
-                    if (response.IsSuccessStatusCode || (int)response.StatusCode < 500)
+                    if (response.IsSuccessStatusCode)
                     {
                         return;
                     }
+
+                    lastResult = $"{(int)response.StatusCode} {response.ReasonPhrase}";
                 }
-                catch (Exception) when (!deadlineCts.IsCancellationRequested)
+                catch (Exception ex) when (!deadlineCts.IsCancellationRequested)
                 {
-                    await Task.Delay(500, CancellationToken.None);
+                    lastResult = ex.Message;
                 }
+
+                await Task.Delay(500, CancellationToken.None);
             }
 
-            throw new InvalidOperationException(
-                $"The application did not become ready at '{baseUrl}' within {ReadinessTimeout.TotalSeconds} seconds.");
+            throw new InvalidOperationException(BuildReadinessFailureMessage(
+                baseUrl, $"it did not return a successful response within {ReadinessTimeout.TotalSeconds} seconds (last response: {lastResult})"));
+        }
+
+        private static string BuildReadinessFailureMessage(string baseUrl, string reason)
+        {
+            var lines = new List<string> { $"The application at '{baseUrl}' was not ready: {reason}." };
+            lines.AddRange(BuildApplicationDiagnostics());
+            return string.Join(Environment.NewLine, lines);
         }
 
         private static int GetFreeTcpPort()
@@ -151,6 +202,22 @@ namespace OrderManagement.PlaywrightTests.Support
 
             return directory?.FullName
                 ?? throw new InvalidOperationException("Could not locate the repository root (OrderManagement.sln) from the test output directory.");
+        }
+
+        private sealed class BoundedLog(int capacity)
+        {
+            private readonly ConcurrentQueue<string> _lines = new();
+            private readonly int _capacity = capacity;
+
+            public void Add(string line)
+            {
+                _lines.Enqueue(line);
+                while (_lines.Count > _capacity && _lines.TryDequeue(out _))
+                {
+                }
+            }
+
+            public IReadOnlyList<string> Snapshot() => [.. _lines];
         }
     }
 }

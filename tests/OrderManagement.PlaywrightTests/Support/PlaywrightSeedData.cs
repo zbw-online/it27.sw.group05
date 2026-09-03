@@ -21,14 +21,25 @@ namespace OrderManagement.PlaywrightTests.Support
         internal const int DeletableOrderArticleStockBeforeDeletion = 20;
         internal const int DeletableOrderArticleStockAfterDeletion = 25;
 
-        internal static readonly DateOnly OldAddressValidTo = new(2026, 9, 1);
-        internal static readonly DateOnly NewAddressValidFrom = new(2026, 9, 2);
+        // Never touched by any test: keeps the orders list non-empty after DeletableOrderNumber
+        // is deleted, so ".data-table" still renders instead of the empty state.
+        internal const string AnchorOrderNumber = "ORD-2026-900";
+        internal const string AnchorOrderCustomerNumber = "CU00003";
+
+        // The application clock is pinned to this instant (see PlaywrightAppFixture), so address
+        // classification in GetCustomerDetailsUseCase stays deterministic regardless of the real calendar date.
+        internal static readonly DateOnly ReferenceDate = new(2026, 6, 15);
+        internal static readonly DateTimeOffset ReferenceNow = new(ReferenceDate.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero);
+
+        internal static readonly DateOnly CurrentAddressValidFrom = ReferenceDate.AddMonths(-6);
+        internal static readonly DateOnly OldAddressValidTo = ReferenceDate;
+        internal static readonly DateOnly NewAddressValidFrom = ReferenceDate.AddDays(1);
 
         internal static async Task SeedAsync(OrderManagementDbContext dbContext)
         {
             Customer customer = Customer.Create(
                 CustomerWithFutureMoveNumber, "Muster", "Maria", "maria.muster@example.com", null).EnsureValue();
-            customer.ChangeAddress(new DateOnly(2026, 1, 1), "Alte Gasse", "1", "9000", "St. Gallen", "CH").EnsureSuccess();
+            customer.ChangeAddress(CurrentAddressValidFrom, "Alte Gasse", "1", "9000", "St. Gallen", "CH").EnsureSuccess();
             customer.ChangeAddress(NewAddressValidFrom, "Neue Gasse", "2", "8000", "Zürich", "CH").EnsureSuccess();
             _ = dbContext.Customers.Add(customer);
 
@@ -76,6 +87,25 @@ namespace OrderManagement.PlaywrightTests.Support
             referencedArticle.UpdateStock(-DeletableOrderDeductedQuantity).EnsureSuccess();
             deletableOrder.MarkInventoryApplied().EnsureSuccess();
             _ = dbContext.Orders.Add(deletableOrder);
+
+            Customer anchorCustomer = Customer.Create(
+                AnchorOrderCustomerNumber, "Muster", "Anna", "anna.muster@example.com", null).EnsureValue();
+            anchorCustomer.ChangeAddress(new DateOnly(2026, 1, 1), "Seestrasse", "1", "8001", "Zürich", "CH").EnsureSuccess();
+            _ = dbContext.Customers.Add(anchorCustomer);
+            _ = await dbContext.SaveChangesAsync();
+
+            Order anchorOrder = Order.Create(
+                AnchorOrderNumber,
+                anchorCustomer.Id,
+                new DateOnly(2026, 9, 10),
+                Address.Create("Seestrasse", "1", "8001", "Zürich", "CH").EnsureValue(),
+                AddressSource.Automatic,
+                Address.Create("Seestrasse", "1", "8001", "Zürich", "CH").EnsureValue(),
+                AddressSource.Automatic).EnsureValue();
+            anchorOrder.AddLine(inactiveCandidateArticle.Id, inactiveCandidateArticle.Name, inactiveCandidateArticle.Price, 1).EnsureSuccess();
+            inactiveCandidateArticle.UpdateStock(-1).EnsureSuccess();
+            anchorOrder.MarkInventoryApplied().EnsureSuccess();
+            _ = dbContext.Orders.Add(anchorOrder);
 
             _ = await dbContext.SaveChangesAsync();
         }
