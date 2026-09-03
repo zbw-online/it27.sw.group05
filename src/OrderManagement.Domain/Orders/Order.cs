@@ -38,7 +38,7 @@ namespace OrderManagement.Domain.Orders
             DeliveryAddressSource = deliveryAddressSource;
             CustomerReference = customerReference;
             Total = Money.From(0, "CHF").EnsureValue();
-            IsInventoryApplied = true;
+            IsInventoryApplied = false;
 
             AddDomainEvent(new OrderCreated(number, DateTime.UtcNow));
         }

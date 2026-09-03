@@ -125,6 +125,12 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
                 _articleCommandRepository.Update(article);
             }
 
+            Result markInventoryAppliedResult = order.MarkInventoryApplied();
+            if (!markInventoryAppliedResult.IsSuccess)
+            {
+                return Results.Fail<CreateOrderResponse>(markInventoryAppliedResult.Error!);
+            }
+
             _orderCommandRepository.Add(order);
 
             Result commitResult = await _unitOfWork.CommitAsync(cancellationToken);

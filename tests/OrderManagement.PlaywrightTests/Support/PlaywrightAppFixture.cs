@@ -93,7 +93,16 @@ namespace OrderManagement.PlaywrightTests.Support
             startInfo.Environment["ConnectionStrings__OrderManagement"] = ConnectionString;
 
             var process = new Process { StartInfo = startInfo };
+
+            // The app's stdout/stderr must be drained even though nothing here needs the content:
+            // ProcessStartInfo redirects them into a fixed-size OS pipe, and once the app's own
+            // request/EF Core logging fills that pipe, the app process blocks on its next write -
+            // hanging every subsequent request the tests depend on.
+            process.OutputDataReceived += (_, _) => { };
+            process.ErrorDataReceived += (_, _) => { };
             _ = process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
             return process;
         }
 

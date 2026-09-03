@@ -158,6 +158,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             return order;
         }
 
+        /// <summary>
+        /// Builds a persisted order with one line but does not deduct article stock or mark inventory as
+        /// applied. Use this for tests that only need an order/line to exist (e.g. querying); use
+        /// <see cref="CreatePersistedOrderWithAppliedInventoryAsync"/> for stock-restoration scenarios.
+        /// </summary>
         public static async Task<Order> CreatePersistedOrderWithLineAsync(
             OrderManagementDbContext dbContext,
             CustomerId? customerId = null,
@@ -176,6 +181,41 @@ namespace OrderManagement.Infrastructure.IntegrationTests
                 quantity: quantity);
 
             Assert.IsTrue(addLineResult.IsSuccess, addLineResult.Error);
+
+            _ = await dbContext.SaveChangesAsync();
+            return order;
+        }
+
+        /// <summary>
+        /// Builds a persisted order whose inventory has already been applied: the article's stock is
+        /// deducted by <paramref name="quantity"/> and the order is marked as inventory-applied, mirroring
+        /// what <c>CreateOrderUseCase</c> does for a real order before it commits.
+        /// </summary>
+        public static async Task<Order> CreatePersistedOrderWithAppliedInventoryAsync(
+            OrderManagementDbContext dbContext,
+            CustomerId? customerId = null,
+            Article? article = null,
+            string? orderNumber = null,
+            DateTime? orderDate = null,
+            int quantity = 2)
+        {
+            Article effectiveArticle = article ?? await CreatePersistedArticleAsync(dbContext, priceAmount: 12.50m);
+            Order order = await CreatePersistedOrderAsync(dbContext, customerId, orderNumber, orderDate);
+
+            Result addLineResult = order.AddLine(
+                articleId: effectiveArticle.Id,
+                articleName: effectiveArticle.Name,
+                unitPrice: effectiveArticle.Price,
+                quantity: quantity);
+
+            Assert.IsTrue(addLineResult.IsSuccess, addLineResult.Error);
+
+            Result stockResult = effectiveArticle.UpdateStock(-quantity);
+            Assert.IsTrue(stockResult.IsSuccess, stockResult.Error);
+            _ = dbContext.Set<Article>().Update(effectiveArticle);
+
+            Result markAppliedResult = order.MarkInventoryApplied();
+            Assert.IsTrue(markAppliedResult.IsSuccess, markAppliedResult.Error);
 
             _ = await dbContext.SaveChangesAsync();
             return order;

@@ -60,14 +60,13 @@ namespace OrderManagement.Tests.Domain.Orders
             Assert.IsTrue(order.OrderDate >= before);
             Assert.IsTrue(order.OrderDate <= after);
 
-            Assert.IsTrue(order.IsInventoryApplied);
+            Assert.IsFalse(order.IsInventoryApplied);
         }
 
         [TestMethod]
         public void MarkInventoryApplied_WhenNotYetApplied_ShouldSucceed()
         {
             Order order = ValidOrder();
-            typeof(Order).GetProperty(nameof(Order.IsInventoryApplied))!.SetValue(order, false);
 
             Result result = order.MarkInventoryApplied();
 
@@ -79,6 +78,7 @@ namespace OrderManagement.Tests.Domain.Orders
         public void MarkInventoryApplied_WhenAlreadyApplied_ShouldFail()
         {
             Order order = ValidOrder();
+            order.MarkInventoryApplied().EnsureSuccess();
 
             Result result = order.MarkInventoryApplied();
 

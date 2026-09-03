@@ -29,7 +29,6 @@ namespace OrderManagement.Application.Tests.Features.Catalog
                 AddressSource.Automatic).EnsureValue();
 
             order.AddLine(articleId, articleName, price, quantity).EnsureSuccess();
-            typeof(Order).GetProperty(nameof(Order.IsInventoryApplied))!.SetValue(order, false);
             return order;
         }
 

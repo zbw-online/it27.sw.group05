@@ -81,6 +81,30 @@ namespace OrderManagement.Application.Tests.Features.Orders
         }
 
         [TestMethod]
+        public async Task ExecuteAsync_WithValidLine_ShouldMarkInventoryApplied()
+        {
+            var orderCommandRepository = new FakeOrderCommandRepository();
+            var orderQueryRepository = new FakeOrderQueryRepository();
+            var customerQueryRepository = new FakeCustomerQueryRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            var useCase = new CreateOrderUseCase(
+                orderCommandRepository, orderQueryRepository, customerQueryRepository, articleCommandRepository, unitOfWork);
+
+            Customer customer = customerQueryRepository.Seed(
+                Customer.Create("CU00001", "Doe", "Jane", "jane@example.com", null).EnsureValue());
+            Article article = articleCommandRepository.Seed(
+                Article.Create("ART-001", "Widget", 9.99m, "CHF", new ArticleGroupId(1), stock: 10).EnsureValue());
+
+            Result<CreateOrderResponse> result = await useCase.ExecuteAsync(
+                ValidCommand(customer.Id.Value, [new CreateOrderLineInput(article.Id.Value, 2)]));
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Order order = orderCommandRepository.Added.Single();
+            Assert.IsTrue(order.IsInventoryApplied);
+        }
+
+        [TestMethod]
         public async Task ExecuteAsync_WithQuantityExceedingStock_ShouldFailAndNotCommit()
         {
             var orderCommandRepository = new FakeOrderCommandRepository();

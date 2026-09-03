@@ -15,7 +15,7 @@ namespace OrderManagement.PlaywrightTests.Support
         internal const string RootCategoryName = "Elektronik";
         internal const string LeafCategoryName = "USB-C Kabel";
 
-        internal const string DeletableOrderNumber = "ORD-PW-DELETE-001";
+        internal const string DeletableOrderNumber = "ORD-2026-901";
         internal const string DeletableOrderCustomerNumber = "CU00002";
         internal const int DeletableOrderDeductedQuantity = 5;
         internal const int DeletableOrderArticleStockBeforeDeletion = 20;
@@ -74,6 +74,7 @@ namespace OrderManagement.PlaywrightTests.Support
                 AddressSource.Automatic).EnsureValue();
             deletableOrder.AddLine(referencedArticle.Id, referencedArticle.Name, referencedArticle.Price, DeletableOrderDeductedQuantity).EnsureSuccess();
             referencedArticle.UpdateStock(-DeletableOrderDeductedQuantity).EnsureSuccess();
+            deletableOrder.MarkInventoryApplied().EnsureSuccess();
             _ = dbContext.Orders.Add(deletableOrder);
 
             _ = await dbContext.SaveChangesAsync();

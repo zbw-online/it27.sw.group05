@@ -34,10 +34,13 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Application.Orders
         public async Task ExecuteAsync_WithExistingOrder_ShouldRemoveOrderAndLinesAndRestoreStockInSameTransaction()
         {
             Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, stock: 10);
-            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderWithLineAsync(DbContext, article: article, quantity: 3);
+            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderWithAppliedInventoryAsync(DbContext, article: article, quantity: 3);
             OrderId orderId = order.Id;
             OrderLineId lineId = order.Lines.Single().Id;
             InfrastructureTestDataFactory.ClearTracker(DbContext);
+
+            Article stockAfterCreation = await DbContext.Articles.AsNoTracking().SingleAsync(a => a.Id == article.Id);
+            Assert.AreEqual(7, stockAfterCreation.Stock, "Stock should be deducted once the order's inventory has been applied.");
 
             Result result = await _useCase.ExecuteAsync(new DeleteOrderCommand(orderId.Value));
 
@@ -64,6 +67,15 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Application.Orders
             Result addLineBResult = order.AddLine(articleB.Id, articleB.Name, articleB.Price, quantity: 4);
             Assert.IsTrue(addLineAResult.IsSuccess, addLineAResult.Error);
             Assert.IsTrue(addLineBResult.IsSuccess, addLineBResult.Error);
+
+            Result stockAResult = articleA.UpdateStock(-2);
+            Result stockBResult = articleB.UpdateStock(-4);
+            Assert.IsTrue(stockAResult.IsSuccess, stockAResult.Error);
+            Assert.IsTrue(stockBResult.IsSuccess, stockBResult.Error);
+
+            Result markAppliedResult = order.MarkInventoryApplied();
+            Assert.IsTrue(markAppliedResult.IsSuccess, markAppliedResult.Error);
+
             _ = await DbContext.SaveChangesAsync();
 
             OrderId orderId = order.Id;
@@ -83,17 +95,84 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Application.Orders
         [TestMethod]
         public async Task ExecuteAsync_WithConcurrentStockChangeOnAffectedArticle_ShouldFailAndLeaveConsistentData()
         {
+            // Initial stock 10, minus the order's quantity of 3 once inventory is applied -> 7 persisted.
             Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, stock: 10);
-            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderWithLineAsync(DbContext, article: article, quantity: 3);
+            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderWithAppliedInventoryAsync(DbContext, article: article, quantity: 3);
             OrderId orderId = order.Id;
             InfrastructureTestDataFactory.ClearTracker(DbContext);
 
+            // Context A (the same DbContext the use case will use) loads and tracks the article now,
+            // capturing its concurrency token before Context B changes the row.
+            Article trackedArticle = await DbContext.Articles.SingleAsync(a => a.Id == article.Id);
+            Assert.AreEqual(7, trackedArticle.Stock);
+
+            // Context B changes the same article's stock by +5 and commits -> persisted stock becomes 12.
             string connectionString = DbContext.Database.GetConnectionString()!;
             await using OrderManagementDbContext concurrentContext = CreateSecondContext(connectionString);
             Article concurrentArticle = await concurrentContext.Articles.SingleAsync(a => a.Id == article.Id);
             _ = concurrentArticle.UpdateStock(5);
             _ = concurrentContext.Articles.Update(concurrentArticle);
             _ = await concurrentContext.SaveChangesAsync();
+
+            // Context A attempts to delete the order and restore stock using its now-stale tracked article.
+            Result result = await _useCase.ExecuteAsync(new DeleteOrderCommand(orderId.Value));
+
+            Assert.IsFalse(result.IsSuccess);
+
+            InfrastructureTestDataFactory.ClearTracker(DbContext);
+            bool orderStillExists = await DbContext.Orders.AsNoTracking().AnyAsync(o => o.Id == orderId);
+            Article persistedArticle = await DbContext.Articles.AsNoTracking().SingleAsync(a => a.Id == article.Id);
+
+            Assert.IsTrue(orderStillExists);
+            Assert.AreEqual(12, persistedArticle.Stock, "Only Context B's successful update should be reflected; no partial restoration may be persisted.");
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithMissingOrder_ShouldFailWithoutChangingStock()
+        {
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, stock: 10);
+
+            Result result = await _useCase.ExecuteAsync(new DeleteOrderCommand(999_999));
+
+            Assert.IsFalse(result.IsSuccess);
+
+            InfrastructureTestDataFactory.ClearTracker(DbContext);
+            Article persistedArticle = await DbContext.Articles.AsNoTracking().SingleAsync(a => a.Id == article.Id);
+            Assert.AreEqual(10, persistedArticle.Stock);
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithInventoryNotApplied_ShouldRemoveOrderWithoutChangingStock()
+        {
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, stock: 10);
+            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderWithLineAsync(DbContext, article: article, quantity: 3);
+            OrderId orderId = order.Id;
+            InfrastructureTestDataFactory.ClearTracker(DbContext);
+
+            Result result = await _useCase.ExecuteAsync(new DeleteOrderCommand(orderId.Value));
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+
+            InfrastructureTestDataFactory.ClearTracker(DbContext);
+            bool orderExists = await DbContext.Orders.AsNoTracking().AnyAsync(o => o.Id == orderId);
+            Article persistedArticle = await DbContext.Articles.AsNoTracking().SingleAsync(a => a.Id == article.Id);
+
+            Assert.IsFalse(orderExists);
+            Assert.AreEqual(10, persistedArticle.Stock, "Stock was never deducted, so deletion must not restore it.");
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithStockOverflowDuringRestoration_ShouldFailAndLeaveOrderIntact()
+        {
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, stock: 10);
+            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderWithAppliedInventoryAsync(DbContext, article: article, quantity: 3);
+            OrderId orderId = order.Id;
+
+            // Simulate the article's stock having since grown so close to int.MaxValue (e.g. through
+            // unrelated stock intake) that restoring this order's quantity would overflow.
+            _ = await DbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE dbo.Articles SET Stock = {int.MaxValue - 1} WHERE ArticleId = {article.Id.Value}");
+            InfrastructureTestDataFactory.ClearTracker(DbContext);
 
             Result result = await _useCase.ExecuteAsync(new DeleteOrderCommand(orderId.Value));
 
@@ -104,7 +183,28 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Application.Orders
             Article persistedArticle = await DbContext.Articles.AsNoTracking().SingleAsync(a => a.Id == article.Id);
 
             Assert.IsTrue(orderStillExists);
-            Assert.AreEqual(15, persistedArticle.Stock);
+            Assert.AreEqual(int.MaxValue - 1, persistedArticle.Stock, "No partial restoration may be persisted once the overflow guard rejects the update.");
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WhenCalledTwice_ShouldRestoreStockExactlyOnceAndReturnNotFoundOnSecondCall()
+        {
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(DbContext, stock: 10);
+            Order order = await InfrastructureTestDataFactory.CreatePersistedOrderWithAppliedInventoryAsync(DbContext, article: article, quantity: 3);
+            OrderId orderId = order.Id;
+            InfrastructureTestDataFactory.ClearTracker(DbContext);
+
+            Result firstResult = await _useCase.ExecuteAsync(new DeleteOrderCommand(orderId.Value));
+            Assert.IsTrue(firstResult.IsSuccess, firstResult.Error);
+
+            InfrastructureTestDataFactory.ClearTracker(DbContext);
+            Result secondResult = await _useCase.ExecuteAsync(new DeleteOrderCommand(orderId.Value));
+
+            Assert.IsFalse(secondResult.IsSuccess);
+
+            InfrastructureTestDataFactory.ClearTracker(DbContext);
+            Article persistedArticle = await DbContext.Articles.AsNoTracking().SingleAsync(a => a.Id == article.Id);
+            Assert.AreEqual(10, persistedArticle.Stock, "The second, no-op deletion must not restore stock again.");
         }
 
         [TestMethod]

@@ -28,9 +28,6 @@ namespace OrderManagement.Application.Tests.Features.Orders
                     AddressSource.Automatic)
                 .EnsureValue();
 
-        private static void SetInventoryApplied(Order order, bool applied) =>
-            typeof(Order).GetProperty(nameof(Order.IsInventoryApplied))!.SetValue(order, applied);
-
         [TestMethod]
         public async Task ExecuteAsync_WithExistingOrderContainingLines_ShouldRemoveOrderAndCommit()
         {
@@ -66,8 +63,9 @@ namespace OrderManagement.Application.Tests.Features.Orders
 
             Order order = CreateOrder();
             _ = order.AddLine(article.Id, "Widget", Money.From(10m, "CHF").EnsureValue(), 3);
-            _ = orderCommandRepository.Seed(order);
             _ = article.UpdateStock(-3);
+            order.MarkInventoryApplied().EnsureSuccess();
+            _ = orderCommandRepository.Seed(order);
 
             Result result = await useCase.ExecuteAsync(new DeleteOrderCommand(order.Id.Value));
 
@@ -91,9 +89,10 @@ namespace OrderManagement.Application.Tests.Features.Orders
             Order order = CreateOrder();
             _ = order.AddLine(articleA.Id, "Widget", Money.From(10m, "CHF").EnsureValue(), 2);
             _ = order.AddLine(articleB.Id, "Gadget", Money.From(20m, "CHF").EnsureValue(), 6);
-            _ = orderCommandRepository.Seed(order);
             _ = articleA.UpdateStock(-2);
             _ = articleB.UpdateStock(-6);
+            order.MarkInventoryApplied().EnsureSuccess();
+            _ = orderCommandRepository.Seed(order);
 
             Result result = await useCase.ExecuteAsync(new DeleteOrderCommand(order.Id.Value));
 
@@ -116,8 +115,9 @@ namespace OrderManagement.Application.Tests.Features.Orders
             Order order = CreateOrder();
             _ = order.AddLine(article.Id, "Widget", Money.From(10m, "CHF").EnsureValue(), 2);
             _ = order.AddLine(article.Id, "Widget", Money.From(10m, "CHF").EnsureValue(), 3);
-            _ = orderCommandRepository.Seed(order);
             _ = article.UpdateStock(-5);
+            order.MarkInventoryApplied().EnsureSuccess();
+            _ = orderCommandRepository.Seed(order);
 
             Result result = await useCase.ExecuteAsync(new DeleteOrderCommand(order.Id.Value));
 
@@ -139,8 +139,9 @@ namespace OrderManagement.Application.Tests.Features.Orders
 
             Order order = CreateOrder();
             _ = order.AddLine(article.Id, "Widget", Money.From(10m, "CHF").EnsureValue(), 3);
-            _ = orderCommandRepository.Seed(order);
             _ = article.UpdateStock(-3);
+            order.MarkInventoryApplied().EnsureSuccess();
+            _ = orderCommandRepository.Seed(order);
 
             Result result = await useCase.ExecuteAsync(new DeleteOrderCommand(order.Id.Value));
 
@@ -162,8 +163,9 @@ namespace OrderManagement.Application.Tests.Features.Orders
 
             Order order = CreateOrder();
             _ = order.AddLine(article.Id, "Widget", Money.From(10m, "CHF").EnsureValue(), 3);
-            SetInventoryApplied(order, false);
             _ = orderCommandRepository.Seed(order);
+
+            Assert.IsFalse(order.IsInventoryApplied, "A freshly created order must not start with inventory applied.");
 
             Result result = await useCase.ExecuteAsync(new DeleteOrderCommand(order.Id.Value));
 
@@ -185,6 +187,7 @@ namespace OrderManagement.Application.Tests.Features.Orders
 
             Order order = CreateOrder();
             _ = order.AddLine(article.Id, "Widget", Money.From(10m, "CHF").EnsureValue(), 3);
+            order.MarkInventoryApplied().EnsureSuccess();
             _ = orderCommandRepository.Seed(order);
 
             Result result = await useCase.ExecuteAsync(new DeleteOrderCommand(order.Id.Value));
@@ -207,6 +210,7 @@ namespace OrderManagement.Application.Tests.Features.Orders
 
             Order order = CreateOrder();
             _ = order.AddLine(article.Id, "Widget", Money.From(10m, "CHF").EnsureValue(), 5);
+            order.MarkInventoryApplied().EnsureSuccess();
             _ = orderCommandRepository.Seed(order);
 
             Result result = await useCase.ExecuteAsync(new DeleteOrderCommand(order.Id.Value));
