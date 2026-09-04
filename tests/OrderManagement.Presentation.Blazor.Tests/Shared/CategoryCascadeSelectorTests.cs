@@ -245,6 +245,154 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         }
 
         [TestMethod]
+        public void Escape_ImmediatelyAfterPanelsBecomeVisible_ClosesSelector()
+        {
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy));
+
+            IElement trigger = cut.Find(".category-flyout-trigger");
+            trigger.Click();
+            Assert.AreEqual(1, cut.FindAll(".category-flyout-panels").Count);
+
+            trigger.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+            Assert.AreEqual(0, cut.FindAll(".category-flyout-panels").Count);
+        }
+
+        [TestMethod]
+        public void Escape_WhileFocusStillOnTrigger_ClosesSelector()
+        {
+            // Mirrors the real browser race: Enter fires both a keydown and a native click that
+            // reopens the selector, so keyboard focus is still on the trigger when Escape follows.
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy));
+
+            IElement trigger = cut.Find(".category-flyout-trigger");
+            trigger.KeyDown(new KeyboardEventArgs { Key = "Enter" });
+            trigger.Click();
+            Assert.AreEqual(1, cut.FindAll(".category-flyout-panels").Count);
+
+            trigger.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+            Assert.AreEqual(0, cut.FindAll(".category-flyout-panels").Count);
+        }
+
+        [TestMethod]
+        public void Escape_WhileFocusOnNestedCategory_ClosesSelector()
+        {
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy));
+
+            cut.Find(".category-flyout-trigger").Click();
+            cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Bürobedarf")).Click();
+            cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Schreibwaren")).Click();
+            IElement nested = cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Kugelschreiber"));
+
+            nested.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+            Assert.AreEqual(0, cut.FindAll(".category-flyout-panels").Count);
+        }
+
+        [TestMethod]
+        public void Escape_RestoresFocusToTrigger()
+        {
+            // The trigger is the only element the component ever calls FocusAsync on
+            // (CategoryCascadeSelector.razor: CloseAsync), so a single invocation proves
+            // focus was restored to it rather than left stranded on the closed menu.
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy));
+
+            cut.Find(".category-flyout-trigger").Click();
+            IElement item = cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Bürobedarf"));
+
+            item.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+            _ = JSInterop.VerifyFocusAsyncInvoke();
+        }
+
+        [TestMethod]
+        public void Escape_PreservesCurrentSelection()
+        {
+            int? lastSelected = -1;
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy)
+                .Add(p => p.SelectedGroupId, 2)
+                .Add(p => p.SelectedGroupIdChanged, id => lastSelected = id));
+
+            cut.Find(".category-flyout-trigger").Click();
+            cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Bürobedarf")).Click();
+            IElement item = cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Schreibwaren"));
+
+            item.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+            Assert.AreEqual(-1, lastSelected);
+            Assert.AreEqual("Werkzeuge", cut.Find(".category-flyout-value").TextContent);
+        }
+
+        [TestMethod]
+        public void Escape_TogglesAriaExpandedFromTrueToFalse()
+        {
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy));
+
+            IElement trigger = cut.Find(".category-flyout-trigger");
+            trigger.Click();
+            Assert.AreEqual("true", trigger.GetAttribute("aria-expanded"));
+
+            trigger.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+            Assert.AreEqual("false", trigger.GetAttribute("aria-expanded"));
+        }
+
+        [TestMethod]
+        public void Escape_ThenReopening_StillWorks()
+        {
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy));
+
+            IElement trigger = cut.Find(".category-flyout-trigger");
+            trigger.Click();
+            trigger.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+            Assert.AreEqual(0, cut.FindAll(".category-flyout-panels").Count);
+
+            trigger.Click();
+
+            Assert.AreEqual(1, cut.FindAll(".category-flyout-panels").Count);
+            StringAssert.Contains(cut.Find(".category-flyout-panel-wrapper").TextContent, "Bürobedarf");
+        }
+
+        [TestMethod]
+        public void Escape_WhileAlreadyClosed_DoesNothing()
+        {
+            int? lastSelected = -1;
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy)
+                .Add(p => p.SelectedGroupIdChanged, id => lastSelected = id));
+
+            IElement trigger = cut.Find(".category-flyout-trigger");
+            trigger.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+            Assert.AreEqual(0, cut.FindAll(".category-flyout-panels").Count);
+            Assert.AreEqual(-1, lastSelected);
+            JSInterop.VerifyNotInvoke("Blazor._internal.domWrapper.focus");
+        }
+
+        [TestMethod]
+        public void Escape_BubblingFromNestedItem_ClosesExactlyOnce()
+        {
+            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+                .Add(p => p.Hierarchy, Hierarchy));
+
+            cut.Find(".category-flyout-trigger").Click();
+            IElement item = cut.FindAll(".category-flyout-item").First(e => e.TextContent.Contains("Bürobedarf"));
+
+            item.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+            _ = JSInterop.VerifyInvoke("unregisterOutsideClick", 1);
+            _ = JSInterop.VerifyFocusAsyncInvoke(1);
+        }
+
+        [TestMethod]
         public void EmptyHierarchy_ShowsEmptyState()
         {
             IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters

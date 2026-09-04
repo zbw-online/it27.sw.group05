@@ -3,7 +3,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JsRuntime
 
-<div class="category-flyout" @ref="_containerRef">
+<div class="category-flyout" @ref="_containerRef" @onkeydown="OnRootKeyDownAsync">
     <div class="category-flyout-control">
         <button type="button"
                 class="category-flyout-trigger"
@@ -222,6 +222,14 @@
         await OpenAsync();
     }
 
+    private async Task OnRootKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (_isOpen && e.Key == "Escape")
+        {
+            await CloseAsync(restoreFocus: true);
+        }
+    }
+
     private async Task OpenAsync()
     {
         _module ??= await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/categoryFlyout.js");
@@ -386,9 +394,6 @@
                 break;
             case "ArrowUp":
                 MoveFocus(keyEvent.Level, -1);
-                break;
-            case "Escape":
-                await CloseAsync(restoreFocus: true);
                 break;
             default:
                 return;
