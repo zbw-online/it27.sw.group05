@@ -1,0 +1,103 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Pages.Customers
+@using OrderManagement.Application.Features.Customers.DataExchange.Shared
+@using OrderManagement.Application.Features.Customers.ExportCustomerData
+@using OrderManagement.Presentation.Blazor.Components.Shared
+@implements IAsyncDisposable
+@inject IExportCustomerDataUseCase ExportCustomerDataUseCase
+@inject TimeProvider TimeProvider
+@inject IJSRuntime JsRuntime
+
+<div class="export-customer-dialog-host">
+<Modal IsOpen="IsOpen" Title="Kundendaten exportieren" OnClose="RequestClose">
+    <ChildContent>
+        <p class="text-muted">
+            Der Export enthält den Datenstand aller Kunden zum gewählten Stichtag (Schweizer Zeit), inklusive
+            der zu diesem Zeitpunkt gültigen Adresse. Kunden ohne gültige Adresse zum Stichtag werden ohne
+            Adresse exportiert.
+        </p>
+
+        @if (_errorMessage is not null)
+        {
+            <div class="inline-alert inline-alert-danger" role="alert">@_errorMessage</div>
+        }
+
+        <fieldset class="form-field">
+            <legend>Format</legend>
+            <label class="radio-option">
+                <input type="radio" name="export-format" value="Json" checked="@(_format == CustomerDataFormat.Json)" @onchange='() => _format = CustomerDataFormat.Json' />
+                JSON
+            </label>
+            <label class="radio-option">
+                <input type="radio" name="export-format" value="Xml" checked="@(_format == CustomerDataFormat.Xml)" @onchange='() => _format = CustomerDataFormat.Xml' />
+                XML
+            </label>
+        </fieldset>
+
+        <div class="form-field">
+            <label for="export-stichtag">Stichtag</label>
+            <input type="datetime-local" id="export-stichtag" class="form-control" @bind="_stichtag" />
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <Button Variant="ButtonVariant.Secondary" OnClick="RequestClose" Disabled="_isExporting">Abbrechen</Button>
+        <Button Variant="ButtonVariant.Primary" OnClick="ExportAsync" Disabled="_isExporting">
+            @(_isExporting ? "Wird exportiert …" : "Exportieren")
+        </Button>
+    </FooterContent>
+</Modal>
+</div>
+
+@code {
+    private IJSObjectReference? _module;
+    private CustomerDataFormat _format = CustomerDataFormat.Json;
+    private DateTime _stichtag;
+    private bool _isExporting;
+    private string? _errorMessage;
+    private bool _wasOpen;
+
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _stichtag = TimeProvider.GetLocalNow().DateTime;
+            _errorMessage = null;
+        }
+
+        _wasOpen = IsOpen;
+    }
+
+    private async Task ExportAsync()
+    {
+        _isExporting = true;
+        _errorMessage = null;
+
+        var result = await ExportCustomerDataUseCase.ExecuteAsync(new ExportCustomerDataQuery(_format, _stichtag));
+
+        _isExporting = false;
+
+        if (!result.IsSuccess)
+        {
+            _errorMessage = result.Error;
+            return;
+        }
+
+        CustomerDataFile file = result.Value!;
+        _module ??= await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/fileDownload.js");
+        await _module.InvokeVoidAsync("download", file.SafeFileName, file.MediaType, Convert.ToBase64String(file.Content));
+
+        await RequestClose();
+    }
+
+    private async Task RequestClose() => await OnClose.InvokeAsync();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.DisposeAsync();
+        }
+    }
+}

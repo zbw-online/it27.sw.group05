@@ -11,6 +11,8 @@ namespace OrderManagement.Application.Tests.Fakes.Customers
         private readonly List<Customer> _customers = [];
         private int _nextId = 1;
 
+        public int GetListCallCount { get; private set; }
+
         public Customer Seed(Customer customer)
         {
             if (!customer.Id.IsAssigned)
@@ -27,7 +29,10 @@ namespace OrderManagement.Application.Tests.Fakes.Customers
             => Task.FromResult(_customers.FirstOrDefault(c => c.Id == id));
 
         public Task<IReadOnlyList<Customer>> GetListAsync(CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<Customer>>([.. _customers]);
+        {
+            GetListCallCount++;
+            return Task.FromResult<IReadOnlyList<Customer>>([.. _customers]);
+        }
 
         public Task<Customer?> GetByCustomerNumberAsync(CustomerNumber number, CancellationToken cancellationToken = default)
             => Task.FromResult(_customers.FirstOrDefault(c => c.CustomerNumber == number));

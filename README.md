@@ -32,6 +32,7 @@ Technologien: **.NET 9 SDK / C#**, **ASP.NET Core Blazor (Server, Interactive)**
 - [Tests ausführen](#tests-ausführen)
 - [Docker / Testcontainers](#docker--testcontainers)
 - [Lagerbestand-Abgleich](#lagerbestand-abgleich)
+- [Kunden-Datenaustausch](#kunden-datenaustausch)
 - [Produktion: Publish und Docker](#produktion-publish-und-docker)
 - [Azure-Pipelines](#azure-pipelines)
 - [Git-Workflow](#git-workflow)
@@ -389,6 +390,195 @@ Verhalten:
   Aufträge als lagerrelevant behandelt. Sollte künftig ein
   Auftragsstatus eingeführt werden, muss diese Annahme überprüft
   werden.
+
+------------------------------------------------------------------------
+
+## Kunden-Datenaustausch
+
+Die Kundenverwaltung (`/kunden`) erlaubt den Austausch von
+Kundenstammdaten mit anderen Systemen über den Import und Export von
+JSON- oder XML-Dateien. Damit lassen sich Kundendaten in Serien
+erfassen oder für einen bestimmten historischen Zeitpunkt (Stichtag)
+exportieren, ohne jeden Kunden einzeln zu erfassen.
+
+### Unterstützte Formate
+
+JSON und XML werden über das Strategy-Pattern
+(`ICustomerDataSerializer` / `ICustomerDataSerializerResolver` in
+`OrderManagement.Application`) angeboten. Die JSON-Implementierung
+verwendet `System.Text.Json`, die XML-Implementierung `XmlSerializer`
+(`OrderManagement.Infrastructure/Serialization/Customers`) – beide ohne
+Drittanbieter-Pakete.
+
+JSON-Beispiel:
+
+```json
+[
+  {
+    "customerNumber": "CU00001",
+    "lastName": "Muster",
+    "surName": "Hans",
+    "email": "hans.muster@example.ch",
+    "website": "www.example.ch",
+    "address": {
+      "validFrom": "2026-01-01",
+      "street": "Musterstrasse",
+      "houseNumber": "10",
+      "postalCode": "8000",
+      "city": "Zürich",
+      "countryCode": "CH"
+    }
+  }
+]
+```
+
+XML-Beispiel:
+
+```xml
+<Kunden>
+  <Kunde CustomerNumber="CU00001">
+    <LastName>Muster</LastName>
+    <SurName>Hans</SurName>
+    <Email>hans.muster@example.ch</Email>
+    <Website>www.example.ch</Website>
+    <Address>
+      <ValidFrom>2026-01-01</ValidFrom>
+      <Street>Musterstrasse</Street>
+      <HouseNumber>10</HouseNumber>
+      <PostalCode>8000</PostalCode>
+      <City>Zürich</City>
+      <CountryCode>CH</CountryCode>
+    </Address>
+  </Kunde>
+</Kunden>
+```
+
+Beide Formate transportieren dieselben semantischen Informationen.
+JSON wird deterministisch UTF-8, camelCase und nach Kundennummer
+sortiert exportiert; XML analog mit `Kunde`-Elementen und
+`CustomerNumber` als Attribut. Beim Import werden unbekannte
+Eigenschaften/Elemente, doppelte JSON-Eigenschaften, DTD/XXE-Inhalte
+und überhöhte Verschachtelungstiefe abgelehnt.
+
+### Zeitreise-Export (Stichtag)
+
+Der Export akzeptiert einen **Stichtag** (Datum und Uhrzeit) und
+liefert den Datenstand aller Kunden **zu genau diesem Zeitpunkt**:
+
+- Der im Dialog eingegebene Stichtag wird als **Schweizer Ortszeit**
+  (`Europe/Zurich`) interpretiert und für die SQL-Server-Zeitreise-
+  Abfrage (`FOR SYSTEM_TIME` / EF Core `TemporalAsOf`) in UTC
+  umgerechnet.
+- Zusätzlich wird die **Geschäftsgültigkeit der Adresse**
+  (`ValidFrom`/`ValidTo` auf `CustomerAddress`) anhand des
+  Schweizer Kalenderdatums des Stichtags ausgewertet – unabhängig
+  von der SQL-Systemzeit.
+- Ein Kunde, der **nach** dem Stichtag gelöscht wurde, erscheint
+  weiterhin im Export, sofern er zum Stichtag existierte (die
+  History-Tabelle der temporalen Kundentabelle macht dies möglich).
+- Ein Kunde ohne zum Stichtag gültige Adresse wird mit `address: null`
+  exportiert – das ist kein Fehler.
+- Namens-, E-Mail- und Website-Änderungen **nach** dem Stichtag werden
+  nicht berücksichtigt; exportiert wird der zum Stichtag gültige Stand.
+
+Exportierte Dateien werden **nicht** dauerhaft auf dem Server
+gespeichert, sondern direkt an den Browser zum Download übergeben
+(Dateiname z. B. `kundendaten-20260905-1830.json`).
+
+### Import: Create-only und atomar
+
+Der Import erstellt **ausschliesslich neue Kunden** – bestehende
+Kunden werden nie aktualisiert oder überschrieben. Der komplette
+Import ist **atomar**:
+
+1. Die gesamte Datei wird zuerst vollständig validiert (Format,
+   Grösse, Anzahl Datensätze, Pflichtfelder, Kundennummer- und
+   E-Mail-Format gemäss den Domain-Regeln in `Customer`).
+2. Duplikate werden geprüft – sowohl **innerhalb der Datei**
+   (Kundennummer und E-Mail, E-Mail ohne Gross-/Kleinschreibung) als
+   auch **gegen die bestehende Datenbank**.
+3. Enthält die Datei auch nur einen ungültigen oder bereits
+   existierenden Datensatz, wird **kein einziger** Kunde importiert.
+4. Erst wenn die gesamte Datei gültig ist, werden alle neuen Kunden
+   in einer einzigen Transaktion (`CommitAsync`) gespeichert.
+
+Die Vorschau (`Datei prüfen`) und der eigentliche Import
+(`In Datenbank importieren`) verwenden denselben
+`CustomerImportPlanBuilder`, damit keine Validierungslogik doppelt
+gepflegt werden muss; der Import validiert beim Ausführen zusätzlich
+erneut, falls sich der Datenbestand seit der Vorschau geändert hat.
+
+### Konfigurierbare Limiten
+
+Die Sicherheits- und Grössenlimiten für Import/Export sind über den
+Abschnitt `CustomerDataExchange` in `appsettings.json` konfigurierbar
+(gebunden via `IOptions<CustomerDataExchangeOptions>`):
+
+```json
+"CustomerDataExchange": {
+  "MaxFileSizeBytes": 2097152,
+  "MaxCustomerCount": 5000,
+  "MaxJsonDepth": 64,
+  "MaxXmlCharacters": 20000000
+}
+```
+
+| Einstellung        | Standardwert | Bedeutung                                   |
+| ------------------- | ------------: | -------------------------------------------- |
+| `MaxFileSizeBytes`  |    2'097'152 | Maximale Dateigrösse in Bytes (2 MB)         |
+| `MaxCustomerCount`  |         5000 | Maximale Anzahl Kundendatensätze pro Datei   |
+| `MaxJsonDepth`      |           64 | Maximale JSON-Verschachtelungstiefe          |
+| `MaxXmlCharacters`  |   20'000'000 | Maximale Zeichenanzahl im XML-Dokument       |
+
+### Ein weiteres Format ergänzen (z. B. CSV)
+
+Dank Strategy-Pattern erfordert ein zusätzliches Format **keine
+Änderung** an den bestehenden JSON-/XML-Implementierungen oder am
+Import-/Export-Workflow:
+
+1. Neue Klasse `CsvCustomerDataSerializer` in
+   `OrderManagement.Infrastructure/Serialization/Customers` erstellen,
+   die `ICustomerDataSerializer` implementiert (`Format`,
+   `FileExtension`, `MediaType`, `SerializeAsync`, `DeserializeAsync`).
+2. Registrierung als weitere Implementierung in
+   `OrderManagement.Infrastructure.DependencyInjection`:
+   `services.AddSingleton<ICustomerDataSerializer, CsvCustomerDataSerializer>();`
+3. `CustomerDataFormat` um `Csv` erweitern.
+
+Der `CustomerDataSerializerResolver` sowie alle Use Cases
+(`ImportCustomerData`, `ValidateCustomerDataImport`,
+`ExportCustomerData`) benötigen keine Anpassung.
+
+### Anmeldedaten sind bewusst ausgeschlossen
+
+Passwörter und Authentifizierung gehören **nicht** zum Bounded
+Context "Kunde" und sind daher weder in der Domain (`Customer`), noch
+in den Datenaustausch-DTOs, der Benutzeroberfläche oder den
+JSON-/XML-Formaten enthalten. Das ist eine bewusste
+Architekturentscheidung – Anmeldedaten gehören in einen separaten
+Authentifizierungs-Kontext – und **kein** fehlender Datenpunkt.
+
+### Relevante Testbefehle
+
+Die neuen Tests wurden in die bestehenden Testprojekte integriert
+(kein neues Testprojekt). Gezielt ausführen:
+
+``` ps
+# Application-Unit-Tests (Import-/Export-Use-Cases, Validierungsplan)
+dotnet test .\tests\OrderManagement.Application.Tests\OrderManagement.Application.Tests.csproj --filter "FullyQualifiedName~DataExchange"
+
+# Infrastructure-Integrationstests (JSON/XML-Serialisierung, Zeitreise-Export, atomarer Import – echter SQL Server)
+dotnet test .\tests\OrderManagement.Infrastructure.IntegrationTests\OrderManagement.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~Serialization|FullyQualifiedName~Temporal|FullyQualifiedName~ImportCustomerData"
+
+# Reqnroll-Akzeptanztests (Geschäftsverhalten End-to-End – echter SQL Server)
+dotnet test .\tests\OrderManagement.AcceptanceTests\OrderManagement.AcceptanceTests.csproj --filter "FullyQualifiedName~CustomerDataExchange"
+
+# bUnit-Komponententests (Import-/Export-Dialoge)
+dotnet test .\tests\OrderManagement.Presentation.Blazor.Tests\OrderManagement.Presentation.Blazor.Tests.csproj --filter "FullyQualifiedName~CustomersTests"
+
+# Playwright-End-to-End-Tests (Download, Upload, Tastaturbedienung, Responsive-Verhalten)
+dotnet test .\tests\OrderManagement.PlaywrightTests\OrderManagement.PlaywrightTests.csproj --filter "FullyQualifiedName~CustomerDataExchangeTests"
+```
 
 ------------------------------------------------------------------------
 

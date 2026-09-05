@@ -9,6 +9,7 @@ using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
 using OrderManagement.Application.Abstractions.Interfaces.Invoices.Query;
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Command;
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Query;
+using OrderManagement.Application.Abstractions.Serialization;
 using OrderManagement.Infrastructure.Persistence;
 using OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Command;
 using OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query;
@@ -17,6 +18,7 @@ using OrderManagement.Infrastructure.Persistence.Repositories.Customers.Query;
 using OrderManagement.Infrastructure.Persistence.Repositories.Invoices.Query;
 using OrderManagement.Infrastructure.Persistence.Repositories.Orders.Command;
 using OrderManagement.Infrastructure.Persistence.Repositories.Orders.Query;
+using OrderManagement.Infrastructure.Serialization.Customers;
 
 namespace OrderManagement.Infrastructure
 {
@@ -41,6 +43,7 @@ namespace OrderManagement.Infrastructure
 
             _ = services.AddScoped<ICustomerCommandRepository, CustomerCommandRepository>();
             _ = services.AddScoped<ICustomerQueryRepository, CustomerQueryRepository>();
+            _ = services.AddScoped<ICustomerTemporalQueryRepository, CustomerTemporalQueryRepository>();
 
             _ = services.AddScoped<IArticleCommandRepository, ArticleCommandRepository>();
             _ = services.AddScoped<IArticleQueryRepository, ArticleQueryRepository>();
@@ -51,6 +54,10 @@ namespace OrderManagement.Infrastructure
             _ = services.AddScoped<IOrderQueryRepository, OrderQueryRepository>();
             _ = services.AddScoped<IQuarterlyKpiQueryRepository, QuarterlyKpiQueryRepository>();
             _ = services.AddScoped<IInvoiceQueryRepository, InvoiceQueryRepository>();
+
+            _ = services.AddSingleton<ICustomerDataSerializer, JsonCustomerDataSerializer>();
+            _ = services.AddSingleton<ICustomerDataSerializer, XmlCustomerDataSerializer>();
+            _ = services.AddSingleton<ICustomerDataSerializerResolver, CustomerDataSerializerResolver>();
 
             return services;
         }

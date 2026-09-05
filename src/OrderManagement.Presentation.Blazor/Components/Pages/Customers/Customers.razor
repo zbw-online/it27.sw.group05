@@ -22,6 +22,8 @@
 
 <PageHeader Title="Kunden" Subtitle="@($"{_allCustomers.Count} Kunden")">
     <Actions>
+        <Button Variant="ButtonVariant.Secondary" OnClick="() => _isImportDialogOpen = true">Kundendaten importieren</Button>
+        <Button Variant="ButtonVariant.Secondary" OnClick="() => _isExportDialogOpen = true">Kundendaten exportieren</Button>
         <Button Variant="ButtonVariant.Primary" OnClick="StartCreate">+ Neuer Kunde</Button>
     </Actions>
 </PageHeader>
@@ -352,6 +354,13 @@
                OnConfirm="ConfirmDeleteAsync"
                OnCancel="CancelDelete" />
 
+<ImportCustomerDataDialog IsOpen="_isImportDialogOpen"
+                          OnClose="() => _isImportDialogOpen = false"
+                          OnImported="OnCustomersImportedAsync" />
+
+<ExportCustomerDataDialog IsOpen="_isExportDialogOpen"
+                          OnClose="() => _isExportDialogOpen = false" />
+
 @code {
     private static readonly Dictionary<string, object> StopPropagation = new() { { "onclick:stopPropagation", true } };
 
@@ -384,6 +393,9 @@
     private bool _isDetailsLoading;
     private string? _detailsError;
     private int _detailsCustomerId;
+
+    private bool _isImportDialogOpen;
+    private bool _isExportDialogOpen;
 
     private IReadOnlyList<CustomerListItemDto> _pagedCustomers =>
         [.. _allCustomers.Skip((_page - 1) * _pageSize).Take(_pageSize)];
@@ -604,6 +616,13 @@
     }
 
     private void CancelDelete() => _isDeleteConfirmOpen = false;
+
+    private async Task OnCustomersImportedAsync(int importedCount)
+    {
+        _isImportDialogOpen = false;
+        _message = $"{importedCount} Kunden wurden importiert.";
+        await LoadCustomersAsync();
+    }
 
     private async Task ConfirmDeleteAsync()
     {
