@@ -32,6 +32,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
                 priceCurrency: "CHF",
                 groupId: group.Id,
                 stock: 5,
+                reorderPoint: 12,
                 vatRate: 7.70m).EnsureValue();
 
             _repository.Add(article);
@@ -50,6 +51,36 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
             Assert.AreEqual(group.Id, persisted.ArticleGroupId);
             Assert.AreEqual(42.50m, persisted.Price.Amount);
             Assert.AreEqual("CHF", persisted.Price.Currency);
+            Assert.AreEqual(12, persisted.ReorderPoint);
+            Assert.AreEqual(StockLevel.Low, persisted.StockLevel);
+        }
+
+        [TestMethod]
+        public async Task Update_WithChangedReorderPoint_ShouldPersistReorderPointAndLeaveStockUnchanged()
+        {
+            Article article = await InfrastructureTestDataFactory.CreatePersistedArticleAsync(
+                DbContext, stock: 10, reorderPoint: 20);
+            ArticleId articleId = article.Id;
+
+            DbContext.ChangeTracker.Clear();
+
+            Article tracked = await DbContext.Articles.SingleAsync(a => a.Id == articleId);
+            Result changeResult = tracked.ChangeReorderPoint(5);
+            Assert.IsTrue(changeResult.IsSuccess, changeResult.Error);
+
+            _repository.Update(tracked);
+            _ = await DbContext.SaveChangesAsync();
+
+            DbContext.ChangeTracker.Clear();
+
+            Article? persisted = await DbContext.Articles
+                .AsNoTracking()
+                .SingleOrDefaultAsync(a => a.Id == articleId);
+
+            Assert.IsNotNull(persisted);
+            Assert.AreEqual(5, persisted.ReorderPoint);
+            Assert.AreEqual(10, persisted.Stock);
+            Assert.AreEqual(StockLevel.Available, persisted.StockLevel);
         }
 
         [TestMethod]

@@ -16,7 +16,12 @@ namespace OrderManagement.Application.Abstractions.Interfaces.Catalog.Query
             CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<Article>> GetLowStockAsync(
-            int threshold,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Article>> SearchAsync(
+            IReadOnlyCollection<ArticleGroupId>? groupIds,
+            ArticleStatus? statusFilter,
+            string? searchTerm,
             CancellationToken cancellationToken = default);
     }
 }

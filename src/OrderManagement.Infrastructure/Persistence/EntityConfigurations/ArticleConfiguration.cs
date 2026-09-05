@@ -103,6 +103,11 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
 
             _ = builder.Property(a => a.Stock).IsRequired();
 
+            _ = builder.Property(a => a.ReorderPoint)
+                .HasColumnName("ReorderPoint")
+                .HasDefaultValue(20)
+                .IsRequired();
+
             _ = builder.Property(a => a.VatRate)
                 .HasPrecision(5, 2)
                 .IsRequired();
@@ -110,7 +115,14 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(a => a.Description)
                 .HasColumnType("nvarchar(max)");
 
-            _ = builder.Property(a => a.Status).IsRequired();
+            _ = builder.Property(a => a.Status)
+                .HasConversion<int>()
+                .IsRequired();
+
+            _ = builder.Property<int>("RowVersion")
+                .HasColumnName("RowVersion")
+                .IsConcurrencyToken()
+                .HasDefaultValue(0);
 
             _ = builder.HasIndex(a => a.Name);
         }

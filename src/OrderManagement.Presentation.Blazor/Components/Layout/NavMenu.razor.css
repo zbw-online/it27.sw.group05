@@ -20,9 +20,37 @@
 
 .nav-brand-text {
     color: var(--color-text-primary);
+    flex: 1 1 auto;
     font-size: 0.92rem;
     font-weight: 700;
     letter-spacing: 0.04em;
+}
+
+.nav-collapse-toggle {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    flex: 0 0 auto;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+}
+
+.nav-collapse-toggle:hover {
+    background: var(--color-elevated);
+    color: var(--color-text-primary);
+}
+
+.nav-collapse-icon {
+    transition: transform 0.15s ease;
+}
+
+.is-nav-collapsed .nav-collapse-icon {
+    transform: rotate(180deg);
 }
 
 .nav-links {
@@ -83,4 +111,31 @@
     color: var(--color-text-muted);
     font-family: var(--font-mono);
     font-size: 0.7rem;
+}
+
+.is-nav-collapsed .nav-brand {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+}
+
+.is-nav-collapsed .nav-link {
+    justify-content: center;
+}
+
+.is-nav-collapsed .nav-link-label,
+.is-nav-collapsed .nav-brand-text {
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+.is-nav-collapsed .nav-footer {
+    display: none;
 }

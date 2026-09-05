@@ -44,6 +44,7 @@ namespace OrderManagement.Application.Features.Catalog.CreateArticle
                 command.PriceCurrency,
                 new ArticleGroupId(command.GroupId),
                 command.Stock,
+                command.ReorderPoint,
                 command.VatRate,
                 command.Description);
 

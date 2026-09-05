@@ -24,11 +24,17 @@ namespace OrderManagement.Infrastructure
     {
         public static IServiceCollection AddOrderManagementInfrastructure(
             this IServiceCollection services,
-            string connectionString)
+            string connectionString,
+            bool enableDetailedErrors = false)
         {
             _ = services.AddDbContext<OrderManagementDbContext>(options =>
             {
                 _ = options.UseSqlServer(connectionString);
+
+                if (enableDetailedErrors)
+                {
+                    _ = options.EnableDetailedErrors().EnableSensitiveDataLogging();
+                }
             });
 
             _ = services.AddScoped<IUnitOfWork, UnitOfWork>();

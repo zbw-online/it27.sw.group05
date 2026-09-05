@@ -1,4 +1,5 @@
 using OrderManagement.Application.Abstractions.Interfaces.Orders.Query;
+using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Domain.Orders.ValueObjects;
@@ -36,5 +37,11 @@ namespace OrderManagement.Application.Tests.Fakes.Orders
 
         public Task<IReadOnlyList<Order>> GetPendingOrdersAsync(CancellationToken cancellationToken = default)
             => GetListAsync(cancellationToken);
+
+        public Task<IReadOnlyList<Order>> GetUnreconciledOrdersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Order>>([.. _orders.Where(o => !o.IsInventoryApplied)]);
+
+        public Task<bool> ExistsOrderLineForArticleAsync(ArticleId articleId, CancellationToken cancellationToken = default)
+            => Task.FromResult(_orders.Any(o => o.Lines.Any(l => l.ArticleId == articleId)));
     }
 }

@@ -4,6 +4,16 @@
 <div class="nav-brand">
     <span class="nav-brand-mark" aria-hidden="true">M</span>
     <span class="nav-brand-text">MUSTER AG</span>
+    <button type="button"
+            class="nav-collapse-toggle"
+            id="nav-collapse-toggle"
+            aria-label="Navigation einklappen"
+            aria-expanded="true"
+            onclick="window.toggleNavCollapse && window.toggleNavCollapse()">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true" class="nav-collapse-icon">
+            <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+    </button>
 </div>
 
 <nav class="nav-links" aria-label="Bereiche">
@@ -11,9 +21,10 @@
     {
         <a class="nav-link @(IsActive(item.Href) ? "is-active" : string.Empty)"
            href="@item.Href"
+           title="@item.Label"
            aria-current="@(IsActive(item.Href) ? "page" : null)">
             <span class="nav-link-icon" aria-hidden="true">@((MarkupString)item.Icon)</span>
-            <span>@item.Label</span>
+            <span class="nav-link-label">@item.Label</span>
         </a>
     }
 </nav>
@@ -23,9 +34,10 @@
     {
         <a class="nav-link @(IsActive(item.Href) ? "is-active" : string.Empty)"
            href="@item.Href"
+           title="@item.Label"
            aria-current="@(IsActive(item.Href) ? "page" : null)">
             <span class="nav-link-icon" aria-hidden="true">@((MarkupString)item.Icon)</span>
-            <span>@item.Label</span>
+            <span class="nav-link-label">@item.Label</span>
         </a>
     }
 </nav>

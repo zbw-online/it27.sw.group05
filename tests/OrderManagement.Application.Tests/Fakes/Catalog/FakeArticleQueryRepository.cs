@@ -33,7 +33,37 @@ namespace OrderManagement.Application.Tests.Fakes.Catalog
         public Task<IReadOnlyList<Article>> GetByGroupAsync(ArticleGroupId groupId, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Article>>([.. _articles.Where(a => a.ArticleGroupId == groupId)]);
 
-        public Task<IReadOnlyList<Article>> GetLowStockAsync(int threshold, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<Article>>([.. _articles.Where(a => a.Stock <= threshold)]);
+        public Task<IReadOnlyList<Article>> GetLowStockAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Article>>(
+                [.. _articles.Where(a => a.Status == ArticleStatus.Active && a.Stock <= a.ReorderPoint)]);
+
+        public Task<IReadOnlyList<Article>> SearchAsync(
+            IReadOnlyCollection<ArticleGroupId>? groupIds,
+            ArticleStatus? statusFilter,
+            string? searchTerm,
+            CancellationToken cancellationToken = default)
+        {
+            IEnumerable<Article> query = _articles;
+
+            if (groupIds is not null)
+            {
+                query = query.Where(a => groupIds.Contains(a.ArticleGroupId));
+            }
+
+            if (statusFilter.HasValue)
+            {
+                query = query.Where(a => a.Status == statusFilter.Value);
+            }
+
+            string term = (searchTerm ?? string.Empty).Trim();
+            if (term.Length > 0)
+            {
+                query = query.Where(a =>
+                    a.ArticleNumber.Value.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    a.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return Task.FromResult<IReadOnlyList<Article>>([.. query.OrderBy(a => a.ArticleNumber.Value)]);
+        }
     }
 }

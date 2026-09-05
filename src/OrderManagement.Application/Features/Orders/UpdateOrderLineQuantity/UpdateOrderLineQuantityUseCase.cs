@@ -25,14 +25,14 @@ namespace OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity
             Order? order = await _orderCommandRepository.GetByIdAsync(new OrderId(command.OrderId), cancellationToken);
             if (order is null)
             {
-                return Result.Fail("Order was not found.");
+                return Result.Fail("Auftrag wurde nicht gefunden.");
             }
 
             var lineId = new OrderLineId(command.OrderLineId);
             OrderLine? line = order.Lines.FirstOrDefault(l => l.Id == lineId);
             if (line is null)
             {
-                return Result.Fail("Order line was not found.");
+                return Result.Fail("Auftragsposition wurde nicht gefunden.");
             }
 
             int previousQuantity = line.Quantity;

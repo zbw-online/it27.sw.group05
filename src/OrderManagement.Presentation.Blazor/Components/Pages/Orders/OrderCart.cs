@@ -1,5 +1,6 @@
 using OrderManagement.Application.Features.Catalog.Shared;
 using OrderManagement.Application.Features.Orders.Shared;
+using OrderManagement.Domain.Catalog.ValueObjects;
 
 using SharedKernel.Primitives;
 
@@ -14,6 +15,7 @@ namespace OrderManagement.Presentation.Blazor.Components.Pages.Orders
         public required string Currency { get; init; }
         public required decimal VatRate { get; init; }
         public required int Stock { get; init; }
+        public required StockLevel StockLevel { get; init; }
         public int Quantity { get; set; } = 1;
     }
 
@@ -44,6 +46,7 @@ namespace OrderManagement.Presentation.Blazor.Components.Pages.Orders
                     Currency = article.PriceCurrency,
                     VatRate = article.VatRate,
                     Stock = article.Stock,
+                    StockLevel = article.StockLevel,
                     Quantity = 1
                 };
             }

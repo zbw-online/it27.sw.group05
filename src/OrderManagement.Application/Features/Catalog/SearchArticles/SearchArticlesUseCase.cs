@@ -18,25 +18,21 @@ namespace OrderManagement.Application.Features.Catalog.SearchArticles
             SearchArticlesQuery query,
             CancellationToken cancellationToken = default)
         {
-            IReadOnlyList<Article> articles = query.GroupId.HasValue
-                ? await _articleQueryRepository.GetByGroupAsync(
-                    new ArticleGroupId(query.GroupId.Value),
-                    cancellationToken)
-                : await _articleQueryRepository.GetListAsync(cancellationToken);
-            string term = (query.SearchTerm ?? string.Empty).Trim().ToUpperInvariant();
+            IReadOnlyList<ArticleGroup> groups = await _articleGroupQueryRepository.GetListAsync(cancellationToken);
 
-            if (term.Length > 0)
+            List<ArticleGroupId>? groupIds = null;
+            if (query.GroupId.HasValue)
             {
-                articles = [.. articles.Where(a =>
-                    a.ArticleNumber.Value.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                    a.Name.Contains(term, StringComparison.OrdinalIgnoreCase))];
+                HashSet<int> descendantIds = CollectSelfAndDescendantIds(groups, query.GroupId.Value);
+                groupIds = [.. descendantIds.Select(id => new ArticleGroupId(id))];
             }
 
-            IReadOnlyList<ArticleGroup> groups = await _articleGroupQueryRepository.GetListAsync(cancellationToken);
+            IReadOnlyList<Article> articles = await _articleQueryRepository.SearchAsync(
+                groupIds, query.StatusFilter, query.SearchTerm, cancellationToken);
+
             var groupNames = groups.ToDictionary(g => g.Id.Value, g => g.Name);
 
             IReadOnlyList<ArticleListItemDto> result = [.. articles
-                .OrderBy(a => a.ArticleNumber.Value)
                 .Select(a => new ArticleListItemDto(
                     a.Id.Value,
                     a.ArticleNumber.Value,
@@ -46,10 +42,33 @@ namespace OrderManagement.Application.Features.Catalog.SearchArticles
                     a.ArticleGroupId.Value,
                     groupNames.TryGetValue(a.ArticleGroupId.Value, out string? gName) ? gName : string.Empty,
                     a.Stock,
+                    a.ReorderPoint,
+                    a.StockLevel,
                     a.VatRate,
                     a.Status))];
 
             return Results.Success(result);
+        }
+
+        private static HashSet<int> CollectSelfAndDescendantIds(IReadOnlyList<ArticleGroup> groups, int rootId)
+        {
+            var result = new HashSet<int> { rootId };
+            var pending = new Queue<int>();
+            pending.Enqueue(rootId);
+
+            while (pending.Count > 0)
+            {
+                int currentId = pending.Dequeue();
+                foreach (ArticleGroup child in groups.Where(g => g.ParentGroupId?.Value == currentId))
+                {
+                    if (result.Add(child.Id.Value))
+                    {
+                        pending.Enqueue(child.Id.Value);
+                    }
+                }
+            }
+
+            return result;
         }
     }
 }

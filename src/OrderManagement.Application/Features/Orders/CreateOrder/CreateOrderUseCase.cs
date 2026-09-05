@@ -54,15 +54,37 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
                 return Results.Fail<CreateOrderResponse>("Customer was not found.");
             }
 
-            Result<Address> addressResult = Address.Create(
-                command.Street, command.HouseNumber, command.PostalCode, command.City, command.CountryCode);
-
-            if (!addressResult.IsSuccess)
+            if (command.Lines.Count == 0)
             {
-                return Results.Fail<CreateOrderResponse>(addressResult.Error!);
+                return Results.Fail<CreateOrderResponse>("Ein Auftrag benötigt mindestens eine gültige Position.");
             }
 
-            Result<Order> orderResult = Order.Create(command.OrderNumber, customerId, addressResult.Value!);
+            Result<(Address Address, AddressSource Source)> billingResult = ResolveAddress(
+                customer, command.DeliveryDate, command.BillingAddressOverride);
+            if (!billingResult.IsSuccess)
+            {
+                return Results.Fail<CreateOrderResponse>(billingResult.Error!);
+            }
+
+            Result<(Address Address, AddressSource Source)> deliveryResult = ResolveAddress(
+                customer, command.DeliveryDate, command.DeliveryAddressOverride);
+            if (!deliveryResult.IsSuccess)
+            {
+                return Results.Fail<CreateOrderResponse>(deliveryResult.Error!);
+            }
+
+            (Address billingAddress, AddressSource billingSource) = billingResult.Value!;
+            (Address deliveryAddress, AddressSource deliverySource) = deliveryResult.Value!;
+
+            Result<Order> orderResult = Order.Create(
+                command.OrderNumber,
+                customerId,
+                command.DeliveryDate,
+                billingAddress,
+                billingSource,
+                deliveryAddress,
+                deliverySource,
+                command.CustomerReference);
             if (!orderResult.IsSuccess)
             {
                 return Results.Fail<CreateOrderResponse>(orderResult.Error!);
@@ -82,6 +104,12 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
                         $"Article with id '{lineInput.ArticleId}' was not found.");
                 }
 
+                Result availabilityResult = article.EnsureAvailableForOrder();
+                if (!availabilityResult.IsSuccess)
+                {
+                    return Results.Fail<CreateOrderResponse>(availabilityResult.Error!);
+                }
+
                 Result addLineResult = order.AddLine(article.Id, article.Name, article.Price, lineInput.Quantity);
                 if (!addLineResult.IsSuccess)
                 {
@@ -97,6 +125,12 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
                 _articleCommandRepository.Update(article);
             }
 
+            Result markInventoryAppliedResult = order.MarkInventoryApplied();
+            if (!markInventoryAppliedResult.IsSuccess)
+            {
+                return Results.Fail<CreateOrderResponse>(markInventoryAppliedResult.Error!);
+            }
+
             _orderCommandRepository.Add(order);
 
             Result commitResult = await _unitOfWork.CommitAsync(cancellationToken);
@@ -107,6 +141,44 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
                     order.OrderNumber.Value,
                     order.Total.Amount,
                     order.Total.Currency));
+        }
+
+        private static Result<(Address Address, AddressSource Source)> ResolveAddress(
+            Customer customer,
+            DateOnly deliveryDate,
+            AddressOverrideInput? overrideInput)
+        {
+            if (overrideInput is not null)
+            {
+                Result<Address> manualResult = Address.Create(
+                    overrideInput.Street,
+                    overrideInput.HouseNumber,
+                    overrideInput.PostalCode,
+                    overrideInput.City,
+                    overrideInput.CountryCode);
+
+                return !manualResult.IsSuccess
+                    ? Results.Fail<(Address, AddressSource)>(manualResult.Error!)
+                    : Results.Success((manualResult.Value!, AddressSource.Manual));
+            }
+
+            CustomerAddress? customerAddress = customer.AddressAt(deliveryDate);
+            if (customerAddress is null)
+            {
+                return Results.Fail<(Address, AddressSource)>(
+                    "Für den gewählten Liefertermin ist keine gültige Kundenadresse hinterlegt. Bitte erfassen Sie eine manuelle Adresse.");
+            }
+
+            Result<Address> automaticResult = Address.Create(
+                customerAddress.Street,
+                customerAddress.HouseNumber,
+                customerAddress.PostalCode,
+                customerAddress.City,
+                customerAddress.CountryCode);
+
+            return !automaticResult.IsSuccess
+                ? Results.Fail<(Address, AddressSource)>(automaticResult.Error!)
+                : Results.Success((automaticResult.Value!, AddressSource.Automatic));
         }
     }
 }

@@ -1,5 +1,4 @@
 @page "/kunden"
-@rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using OrderManagement.Application.Features.Customers.AddCustomerAddress
 @using OrderManagement.Application.Features.Customers.CreateCustomer
@@ -71,17 +70,17 @@
                     {
                         <tr class="@(_selectedCustomerId == customer.CustomerId ? "is-selected" : string.Empty)"
                             data-clickable="true"
-                            @onclick="() => ToggleSelection(customer.CustomerId)">
+                            tabindex="0"
+                            aria-label="@($"Kunde {customer.FullName} anzeigen")"
+                            @onclick="() => OpenCustomerDetailsAsync(customer.CustomerId)"
+                            @onkeydown="e => OnRowKeyDownAsync(e, customer.CustomerId)">
                             <td class="numeric">@customer.CustomerNumber</td>
                             <td>@customer.FullName</td>
                             <td>@customer.Email</td>
                             <td>@customer.City</td>
                             <td class="table-actions">
-                                @if (_selectedCustomerId == customer.CustomerId)
-                                {
-                                    <Button Variant="ButtonVariant.Secondary" OnClick="() => StartEditAsync(customer.CustomerId)" AdditionalAttributes="StopPropagation">Bearbeiten</Button>
-                                    <Button Variant="ButtonVariant.Danger" OnClick="() => RequestDelete(customer.CustomerId, customer.FullName)" AdditionalAttributes="StopPropagation">Löschen</Button>
-                                }
+                                <Button Variant="ButtonVariant.Secondary" OnClick="() => StartEditAsync(customer.CustomerId)" AdditionalAttributes="StopPropagation">Bearbeiten</Button>
+                                <Button Variant="ButtonVariant.Danger" OnClick="() => RequestDelete(customer.CustomerId, customer.FullName)" AdditionalAttributes="StopPropagation">Löschen</Button>
                             </td>
                         </tr>
                     }
@@ -262,6 +261,90 @@
     </FooterContent>
 </SideDrawer>
 
+<SideDrawer IsOpen="_isCustomerDetailsOpen" Title="Kundendetails" OnClose="CloseCustomerDetails">
+    <ChildContent>
+        @if (_isDetailsLoading)
+        {
+            <LoadingState Text="Kundendetails werden geladen …" />
+        }
+        else if (_detailsError is not null)
+        {
+            <ErrorState Title="Kundendetails konnten nicht geladen werden" Description="@_detailsError" OnRetry="() => OpenCustomerDetailsAsync(_detailsCustomerId)" />
+        }
+        else if (_details is not null)
+        {
+            <div class="customer-detail-header">
+                <div>
+                    <h3>@_details.FullName</h3>
+                    <p class="numeric">@_details.CustomerNumber · @_details.Email</p>
+                    @if (!string.IsNullOrWhiteSpace(_details.Website))
+                    {
+                        <p><a href="@WebsiteHref(_details.Website)" target="_blank" rel="noopener noreferrer">@_details.Website</a></p>
+                    }
+                </div>
+                <StatusBadge Text="@(_details.CurrentAddress is not null ? "Adresse hinterlegt" : "Keine aktuelle Adresse")"
+                             Tone="@(_details.CurrentAddress is not null ? StatusTone.Success : StatusTone.Warning)" />
+            </div>
+
+            <section class="address-section">
+                <div class="address-section-header">
+                    <strong>Aktuelle Adresse</strong>
+                </div>
+                @if (_details.CurrentAddress is null)
+                {
+                    <EmptyState Title="Keine aktuelle Adresse" Description="Für diesen Kunden ist keine aktuelle Adresse hinterlegt." />
+                }
+                else
+                {
+                    <AddressCard Address="_details.CurrentAddress" ShowStatusBadge="true" />
+                }
+            </section>
+
+            <section class="address-section">
+                <div class="address-section-header">
+                    <strong>Zukünftige Adressen</strong>
+                </div>
+                @if (_details.FutureAddresses.Count == 0)
+                {
+                    <EmptyState Title="Keine zukünftigen Adressen" Description="Es sind keine bevorstehenden Adressänderungen erfasst." />
+                }
+                else
+                {
+                    @for (int i = 0; i < _details.FutureAddresses.Count; i++)
+                    {
+                        <AddressCard Address="_details.FutureAddresses[i]" ShowStatusBadge="true" IsHighlighted="@(i == 0)" />
+                    }
+                }
+            </section>
+
+            <section class="address-section">
+                <div class="address-section-header">
+                    <strong>Frühere Adressen</strong>
+                </div>
+                @if (_details.PreviousAddresses.Count == 0)
+                {
+                    <EmptyState Title="Keine früheren Adressen" Description="Für diesen Kunden liegen keine früheren Adressen vor." />
+                }
+                else
+                {
+                    @foreach (CustomerAddressDto address in _details.PreviousAddresses)
+                    {
+                        <AddressCard Address="address" ShowStatusBadge="true" />
+                    }
+                }
+            </section>
+        }
+    </ChildContent>
+    <FooterContent>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CloseCustomerDetails">Schliessen</Button>
+        @if (_details is not null)
+        {
+            <Button Variant="ButtonVariant.Danger" OnClick="() => DeleteFromDetails(_details.CustomerId, _details.FullName)">Löschen</Button>
+            <Button Variant="ButtonVariant.Primary" OnClick="() => EditFromDetails(_details.CustomerId)">Bearbeiten</Button>
+        }
+    </FooterContent>
+</SideDrawer>
+
 <ConfirmDialog IsOpen="_isDeleteConfirmOpen"
                Title="Kunde löschen"
                Message="@($"Soll der Kunde „{_deleteTargetName}“ wirklich gelöscht werden? Dieser Vorgang kann nicht rückgängig gemacht werden.")"
@@ -296,6 +379,11 @@
     private int _deleteTargetId;
     private string _deleteTargetName = string.Empty;
     private bool _isDeleting;
+
+    private bool _isCustomerDetailsOpen;
+    private bool _isDetailsLoading;
+    private string? _detailsError;
+    private int _detailsCustomerId;
 
     private IReadOnlyList<CustomerListItemDto> _pagedCustomers =>
         [.. _allCustomers.Skip((_page - 1) * _pageSize).Take(_pageSize)];
@@ -345,8 +433,55 @@
         return Task.CompletedTask;
     }
 
-    private void ToggleSelection(int customerId) =>
-        _selectedCustomerId = _selectedCustomerId == customerId ? null : customerId;
+    private async Task OnRowKeyDownAsync(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, int customerId)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            await OpenCustomerDetailsAsync(customerId);
+        }
+    }
+
+    private async Task OpenCustomerDetailsAsync(int customerId)
+    {
+        _detailsCustomerId = customerId;
+        _selectedCustomerId = customerId;
+        _isCustomerDetailsOpen = true;
+        _isDetailsLoading = true;
+        _detailsError = null;
+        _details = null;
+
+        var result = await GetCustomerDetailsUseCase.ExecuteAsync(new GetCustomerDetailsQuery(customerId));
+
+        _isDetailsLoading = false;
+        if (!result.IsSuccess)
+        {
+            _detailsError = result.Error;
+            return;
+        }
+
+        _details = result.Value;
+    }
+
+    private void CloseCustomerDetails()
+    {
+        _isCustomerDetailsOpen = false;
+        _selectedCustomerId = null;
+    }
+
+    private async Task EditFromDetails(int customerId)
+    {
+        CloseCustomerDetails();
+        await StartEditAsync(customerId);
+    }
+
+    private void DeleteFromDetails(int customerId, string customerName)
+    {
+        CloseCustomerDetails();
+        RequestDelete(customerId, customerName);
+    }
+
+    private static string WebsiteHref(string website) =>
+        website.Contains("://", StringComparison.Ordinal) ? website : $"https://{website}";
 
     private void StartCreate()
     {

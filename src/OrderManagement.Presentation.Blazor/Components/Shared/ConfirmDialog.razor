@@ -2,7 +2,10 @@
 
 <Modal IsOpen="IsOpen" Title="@Title" OnClose="OnCancel">
     <ChildContent>
-        <p>@Message</p>
+        @foreach (string line in Message.Split('\n'))
+        {
+            <p>@line</p>
+        }
     </ChildContent>
     <FooterContent>
         <Button Variant="ButtonVariant.Secondary" OnClick="OnCancel">@CancelText</Button>

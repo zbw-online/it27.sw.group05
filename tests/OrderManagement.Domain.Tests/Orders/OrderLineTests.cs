@@ -141,7 +141,11 @@ namespace OrderManagement.Tests.Domain.Orders
         private static Order ValidOrder() => Order.Create(
                     "ORD-2026-999",
                     new CustomerId(1),
-                    ValidAddress())
+                    new DateOnly(2026, 9, 1),
+                    ValidAddress(),
+                    AddressSource.Automatic,
+                    ValidAddress(),
+                    AddressSource.Automatic)
                 .EnsureValue();
 
         private static Address ValidAddress() => Address.Create(

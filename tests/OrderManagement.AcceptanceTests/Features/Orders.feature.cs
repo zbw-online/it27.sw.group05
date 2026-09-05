@@ -138,7 +138,7 @@ namespace OrderManagement.AcceptanceTests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Orders.feature.ndjson", 14);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Orders.feature.ndjson", 19);
         }
         
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Creating an order for an existing customer with one valid article")]
@@ -627,6 +627,52 @@ await this.FeatureBackgroundAsync();
             await this.ScenarioCleanupAsync();
         }
         
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Auftrag vollständig löschen und Lagerbestand wiederherstellen")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Auftrag vollständig löschen und Lagerbestand wiederherstellen")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task AuftragVollstandigLoschenUndLagerbestandWiederherstellen()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "11";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Auftrag vollständig löschen und Lagerbestand wiederherstellen", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 92
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 93
+    await testRunner.GivenAsync("an article has a defined stock", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 94
+    await testRunner.AndAsync("an order deducted a quantity of that article", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 95
+    await testRunner.WhenAsync("the Sachbearbeiter deletes the complete order", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 96
+    await testRunner.ThenAsync("the order is no longer available", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 97
+    await testRunner.AndAsync("all order lines are removed", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 98
+    await testRunner.AndAsync("the deducted quantity is restored to the article stock", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("A failed operation does not leave partially persisted data")]
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("A failed operation does not leave partially persisted data")]
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
@@ -634,11 +680,11 @@ await this.FeatureBackgroundAsync();
         {
             string[] tagsOfScenario = ((string[])(null));
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
-            string pickleIndex = "11";
+            string pickleIndex = "12";
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A failed operation does not leave partially persisted data", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 92
+#line 100
 this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -660,14 +706,220 @@ await this.FeatureBackgroundAsync();
                 table13.AddRow(new string[] {
                             "ART-40002",
                             "0"});
-#line 93
+#line 101
     await testRunner.WhenAsync("I create order \"ORD-2026-013\" for customer \"CU30001\" with lines:", ((string)(null)), table13, "When ");
 #line hidden
-#line 97
+#line 105
     await testRunner.ThenAsync("the order creation is rejected because the quantity must be positive", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 98
+#line 106
     await testRunner.AndAsync("order \"ORD-2026-013\" can not be found by search", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("An order resolves the customer address valid on the delivery date")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("An order resolves the customer address valid on the delivery date")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task AnOrderResolvesTheCustomerAddressValidOnTheDeliveryDate()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "13";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("An order resolves the customer address valid on the delivery date", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 108
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 109
+    await testRunner.GivenAsync("a customer \"CU30020\" is registered with address \"Old Street 1, 8000 Zurich, CH\" v" +
+                        "alid from \"2026-01-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 110
+    await testRunner.AndAsync("customer \"CU30020\" moved to \"New Street 5, 9000 St. Gallen, CH\" valid from \"2026-" +
+                        "09-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+                global::Reqnroll.Table table14 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table14.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 111
+    await testRunner.WhenAsync("I create order \"ORD-2026-020\" for customer \"CU30020\" with delivery date \"2026-08-" +
+                        "31\" and lines:", ((string)(null)), table14, "When ");
+#line hidden
+#line 114
+    await testRunner.ThenAsync("order \"ORD-2026-020\" has billing address \"Old Street 1, 8000 Zurich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 115
+    await testRunner.AndAsync("order \"ORD-2026-020\" has delivery address \"Old Street 1, 8000 Zurich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("An order resolves the new address once it becomes valid on the delivery date")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("An order resolves the new address once it becomes valid on the delivery date")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task AnOrderResolvesTheNewAddressOnceItBecomesValidOnTheDeliveryDate()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "14";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("An order resolves the new address once it becomes valid on the delivery date", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 117
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 118
+    await testRunner.GivenAsync("a customer \"CU30021\" is registered with address \"Old Street 1, 8000 Zurich, CH\" v" +
+                        "alid from \"2026-01-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 119
+    await testRunner.AndAsync("customer \"CU30021\" moved to \"New Street 5, 9000 St. Gallen, CH\" valid from \"2026-" +
+                        "09-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+                global::Reqnroll.Table table15 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table15.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 120
+    await testRunner.WhenAsync("I create order \"ORD-2026-021\" for customer \"CU30021\" with delivery date \"2026-09-" +
+                        "01\" and lines:", ((string)(null)), table15, "When ");
+#line hidden
+#line 123
+    await testRunner.ThenAsync("order \"ORD-2026-021\" has billing address \"New Street 5, 9000 St. Gallen, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 124
+    await testRunner.AndAsync("order \"ORD-2026-021\" has delivery address \"New Street 5, 9000 St. Gallen, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Billing and delivery addresses can be overridden independently")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Billing and delivery addresses can be overridden independently")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task BillingAndDeliveryAddressesCanBeOverriddenIndependently()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "15";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Billing and delivery addresses can be overridden independently", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 126
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table16 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table16.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 127
+    await testRunner.WhenAsync("I create order \"ORD-2026-022\" for customer \"CU30001\" with delivery date \"2026-09-" +
+                        "01\", billing address \"Billing Street 1, 8000 Zurich, CH\" and delivery address \"D" +
+                        "elivery Street 2, 9000 St. Gallen, CH\" and lines:", ((string)(null)), table16, "When ");
+#line hidden
+#line 130
+    await testRunner.ThenAsync("order \"ORD-2026-022\" has billing address \"Billing Street 1, 8000 Zurich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 131
+    await testRunner.AndAsync("order \"ORD-2026-022\" has delivery address \"Delivery Street 2, 9000 St. Gallen, CH" +
+                        "\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 132
+    await testRunner.AndAsync("the billing address for order \"ORD-2026-022\" is manual", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 133
+    await testRunner.AndAsync("the delivery address for order \"ORD-2026-022\" is manual", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("A submitted order keeps its resolved address snapshots when reopened")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("A submitted order keeps its resolved address snapshots when reopened")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task ASubmittedOrderKeepsItsResolvedAddressSnapshotsWhenReopened()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "16";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A submitted order keeps its resolved address snapshots when reopened", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 135
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table17 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table17.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 136
+    await testRunner.WhenAsync("I create order \"ORD-2026-023\" for customer \"CU30001\" with delivery date \"2026-09-" +
+                        "01\" and lines:", ((string)(null)), table17, "When ");
+#line hidden
+#line 139
+    await testRunner.ThenAsync("order \"ORD-2026-023\" has billing address \"Main Street 1, 8000 Zurich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 140
+    await testRunner.AndAsync("order \"ORD-2026-023\" has delivery address \"Main Street 1, 8000 Zurich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 141
+    await testRunner.AndAsync("the billing address for order \"ORD-2026-023\" is automatic", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 142
+    await testRunner.AndAsync("the delivery address for order \"ORD-2026-023\" is automatic", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

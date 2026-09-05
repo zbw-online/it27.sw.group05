@@ -1,0 +1,167 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+@using OrderManagement.Application.DTOs.Catalog
+
+<div class="category-tree-picker" @onkeydown="OnKeyDownAsync">
+    <div class="category-tree-picker-search">
+        <label class="visually-hidden" for="@_searchId">Kategorie suchen</label>
+        <input id="@_searchId"
+               type="search"
+               class="form-control"
+               placeholder="Kategorie suchen"
+               value="@_searchTerm"
+               @oninput="e => _searchTerm = e.Value?.ToString()" />
+    </div>
+
+    <p class="category-tree-picker-pending">
+        Ausgewählt: <strong>@PendingPathText()</strong>
+    </p>
+
+    <div class="category-tree-picker-tree">
+        @if (string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            <ul role="tree" class="category-tree-root" aria-label="Kategorien">
+                @foreach (CategoryTreeItem root in _rootNodes)
+                {
+                    <CategoryTreeNode Node="root"
+                                      Depth="0"
+                                      ExpandedIds="_expandedIds"
+                                      PendingSelectedId="_pendingSelectedId"
+                                      OnToggleExpand="ToggleExpand"
+                                      OnSelect="SelectPending" />
+                }
+            </ul>
+        }
+        else
+        {
+            IReadOnlyList<CategoryTreeItem> matches = SearchMatches();
+            if (matches.Count == 0)
+            {
+                <p class="category-tree-picker-empty">Keine Kategorien gefunden.</p>
+            }
+            else
+            {
+                <ul role="listbox" class="category-tree-search-results" aria-label="Suchergebnisse">
+                    @foreach (CategoryTreeItem match in matches)
+                    {
+                        <li role="none">
+                            <button type="button"
+                                    role="option"
+                                    aria-selected="@(_pendingSelectedId == match.Id ? "true" : "false")"
+                                    class="category-tree-search-result @(_pendingSelectedId == match.Id ? "is-selected" : string.Empty)"
+                                    @onclick="() => SelectPending(match.Id)">
+                                <span class="category-tree-search-result-name">@match.Name</span>
+                                <span class="category-tree-search-result-path">@match.Path</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </div>
+
+    <div class="category-tree-picker-actions">
+        <Button Variant="ButtonVariant.Secondary" OnClick="Cancel">Abbrechen</Button>
+        <Button Variant="ButtonVariant.Primary" OnClick="Apply" Disabled="!_pendingSelectedId.HasValue">Übernehmen</Button>
+    </div>
+</div>
+
+@code {
+    private readonly string _searchId = $"category-search-{Guid.NewGuid():N}";
+    private List<CategoryTreeItem> _rootNodes = [];
+    private Dictionary<int, CategoryTreeItem> _nodesById = [];
+    private readonly HashSet<int> _expandedIds = [];
+    private int? _pendingSelectedId;
+    private string? _searchTerm;
+
+    [Parameter, EditorRequired] public IReadOnlyList<ArticleGroupHierarchyDto> Hierarchy { get; set; } = [];
+    [Parameter] public int? SelectedGroupId { get; set; }
+    [Parameter] public EventCallback<int> OnApply { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    protected override void OnInitialized()
+    {
+        BuildTree();
+        _pendingSelectedId = SelectedGroupId;
+        if (_pendingSelectedId.HasValue)
+        {
+            ExpandAncestorsOf(_pendingSelectedId.Value);
+        }
+    }
+
+    private void BuildTree()
+    {
+        _nodesById = Hierarchy.ToDictionary(g => g.Id, g => new CategoryTreeItem(g.Id, g.Name, g.Path));
+
+        foreach (ArticleGroupHierarchyDto dto in Hierarchy)
+        {
+            if (dto.ParentGroupId.HasValue && _nodesById.TryGetValue(dto.ParentGroupId.Value, out CategoryTreeItem? parent))
+            {
+                parent.Children.Add(_nodesById[dto.Id]);
+            }
+        }
+
+        foreach (CategoryTreeItem node in _nodesById.Values)
+        {
+            node.Children.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _rootNodes = [.. Hierarchy
+            .Where(g => g.ParentGroupId is null)
+            .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => _nodesById[g.Id])];
+    }
+
+    private void ExpandAncestorsOf(int id)
+    {
+        ArticleGroupHierarchyDto? node = Hierarchy.FirstOrDefault(g => g.Id == id);
+        int? parentId = node?.ParentGroupId;
+
+        while (parentId.HasValue)
+        {
+            _ = _expandedIds.Add(parentId.Value);
+            ArticleGroupHierarchyDto? parent = Hierarchy.FirstOrDefault(g => g.Id == parentId.Value);
+            parentId = parent?.ParentGroupId;
+        }
+    }
+
+    private void ToggleExpand(int id)
+    {
+        if (!_expandedIds.Add(id))
+        {
+            _ = _expandedIds.Remove(id);
+        }
+    }
+
+    private void SelectPending(int id) => _pendingSelectedId = id;
+
+    private string PendingPathText() =>
+        _pendingSelectedId.HasValue && _nodesById.TryGetValue(_pendingSelectedId.Value, out CategoryTreeItem? node)
+            ? node.Path
+            : "Keine Kategorie ausgewählt";
+
+    private IReadOnlyList<CategoryTreeItem> SearchMatches()
+    {
+        string term = _searchTerm!.Trim();
+        return [.. _nodesById.Values
+            .Where(n => n.Name.Contains(term, StringComparison.OrdinalIgnoreCase) || n.Path.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(n => n.Path, StringComparer.OrdinalIgnoreCase)];
+    }
+
+    private async Task Apply()
+    {
+        if (_pendingSelectedId.HasValue)
+        {
+            await OnApply.InvokeAsync(_pendingSelectedId.Value);
+        }
+    }
+
+    private async Task Cancel() => await OnCancel.InvokeAsync();
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+}

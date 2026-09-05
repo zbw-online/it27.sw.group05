@@ -26,7 +26,7 @@ namespace OrderManagement.Application.Features.Orders.AddOrderLine
             Order? order = await _orderCommandRepository.GetByIdAsync(new OrderId(command.OrderId), cancellationToken);
             if (order is null)
             {
-                return Result.Fail("Order was not found.");
+                return Result.Fail("Auftrag wurde nicht gefunden.");
             }
 
             Article? article = await _articleCommandRepository.GetByIdAsync(
@@ -35,7 +35,13 @@ namespace OrderManagement.Application.Features.Orders.AddOrderLine
 
             if (article is null)
             {
-                return Result.Fail("Article was not found.");
+                return Result.Fail("Artikel wurde nicht gefunden.");
+            }
+
+            Result availabilityResult = article.EnsureAvailableForOrder();
+            if (!availabilityResult.IsSuccess)
+            {
+                return availabilityResult;
             }
 
             Result addLineResult = order.AddLine(article.Id, article.Name, article.Price, command.Quantity);

@@ -23,7 +23,7 @@ namespace OrderManagement.Application.Features.Orders.GetOrderDetails
             Order? order = await _orderQueryRepository.GetByIdAsync(new OrderId(query.OrderId), cancellationToken);
             if (order is null)
             {
-                return Results.Fail<GetOrderDetailsResponse>("Order was not found.");
+                return Results.Fail<GetOrderDetailsResponse>("Auftrag wurde nicht gefunden.");
             }
 
             Customer? customer = await _customerQueryRepository.GetByIdAsync(order.CustomerId, cancellationToken);
@@ -45,14 +45,23 @@ namespace OrderManagement.Application.Features.Orders.GetOrderDetails
                 order.Id.Value,
                 order.OrderNumber.Value,
                 order.OrderDate,
+                order.DeliveryDate,
+                order.CustomerReference,
                 order.CustomerId.Value,
                 customer?.CustomerNumber.Value ?? string.Empty,
                 customer is null ? string.Empty : $"{customer.LastName} {customer.SurName}",
+                order.BillingAddress.Street,
+                order.BillingAddress.Number,
+                order.BillingAddress.PostalCode,
+                order.BillingAddress.City,
+                order.BillingAddress.Country,
+                order.BillingAddressSource,
                 order.DeliveryAddress.Street,
                 order.DeliveryAddress.Number,
                 order.DeliveryAddress.PostalCode,
                 order.DeliveryAddress.City,
                 order.DeliveryAddress.Country,
+                order.DeliveryAddressSource,
                 order.Total.Amount,
                 order.Total.Currency,
                 lines);

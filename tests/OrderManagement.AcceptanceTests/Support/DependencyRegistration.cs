@@ -1,8 +1,8 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 
 using OrderManagement.Application;
 using OrderManagement.Infrastructure;
+using OrderManagement.TestSupport;
 
 using Reqnroll.Microsoft.Extensions.DependencyInjection;
 
@@ -13,18 +13,12 @@ namespace OrderManagement.AcceptanceTests.Support
         [ScenarioDependencies]
         public static IServiceCollection CreateServices()
         {
-            string databaseName = $"OrderManagement_Acceptance_{Guid.NewGuid():N}";
-
-            var connectionStringBuilder = new SqlConnectionStringBuilder(AssemblySetup.MasterConnectionString)
-            {
-                InitialCatalog = databaseName,
-                TrustServerCertificate = true,
-                MultipleActiveResultSets = true
-            };
+            string databaseName = TestDatabaseName.Create("OrderManagement_Acceptance");
+            string connectionString = TestDatabaseName.BuildScopedConnectionString(AssemblySetup.MasterConnectionString, databaseName);
 
             var services = new ServiceCollection();
             _ = services.AddOrderManagementApplication();
-            _ = services.AddOrderManagementInfrastructure(connectionStringBuilder.ConnectionString);
+            _ = services.AddOrderManagementInfrastructure(connectionString, enableDetailedErrors: true);
             _ = services.AddScoped<AcceptanceTestContext>();
 
             return services;

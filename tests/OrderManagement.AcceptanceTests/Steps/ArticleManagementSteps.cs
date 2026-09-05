@@ -2,9 +2,13 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.AcceptanceTests.Support;
 using OrderManagement.Application.Features.Catalog.CreateArticle;
+using OrderManagement.Application.Features.Catalog.DeactivateArticle;
 using OrderManagement.Application.Features.Catalog.DeleteArticle;
 using OrderManagement.Application.Features.Catalog.GetArticleForEdit;
+using OrderManagement.Application.Features.Catalog.SearchArticles;
+using OrderManagement.Application.Features.Catalog.Shared;
 using OrderManagement.Application.Features.Catalog.UpdateArticleStock;
+using OrderManagement.Domain.Catalog.ValueObjects;
 
 using Reqnroll;
 
@@ -17,11 +21,15 @@ namespace OrderManagement.AcceptanceTests.Steps
         ICreateArticleUseCase createArticleUseCase,
         IUpdateArticleStockUseCase updateArticleStockUseCase,
         IDeleteArticleUseCase deleteArticleUseCase,
+        IDeactivateArticleUseCase deactivateArticleUseCase,
+        ISearchArticlesUseCase searchArticlesUseCase,
         IGetArticleForEditUseCase getArticleForEditUseCase,
         AcceptanceTestContext context)
     {
         private Result<CreateArticleResponse>? _lastCreateResult;
         private Result? _lastStockResult;
+        private Result? _lastDeleteResult;
+        private IReadOnlyList<ArticleListItemDto>? _lastSearchResult;
 
         [Given(@"article ""([^""]*)"" named ""([^""]*)"" already exists in group ""([^""]*)""")]
         public async Task GivenArticleAlreadyExistsInGroup(string articleNumber, string name, string groupName)
@@ -41,7 +49,7 @@ namespace OrderManagement.AcceptanceTests.Steps
             int groupId = context.ArticleGroupIdsByName[groupName];
 
             _lastCreateResult = await createArticleUseCase.ExecuteAsync(new CreateArticleCommand(
-                articleNumber, name, price, "CHF", groupId, stock, 7.7m, null));
+                articleNumber, name, price, "CHF", groupId, stock, 20, 7.7m, null));
 
             if (_lastCreateResult.Value.IsSuccess)
             {
@@ -60,7 +68,14 @@ namespace OrderManagement.AcceptanceTests.Steps
         public async Task WhenIDeleteArticle(string articleNumber)
         {
             int articleId = context.ArticleIdsByNumber[articleNumber];
-            Result result = await deleteArticleUseCase.ExecuteAsync(new DeleteArticleCommand(articleId));
+            _lastDeleteResult = await deleteArticleUseCase.ExecuteAsync(new DeleteArticleCommand(articleId));
+        }
+
+        [When(@"I deactivate article ""([^""]*)""")]
+        public async Task WhenIDeactivateArticle(string articleNumber)
+        {
+            int articleId = context.ArticleIdsByNumber[articleNumber];
+            Result result = await deactivateArticleUseCase.ExecuteAsync(new DeactivateArticleCommand(articleId));
             Assert.IsTrue(result.IsSuccess, result.Error);
         }
 
@@ -70,6 +85,24 @@ namespace OrderManagement.AcceptanceTests.Steps
             GetArticleForEditResponse article = await GetArticleAsync(articleNumber);
             Assert.AreEqual(context.ArticleGroupIdsByName[groupName], article.GroupId);
             Assert.AreEqual(expectedStock, article.Stock);
+        }
+
+        [When(@"I filter articles by category ""([^""]*)""")]
+        public async Task WhenIFilterArticlesByCategory(string groupName)
+        {
+            int groupId = context.ArticleGroupIdsByName[groupName];
+            Result<IReadOnlyList<ArticleListItemDto>> result = await searchArticlesUseCase.ExecuteAsync(
+                new SearchArticlesQuery(null, groupId));
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            _lastSearchResult = result.Value;
+        }
+
+        [Then(@"the filtered article list contains ""([^""]*)"" and ""([^""]*)""")]
+        public void ThenTheFilteredArticleListContainsAnd(string firstArticleNumber, string secondArticleNumber)
+        {
+            Assert.IsTrue(_lastSearchResult!.Any(a => a.ArticleNumber == firstArticleNumber));
+            Assert.IsTrue(_lastSearchResult!.Any(a => a.ArticleNumber == secondArticleNumber));
         }
 
         [Then(@"the article registration is rejected because the article number already exists")]
@@ -93,6 +126,30 @@ namespace OrderManagement.AcceptanceTests.Steps
         public async Task ThenArticleStillHasStock(string articleNumber, int expectedStock)
             => await ThenArticleHasStock(articleNumber, expectedStock);
 
+        [Then(@"the article deletion is rejected because it is referenced by an order")]
+        public void ThenTheArticleDeletionIsRejectedBecauseItIsReferencedByAnOrder()
+        {
+            Assert.IsFalse(_lastDeleteResult!.Value.IsSuccess);
+            Assert.AreEqual(DeleteArticleErrorCodes.ArticleInUse, _lastDeleteResult.Value.Error);
+        }
+
+        [Then(@"article ""([^""]*)"" is inactive")]
+        public async Task ThenArticleIsInactive(string articleNumber)
+        {
+            GetArticleForEditResponse article = await GetArticleAsync(articleNumber);
+            Assert.AreEqual(ArticleStatus.Inactive, article.Status);
+        }
+
+        [Then(@"article ""([^""]*)"" is excluded from the active article catalogue")]
+        public async Task ThenArticleIsExcludedFromTheActiveArticleCatalogue(string articleNumber)
+        {
+            Result<IReadOnlyList<ArticleListItemDto>> result = await searchArticlesUseCase.ExecuteAsync(
+                new SearchArticlesQuery(null, null, ArticleStatus.Active));
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsFalse(result.Value!.Any(a => a.ArticleNumber == articleNumber));
+        }
+
         [Then(@"article ""([^""]*)"" can no longer be found")]
         public async Task ThenArticleCanNoLongerBeFound(string articleNumber)
         {
@@ -106,7 +163,7 @@ namespace OrderManagement.AcceptanceTests.Steps
             int groupId = context.ArticleGroupIdsByName[groupName];
 
             Result<CreateArticleResponse> result = await createArticleUseCase.ExecuteAsync(
-                new CreateArticleCommand(articleNumber, name, price, "CHF", groupId, stock, 7.7m, null));
+                new CreateArticleCommand(articleNumber, name, price, "CHF", groupId, stock, 20, 7.7m, null));
 
             Assert.IsTrue(result.IsSuccess, result.Error);
             context.ArticleIdsByNumber[articleNumber] = result.Value!.ArticleId;

@@ -20,14 +20,25 @@ namespace OrderManagement.Domain.Orders
         private Order(
             OrderNumber number,
             CustomerId customerId,
-            Address deliveryAddress)
+            DateOnly deliveryDate,
+            Address billingAddress,
+            AddressSource billingAddressSource,
+            Address deliveryAddress,
+            AddressSource deliveryAddressSource,
+            string? customerReference)
             : base(OrderId.Empty)
         {
             OrderNumber = number;
             OrderDate = DateTime.UtcNow;
             CustomerId = customerId;
+            DeliveryDate = deliveryDate;
+            BillingAddress = billingAddress;
+            BillingAddressSource = billingAddressSource;
             DeliveryAddress = deliveryAddress;
+            DeliveryAddressSource = deliveryAddressSource;
+            CustomerReference = customerReference;
             Total = Money.From(0, "CHF").EnsureValue();
+            IsInventoryApplied = false;
 
             AddDomainEvent(new OrderCreated(number, DateTime.UtcNow));
         }
@@ -35,14 +46,25 @@ namespace OrderManagement.Domain.Orders
         public OrderNumber OrderNumber { get; private set; } = default!;
         public DateTime OrderDate { get; private set; }
         public CustomerId CustomerId { get; private set; }
+        public DateOnly DeliveryDate { get; private set; }
+        public Address BillingAddress { get; private set; } = default!;
+        public AddressSource BillingAddressSource { get; private set; }
         public Address DeliveryAddress { get; private set; } = default!;
+        public AddressSource DeliveryAddressSource { get; private set; }
+        public string? CustomerReference { get; private set; }
         public Money Total { get; private set; } = default!;
+        public bool IsInventoryApplied { get; private set; }
         public IReadOnlyCollection<OrderLine> Lines => _lines.AsReadOnly();
 
         public static Result<Order> Create(
             string orderNumber,
             CustomerId customerId,
-            Address deliveryAddress)
+            DateOnly deliveryDate,
+            Address billingAddress,
+            AddressSource billingAddressSource,
+            Address deliveryAddress,
+            AddressSource deliveryAddressSource,
+            string? customerReference = null)
         {
             Result<OrderNumber> nr = OrderNumber.Create(orderNumber);
             if (!nr.IsSuccess)
@@ -51,11 +73,22 @@ namespace OrderManagement.Domain.Orders
             if (!customerId.IsAssigned)
                 return Results.Fail<Order>("CustomerId must be assigned before creating an order.");
 
+            string? normalizedReference = string.IsNullOrWhiteSpace(customerReference)
+                ? null
+                : customerReference.Trim();
+
+            if (normalizedReference is { Length: > 100 })
+                return Results.Fail<Order>("CustomerReference must not exceed 100 characters.");
 
             var order = new Order(
                 nr.Value!,
                 customerId,
-                deliveryAddress);
+                deliveryDate,
+                billingAddress,
+                billingAddressSource,
+                deliveryAddress,
+                deliveryAddressSource,
+                normalizedReference);
 
             return Results.Success(order);
         }
@@ -126,6 +159,15 @@ namespace OrderManagement.Domain.Orders
             string currency = _lines.FirstOrDefault()?.LineTotal.Currency ?? "CHF";
 
             Total = Money.From(totalAmount, currency).EnsureValue();
+        }
+
+        public Result MarkInventoryApplied()
+        {
+            if (IsInventoryApplied)
+                return Result.Fail("Inventory has already been applied for this order.");
+
+            IsInventoryApplied = true;
+            return Result.Success();
         }
     }
 }

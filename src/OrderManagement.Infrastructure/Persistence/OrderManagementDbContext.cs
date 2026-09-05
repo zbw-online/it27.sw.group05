@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;
@@ -31,6 +32,20 @@ namespace OrderManagement.Infrastructure.Persistence
             _ = modelBuilder.ApplyConfigurationsFromAssembly(typeof(OrderManagementDbContext).Assembly);
 
             base.OnModelCreating(modelBuilder);
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            foreach (EntityEntry<Article> entry in ChangeTracker.Entries<Article>())
+            {
+                if (entry.State == EntityState.Modified)
+                {
+                    int currentVersion = (int)entry.Property("RowVersion").CurrentValue!;
+                    entry.Property("RowVersion").CurrentValue = currentVersion + 1;
+                }
+            }
+
+            return base.SaveChangesAsync(cancellationToken);
         }
     }
 }

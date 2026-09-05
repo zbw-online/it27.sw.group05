@@ -1,44 +1,20 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using Testcontainers.MsSql;
+using OrderManagement.TestSupport;
 
 namespace OrderManagement.Infrastructure.IntegrationTests
 {
     [TestClass]
     public static class AssemblySetup
     {
-        private static MsSqlContainer? _container;
+        private static readonly SqlServerTestContainer Container = new();
 
-        internal static string MasterConnectionString { get; private set; } = default!;
+        internal static string MasterConnectionString => Container.MasterConnectionString;
 
         [AssemblyInitialize]
-        public static async Task AssemblyInitialize(TestContext _)
-        {
-            _container = new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-                .WithPassword("Test@1234!")
-                .Build();
-
-            await _container.StartAsync();
-
-            var builder = new SqlConnectionStringBuilder(_container.GetConnectionString())
-            {
-                InitialCatalog = "master",
-                TrustServerCertificate = true,
-                MultipleActiveResultSets = true
-            };
-
-            MasterConnectionString = builder.ConnectionString;
-        }
+        public static async Task AssemblyInitialize(TestContext _) => await Container.StartAsync();
 
         [AssemblyCleanup]
-        public static async Task AssemblyCleanup()
-        {
-            if (_container is not null)
-            {
-                await _container.DisposeAsync();
-            }
-        }
+        public static async Task AssemblyCleanup() => await Container.DisposeAsync();
     }
 }

@@ -6,6 +6,7 @@ using OrderManagement.Application.Tests.Fakes.Orders;
 using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
 
 using SharedKernel.Primitives;
 
@@ -27,7 +28,12 @@ namespace OrderManagement.Application.Tests.Features.Orders
             Order order = Order.Create(
                 "ORD-2026-001",
                 customer.Id,
-                Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue())
+                new DateOnly(2026, 9, 6),
+                Address.Create("Rechnungsweg", "2", "8001", "Zurich", "CH").EnsureValue(),
+                AddressSource.Manual,
+                Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                AddressSource.Automatic,
+                "Projekt XY")
                 .EnsureValue();
 
             _ = order.AddLine(new ArticleId(1), "Widget", Money.From(10m, "CHF").EnsureValue(), 3);
@@ -40,6 +46,12 @@ namespace OrderManagement.Application.Tests.Features.Orders
             Assert.AreEqual("CU00001", result.Value.CustomerNumber);
             Assert.AreEqual(1, result.Value.Lines.Count);
             Assert.AreEqual(30m, result.Value.TotalAmount);
+            Assert.AreEqual(new DateOnly(2026, 9, 6), result.Value.DeliveryDate);
+            Assert.AreEqual("Projekt XY", result.Value.CustomerReference);
+            Assert.AreEqual("Rechnungsweg", result.Value.BillingStreet);
+            Assert.AreEqual(AddressSource.Manual, result.Value.BillingAddressSource);
+            Assert.AreEqual("Main Street", result.Value.DeliveryStreet);
+            Assert.AreEqual(AddressSource.Automatic, result.Value.DeliveryAddressSource);
         }
 
         [TestMethod]

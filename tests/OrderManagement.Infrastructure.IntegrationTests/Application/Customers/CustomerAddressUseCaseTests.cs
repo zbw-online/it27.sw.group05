@@ -35,7 +35,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Application.Customers
                 street: "Current Street");
 
             var addUseCase = new AddCustomerAddressUseCase(_commandRepository, _unitOfWork);
-            var detailsUseCase = new GetCustomerDetailsUseCase(_queryRepository);
+            var detailsUseCase = new GetCustomerDetailsUseCase(_queryRepository, TimeProvider.System);
 
             DateOnly futureValidFrom = DateOnly.FromDateTime(DateTime.Today).AddMonths(1);
 
@@ -88,7 +88,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Application.Customers
             _ = await DbContext.SaveChangesAsync();
             DbContext.ChangeTracker.Clear();
 
-            var detailsUseCase = new GetCustomerDetailsUseCase(_queryRepository);
+            var detailsUseCase = new GetCustomerDetailsUseCase(_queryRepository, TimeProvider.System);
 
             Result<GetCustomerDetailsResponse> result = await detailsUseCase.ExecuteAsync(
                 new GetCustomerDetailsQuery(customer.Id.Value));

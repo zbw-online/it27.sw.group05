@@ -3,11 +3,14 @@ trigger:
     include:
       - feature/*
       - Feature*
+      - Develop
+      - main
 
 pr:
   branches:
     include:
       - Develop
+      - main
 
 pool:
   vmImage: ubuntu-latest
@@ -15,6 +18,28 @@ pool:
 steps:
 - checkout: self
   clean: true
+
+# Feature -> Develop -> main is the required workflow. A PR into main must come
+# from Develop unless explicitly authorised for a release/hotfix by setting the
+# AllowNonDevelopSourceForMain pipeline variable to 'true' for that run.
+- script: |
+    set -euo pipefail
+
+    if [ "$(Build.Reason)" != "PullRequest" ]; then
+      exit 0
+    fi
+
+    TARGET="$(System.PullRequest.TargetBranch)"
+    SOURCE="$(System.PullRequest.SourceBranch)"
+
+    if [ "$TARGET" = "refs/heads/main" ] && [ "$SOURCE" != "refs/heads/Develop" ]; then
+      if [ "$(AllowNonDevelopSourceForMain)" != "true" ]; then
+        echo "##vso[task.logissue type=error]PRs into main must come from Develop. Set the AllowNonDevelopSourceForMain pipeline variable to 'true' for an authorised release/hotfix exception."
+        exit 1
+      fi
+      echo "##vso[task.logissue type=warning]Non-Develop source branch into main allowed via explicit AllowNonDevelopSourceForMain override."
+    fi
+  displayName: Enforce Develop -> main workflow
 
 - task: UseDotNet@2
   inputs:

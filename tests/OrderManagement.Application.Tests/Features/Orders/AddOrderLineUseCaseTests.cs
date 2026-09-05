@@ -8,6 +8,7 @@ using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
 
 using SharedKernel.Primitives;
 
@@ -123,10 +124,34 @@ namespace OrderManagement.Application.Tests.Features.Orders
             Assert.AreEqual(0, unitOfWork.CommitCount);
         }
 
+        [TestMethod]
+        public async Task ExecuteAsync_WithDeactivatedArticle_ShouldFailAndNotAddLine()
+        {
+            var orderCommandRepository = new FakeOrderCommandRepository();
+            var articleCommandRepository = new FakeArticleCommandRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            var useCase = new AddOrderLineUseCase(orderCommandRepository, articleCommandRepository, unitOfWork);
+
+            Order order = orderCommandRepository.Seed(ValidOrder());
+            Article article = articleCommandRepository.Seed(
+                Article.Create("ART-001", "Widget", 10m, "CHF", new ArticleGroupId(1), stock: 10).EnsureValue());
+            article.Deactivate().EnsureSuccess();
+
+            Result result = await useCase.ExecuteAsync(new AddOrderLineCommand(order.Id.Value, article.Id.Value, 1));
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, order.Lines.Count);
+            Assert.AreEqual(0, unitOfWork.CommitCount);
+        }
+
         private static Order ValidOrder() => Order.Create(
                 "ORD-2026-001",
                 new CustomerId(1),
-                Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue())
+                new DateOnly(2026, 9, 1),
+                Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                AddressSource.Automatic,
+                Address.Create("Main Street", "1", "8000", "Zurich", "CH").EnsureValue(),
+                AddressSource.Automatic)
             .EnsureValue();
     }
 }

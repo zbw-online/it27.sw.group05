@@ -5,6 +5,7 @@ using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
 using OrderManagement.Infrastructure.Persistence;
 
 using SharedKernel.Primitives;
@@ -89,9 +90,10 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             decimal priceAmount = 10.00m,
             string priceCurrency = "CHF",
             int stock = 10,
+            int reorderPoint = 20,
             decimal vatRate = 7.70m,
             string? description = null,
-            int status = 1)
+            ArticleStatus status = ArticleStatus.Active)
         {
             ArticleGroupId effectiveGroupId = groupId ?? (await CreatePersistedArticleGroupAsync(dbContext)).Id;
             articleNumber ??= NextArticleNumber();
@@ -104,6 +106,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests
                 priceCurrency: priceCurrency,
                 groupId: effectiveGroupId,
                 stock: stock,
+                reorderPoint: reorderPoint,
                 vatRate: vatRate,
                 description: description,
                 status: status);
@@ -123,17 +126,20 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             OrderManagementDbContext dbContext,
             CustomerId? customerId = null,
             string? orderNumber = null,
-            DateTime? orderDate = null)
+            DateTime? orderDate = null,
+            DateOnly? deliveryDate = null)
         {
             CustomerId effectiveCustomerId = customerId ?? (await CreatePersistedCustomerAsync(dbContext)).Id;
             orderNumber ??= NextOrderNumber();
 
-            Address address = CreateValidAddress();
-
             Result<Order> result = Order.Create(
                 orderNumber: orderNumber,
                 customerId: effectiveCustomerId,
-                deliveryAddress: address);
+                deliveryDate: deliveryDate ?? DateOnly.FromDateTime(orderDate ?? DateTime.Today),
+                billingAddress: CreateValidAddress(),
+                billingAddressSource: AddressSource.Automatic,
+                deliveryAddress: CreateValidAddress(),
+                deliveryAddressSource: AddressSource.Automatic);
 
             Assert.IsTrue(result.IsSuccess, result.Error);
 
@@ -152,6 +158,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests
             return order;
         }
 
+        /// <summary>
+        /// Builds a persisted order with one line but does not deduct article stock or mark inventory as
+        /// applied. Use this for tests that only need an order/line to exist (e.g. querying); use
+        /// <see cref="CreatePersistedOrderWithAppliedInventoryAsync"/> for stock-restoration scenarios.
+        /// </summary>
         public static async Task<Order> CreatePersistedOrderWithLineAsync(
             OrderManagementDbContext dbContext,
             CustomerId? customerId = null,
@@ -170,6 +181,41 @@ namespace OrderManagement.Infrastructure.IntegrationTests
                 quantity: quantity);
 
             Assert.IsTrue(addLineResult.IsSuccess, addLineResult.Error);
+
+            _ = await dbContext.SaveChangesAsync();
+            return order;
+        }
+
+        /// <summary>
+        /// Builds a persisted order whose inventory has already been applied: the article's stock is
+        /// deducted by <paramref name="quantity"/> and the order is marked as inventory-applied, mirroring
+        /// what <c>CreateOrderUseCase</c> does for a real order before it commits.
+        /// </summary>
+        public static async Task<Order> CreatePersistedOrderWithAppliedInventoryAsync(
+            OrderManagementDbContext dbContext,
+            CustomerId? customerId = null,
+            Article? article = null,
+            string? orderNumber = null,
+            DateTime? orderDate = null,
+            int quantity = 2)
+        {
+            Article effectiveArticle = article ?? await CreatePersistedArticleAsync(dbContext, priceAmount: 12.50m);
+            Order order = await CreatePersistedOrderAsync(dbContext, customerId, orderNumber, orderDate);
+
+            Result addLineResult = order.AddLine(
+                articleId: effectiveArticle.Id,
+                articleName: effectiveArticle.Name,
+                unitPrice: effectiveArticle.Price,
+                quantity: quantity);
+
+            Assert.IsTrue(addLineResult.IsSuccess, addLineResult.Error);
+
+            Result stockResult = effectiveArticle.UpdateStock(-quantity);
+            Assert.IsTrue(stockResult.IsSuccess, stockResult.Error);
+            _ = dbContext.Set<Article>().Update(effectiveArticle);
+
+            Result markAppliedResult = order.MarkInventoryApplied();
+            Assert.IsTrue(markAppliedResult.IsSuccess, markAppliedResult.Error);
 
             _ = await dbContext.SaveChangesAsync();
             return order;

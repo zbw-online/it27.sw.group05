@@ -1,17 +1,20 @@
 @page "/auftraege/{OrderId:int}"
-@rendermode InteractiveServer
 @using OrderManagement.Application.Features.Catalog.SearchArticles
 @using OrderManagement.Application.Features.Catalog.Shared
 @using OrderManagement.Application.Features.Orders.AddOrderLine
+@using OrderManagement.Application.Features.Orders.DeleteOrder
 @using OrderManagement.Application.Features.Orders.GetOrderDetails
 @using OrderManagement.Application.Features.Orders.RemoveOrderLine
 @using OrderManagement.Application.Features.Orders.Shared
 @using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity
+@using OrderManagement.Domain.Catalog.ValueObjects
+@using OrderManagement.Domain.Orders.ValueObjects
 @using OrderManagement.Presentation.Blazor.Components.Shared
 @inject IGetOrderDetailsUseCase GetOrderDetailsUseCase
 @inject IUpdateOrderLineQuantityUseCase UpdateOrderLineQuantityUseCase
 @inject IRemoveOrderLineUseCase RemoveOrderLineUseCase
 @inject IAddOrderLineUseCase AddOrderLineUseCase
+@inject IDeleteOrderUseCase DeleteOrderUseCase
 @inject ISearchArticlesUseCase SearchArticlesUseCase
 @inject NavigationManager Navigation
 
@@ -30,8 +33,23 @@ else if (_order is not null)
     <PageHeader Title="@_order.OrderNumber" Subtitle="@($"{_order.CustomerNumber} · {_order.CustomerName}")">
         <Actions>
             <Button Variant="ButtonVariant.Secondary" OnClick='() => Navigation.NavigateTo("auftraege")'>Zurück zur Übersicht</Button>
+            <Button Variant="ButtonVariant.Danger" OnClick="RequestDeleteOrder">Auftrag löschen</Button>
         </Actions>
     </PageHeader>
+
+    <div class="grid-row grid-row-2">
+        <div>
+            <h3>Liefertermin</h3>
+            <p class="numeric">@Formatting.Date(_order.DeliveryDate)</p>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_order.CustomerReference))
+        {
+            <div>
+                <h3>Kundenreferenz</h3>
+                <p>@_order.CustomerReference</p>
+            </div>
+        }
+    </div>
 
     @if (_message is not null)
     {
@@ -109,12 +127,27 @@ else if (_order is not null)
 
         <aside class="panel">
             <div class="panel-header">
+                <h2>Rechnungsadresse</h2>
+            </div>
+            <p>@_order.BillingStreet @_order.BillingHouseNumber</p>
+            <p>@_order.BillingPostalCode @_order.BillingCity, @_order.BillingCountryCode</p>
+            <StatusBadge Text="@AddressSourceLabel(_order.BillingAddressSource)" Tone="@AddressSourceTone(_order.BillingAddressSource)" />
+
+            <div class="panel-header" style="margin-top: var(--space-4)">
                 <h2>Lieferadresse</h2>
             </div>
             <p>@_order.DeliveryStreet @_order.DeliveryHouseNumber</p>
             <p>@_order.DeliveryPostalCode @_order.DeliveryCity, @_order.DeliveryCountryCode</p>
+            <StatusBadge Text="@AddressSourceLabel(_order.DeliveryAddressSource)" Tone="@AddressSourceTone(_order.DeliveryAddressSource)" />
         </aside>
     </div>
+
+    <ConfirmDialog IsOpen="_isDeleteConfirmOpen"
+                   Title="Auftrag löschen"
+                   Message="@DeleteConfirmMessage()"
+                   IsBusy="_isDeletingOrder"
+                   OnConfirm="ConfirmDeleteOrderAsync"
+                   OnCancel="() => _isDeleteConfirmOpen = false" />
 }
 
 @code {
@@ -133,7 +166,16 @@ else if (_order is not null)
     private string? _articleSearchTerm;
     private readonly List<ArticleListItemDto> _articleResults = [];
 
+    private bool _isDeleteConfirmOpen;
+    private bool _isDeletingOrder;
+
     protected override Task OnInitializedAsync() => LoadAsync();
+
+    private static string AddressSourceLabel(AddressSource source) =>
+        source == AddressSource.Manual ? "Manuell geändert" : "Automatisch für Liefertermin";
+
+    private static StatusTone AddressSourceTone(AddressSource source) =>
+        source == AddressSource.Manual ? StatusTone.Warning : StatusTone.Info;
 
     private async Task LoadAsync()
     {
@@ -209,7 +251,7 @@ else if (_order is not null)
             return;
         }
 
-        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_articleSearchTerm, null));
+        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_articleSearchTerm, null, ArticleStatus.Active));
         if (result.IsSuccess)
         {
             _articleResults.AddRange(result.Value!.Take(5));
@@ -240,5 +282,36 @@ else if (_order is not null)
         _articleResults.Clear();
         _articleSearchTerm = null;
         await LoadAsync();
+    }
+
+    private string DeleteConfirmMessage() =>
+        $"Soll der Auftrag «{_order?.OrderNumber}» endgültig gelöscht werden?\n" +
+        "Die bereits abgezogenen Artikelmengen werden dem Lagerbestand wieder gutgeschrieben.\n" +
+        "Dieser Vorgang kann nicht rückgängig gemacht werden.";
+
+    private void RequestDeleteOrder() => _isDeleteConfirmOpen = true;
+
+    private async Task ConfirmDeleteOrderAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _isDeletingOrder = true;
+        _error = null;
+
+        var result = await DeleteOrderUseCase.ExecuteAsync(new DeleteOrderCommand(_order.OrderId));
+
+        _isDeletingOrder = false;
+
+        if (!result.IsSuccess)
+        {
+            _isDeleteConfirmOpen = false;
+            _error = result.Error;
+            return;
+        }
+
+        Navigation.NavigateTo("auftraege");
     }
 }

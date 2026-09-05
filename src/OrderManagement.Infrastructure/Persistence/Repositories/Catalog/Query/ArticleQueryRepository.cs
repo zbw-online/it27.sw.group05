@@ -41,11 +41,41 @@ namespace OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query
                 .ToListAsync(cancellationToken);
 
         public async Task<IReadOnlyList<Article>> GetLowStockAsync(
-            int threshold,
             CancellationToken cancellationToken = default)
             => await _context.Set<Article>()
                 .AsNoTracking()
-                .Where(a => a.Stock < threshold && a.Status == 1)
+                .Where(a => a.Status == ArticleStatus.Active && a.Stock <= a.ReorderPoint)
                 .ToListAsync(cancellationToken);
+
+        public async Task<IReadOnlyList<Article>> SearchAsync(
+            IReadOnlyCollection<ArticleGroupId>? groupIds,
+            ArticleStatus? statusFilter,
+            string? searchTerm,
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<Article> query = _context.Set<Article>().AsNoTracking();
+
+            if (groupIds is not null)
+            {
+                query = query.Where(a => groupIds.Contains(a.ArticleGroupId));
+            }
+
+            if (statusFilter.HasValue)
+            {
+                query = query.Where(a => a.Status == statusFilter.Value);
+            }
+
+            string term = (searchTerm ?? string.Empty).Trim();
+            if (term.Length > 0)
+            {
+                query = query.Where(a =>
+                    a.ArticleNumber.Value.Contains(term) ||
+                    a.Name.Contains(term));
+            }
+
+            return await query
+                .OrderBy(a => a.ArticleNumber.Value)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

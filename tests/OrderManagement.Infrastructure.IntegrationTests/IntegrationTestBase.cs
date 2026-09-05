@@ -1,8 +1,8 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Infrastructure.Persistence;
+using OrderManagement.TestSupport;
 
 namespace OrderManagement.Infrastructure.IntegrationTests
 {
@@ -46,23 +46,10 @@ namespace OrderManagement.Infrastructure.IntegrationTests
 
         protected virtual Task OnDatabaseInitializedAsync() => Task.CompletedTask;
 
-        private static string CreateConnectionString(string databaseName)
-        {
-            var builder = new SqlConnectionStringBuilder(AssemblySetup.MasterConnectionString)
-            {
-                InitialCatalog = databaseName,
-                TrustServerCertificate = true,
-                MultipleActiveResultSets = true
-            };
+        private static string CreateConnectionString(string databaseName) =>
+            TestDatabaseName.BuildScopedConnectionString(AssemblySetup.MasterConnectionString, databaseName);
 
-            return builder.ConnectionString;
-        }
-
-        private string CreateDatabaseName()
-        {
-            string testName = TestContext.TestName ?? "UnknownTest";
-            string safeTestName = new([.. testName.Where(char.IsLetterOrDigit).Take(45)]);
-            return $"OrderManagement_Test_{safeTestName}_{Guid.NewGuid():N}";
-        }
+        private string CreateDatabaseName() =>
+            TestDatabaseName.Create("OrderManagement_Test", TestContext.TestName);
     }
 }

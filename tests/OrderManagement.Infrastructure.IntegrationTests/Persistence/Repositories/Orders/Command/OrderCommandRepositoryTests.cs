@@ -31,7 +31,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
             Order order = Order.Create(
                 orderNumber: "ORD-2026-201",
                 customerId: customer.Id,
-                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
+                deliveryDate: new DateOnly(2026, 9, 1),
+                billingAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                billingAddressSource: AddressSource.Automatic,
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                deliveryAddressSource: AddressSource.Automatic).EnsureValue();
 
             _repository.Add(order);
             _ = await DbContext.SaveChangesAsync();
@@ -61,7 +65,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
             Order order = Order.Create(
                 orderNumber: "ORD-2026-202",
                 customerId: customer.Id,
-                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
+                deliveryDate: new DateOnly(2026, 9, 1),
+                billingAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                billingAddressSource: AddressSource.Automatic,
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                deliveryAddressSource: AddressSource.Automatic).EnsureValue();
 
             Result addLineResult = order.AddLine(article.Id, article.Name, article.Price, quantity: 2);
             Assert.IsTrue(addLineResult.IsSuccess, addLineResult.Error);
@@ -97,7 +105,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
             Order order = Order.Create(
                 orderNumber: "ORD-2026-203",
                 customerId: customer.Id,
-                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
+                deliveryDate: new DateOnly(2026, 9, 1),
+                billingAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                billingAddressSource: AddressSource.Automatic,
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                deliveryAddressSource: AddressSource.Automatic).EnsureValue();
 
             _repository.Add(order);
             _ = await DbContext.SaveChangesAsync();
@@ -187,7 +199,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
             Order order = Order.Create(
                 orderNumber: "ORD-2026-205",
                 customerId: customer.Id,
-                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
+                deliveryDate: new DateOnly(2026, 9, 1),
+                billingAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                billingAddressSource: AddressSource.Automatic,
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                deliveryAddressSource: AddressSource.Automatic).EnsureValue();
 
             Assert.IsTrue(order.AddLine(firstArticle.Id, firstArticle.Name, firstArticle.Price, quantity: 1).IsSuccess);
             Assert.IsTrue(order.AddLine(secondArticle.Id, secondArticle.Name, secondArticle.Price, quantity: 1).IsSuccess);
@@ -235,7 +251,11 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
             Order order = Order.Create(
                 orderNumber: "ORD-2026-204",
                 customerId: new CustomerId(999_999),
-                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress()).EnsureValue();
+                deliveryDate: new DateOnly(2026, 9, 1),
+                billingAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                billingAddressSource: AddressSource.Automatic,
+                deliveryAddress: InfrastructureTestDataFactory.CreateValidAddress(),
+                deliveryAddressSource: AddressSource.Automatic).EnsureValue();
 
             _repository.Add(order);
 

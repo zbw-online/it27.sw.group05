@@ -3,12 +3,14 @@ using System.Globalization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.AcceptanceTests.Support;
+using OrderManagement.Application.Features.Catalog.GetArticleForEdit;
 using OrderManagement.Application.Features.Orders.CreateOrder;
 using OrderManagement.Application.Features.Orders.DeleteOrder;
 using OrderManagement.Application.Features.Orders.GetOrderDetails;
 using OrderManagement.Application.Features.Orders.SearchOrders;
 using OrderManagement.Application.Features.Orders.Shared;
 using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity;
+using OrderManagement.Domain.Orders.ValueObjects;
 
 using Reqnroll;
 
@@ -23,10 +25,19 @@ namespace OrderManagement.AcceptanceTests.Steps
         IGetOrderDetailsUseCase getOrderDetailsUseCase,
         IUpdateOrderLineQuantityUseCase updateOrderLineQuantityUseCase,
         IDeleteOrderUseCase deleteOrderUseCase,
+        IGetArticleForEditUseCase getArticleForEditUseCase,
         AcceptanceTestContext context)
     {
+        private const string StockScenarioArticleNumber = "ART-40001";
+        private const string StockScenarioOrderNumber = "ORD-2026-090";
+        private const int StockScenarioQuantity = 3;
+
+        private static readonly DateOnly DefaultDeliveryDate = new(2026, 9, 1);
+        private static readonly AddressOverrideInput DefaultAddress = new("Main Street", "1", "8000", "Zurich", "CH");
+
         private Result<CreateOrderResponse>? _lastCreateResult;
         private IReadOnlyList<OrderListItemDto>? _lastSearchResult;
+        private int _stockScenarioStockBeforeDeduction;
 
         [Given(@"order ""([^""]*)"" already exists for customer ""([^""]*)"" with lines:")]
         public async Task GivenOrderAlreadyExistsForCustomerWithLines(string orderNumber, string customerNumber, Table linesTable)
@@ -41,7 +52,7 @@ namespace OrderManagement.AcceptanceTests.Steps
         {
             IReadOnlyList<CreateOrderLineInput> lines = ToLineInputs(linesTable);
             _lastCreateResult = await createOrderUseCase.ExecuteAsync(
-                new CreateOrderCommand(orderNumber, 999_999, "Main Street", "1", "8000", "Zurich", "CH", lines));
+                new CreateOrderCommand(orderNumber, 999_999, DefaultDeliveryDate, null, DefaultAddress, DefaultAddress, lines));
         }
 
         [When(@"I create order ""([^""]*)"" for customer ""([^""]*)"" with an unknown article and quantity (\d+)")]
@@ -49,7 +60,7 @@ namespace OrderManagement.AcceptanceTests.Steps
         {
             int customerId = context.CustomerIdsByNumber[customerNumber];
             _lastCreateResult = await createOrderUseCase.ExecuteAsync(new CreateOrderCommand(
-                orderNumber, customerId, "Main Street", "1", "8000", "Zurich", "CH",
+                orderNumber, customerId, DefaultDeliveryDate, null, DefaultAddress, DefaultAddress,
                 [new CreateOrderLineInput(999_999, quantity)]));
         }
 
@@ -67,6 +78,27 @@ namespace OrderManagement.AcceptanceTests.Steps
                 new UpdateOrderLineQuantityCommand(orderId, line.OrderLineId, quantity));
 
             Assert.IsTrue(result.IsSuccess, result.Error);
+        }
+
+        [When(@"I create order ""([^""]*)"" for customer ""([^""]*)"" with delivery date ""([^""]*)"" and lines:")]
+        public async Task WhenICreateOrderForCustomerWithDeliveryDateAndLines(
+            string orderNumber, string customerNumber, string deliveryDate, Table linesTable)
+            => await CreateOrderAsync(orderNumber, customerNumber, DateOnly.Parse(deliveryDate, CultureInfo.InvariantCulture), null, null, linesTable);
+
+        [When(@"I create order ""([^""]*)"" for customer ""([^""]*)"" with delivery date ""([^""]*)"", billing address ""([^""]*)"" and delivery address ""([^""]*)"" and lines:")]
+        public async Task WhenICreateOrderWithOverriddenAddressesAndLines(
+            string orderNumber, string customerNumber, string deliveryDate, string billingAddress, string deliveryAddress, Table linesTable)
+        {
+            var billing = AddressText.Parse(billingAddress);
+            var delivery = AddressText.Parse(deliveryAddress);
+
+            await CreateOrderAsync(
+                orderNumber,
+                customerNumber,
+                DateOnly.Parse(deliveryDate, CultureInfo.InvariantCulture),
+                new AddressOverrideInput(billing.Street, billing.HouseNumber, billing.PostalCode, billing.City, billing.CountryCode),
+                new AddressOverrideInput(delivery.Street, delivery.HouseNumber, delivery.PostalCode, delivery.City, delivery.CountryCode),
+                linesTable);
         }
 
         [When(@"I search orders for ""([^""]*)""")]
@@ -91,6 +123,46 @@ namespace OrderManagement.AcceptanceTests.Steps
             int orderId = context.OrderIdsByNumber[orderNumber];
             Result result = await deleteOrderUseCase.ExecuteAsync(new DeleteOrderCommand(orderId));
             Assert.IsTrue(result.IsSuccess, result.Error);
+        }
+
+        [Given(@"an article has a defined stock")]
+        public async Task GivenAnArticleHasADefinedStock()
+        {
+            GetArticleForEditResponse article = await GetArticleAsync(StockScenarioArticleNumber);
+            _stockScenarioStockBeforeDeduction = article.Stock;
+        }
+
+        [Given(@"an order deducted a quantity of that article")]
+        public async Task GivenAnOrderDeductedAQuantityOfThatArticle()
+        {
+            var linesTable = new Table("ArticleNumber", "Quantity");
+            linesTable.AddRow(StockScenarioArticleNumber, StockScenarioQuantity.ToString(CultureInfo.InvariantCulture));
+
+            await CreateOrderAsync(StockScenarioOrderNumber, "CU30001", linesTable);
+            Assert.IsTrue(_lastCreateResult!.Value.IsSuccess, _lastCreateResult.Value.Error);
+        }
+
+        [When(@"the Sachbearbeiter deletes the complete order")]
+        public async Task WhenTheSachbearbeiterDeletesTheCompleteOrder()
+            => await WhenIDeleteOrder(StockScenarioOrderNumber);
+
+        [Then(@"the order is no longer available")]
+        public async Task ThenTheOrderIsNoLongerAvailable()
+            => await ThenOrderCanNoLongerBeFound(StockScenarioOrderNumber);
+
+        [Then(@"all order lines are removed")]
+        public async Task ThenAllOrderLinesAreRemoved()
+        {
+            Result<IReadOnlyList<OrderListItemDto>> result = await searchOrdersUseCase.ExecuteAsync(new SearchOrdersQuery(StockScenarioOrderNumber));
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsFalse(result.Value!.Any(o => o.OrderNumber == StockScenarioOrderNumber));
+        }
+
+        [Then(@"the deducted quantity is restored to the article stock")]
+        public async Task ThenTheDeductedQuantityIsRestoredToTheArticleStock()
+        {
+            GetArticleForEditResponse article = await GetArticleAsync(StockScenarioArticleNumber);
+            Assert.AreEqual(_stockScenarioStockBeforeDeduction, article.Stock);
         }
 
         [Then(@"order ""([^""]*)"" is created successfully")]
@@ -165,6 +237,38 @@ namespace OrderManagement.AcceptanceTests.Steps
             Assert.IsFalse(result.IsSuccess);
         }
 
+        [Then(@"order ""([^""]*)"" has billing address ""([^""]*)""")]
+        public async Task ThenOrderHasBillingAddress(string orderNumber, string expectedAddress)
+        {
+            GetOrderDetailsResponse details = await GetDetailsAsync(orderNumber);
+            var actual = new AddressText(details.BillingStreet, details.BillingHouseNumber, details.BillingPostalCode, details.BillingCity, details.BillingCountryCode);
+            Assert.AreEqual(expectedAddress, actual.ToDisplayString());
+        }
+
+        [Then(@"order ""([^""]*)"" has delivery address ""([^""]*)""")]
+        public async Task ThenOrderHasDeliveryAddress(string orderNumber, string expectedAddress)
+        {
+            GetOrderDetailsResponse details = await GetDetailsAsync(orderNumber);
+            var actual = new AddressText(details.DeliveryStreet, details.DeliveryHouseNumber, details.DeliveryPostalCode, details.DeliveryCity, details.DeliveryCountryCode);
+            Assert.AreEqual(expectedAddress, actual.ToDisplayString());
+        }
+
+        [Then(@"the billing address for order ""([^""]*)"" is automatic")]
+        public async Task ThenTheBillingAddressForOrderIsAutomatic(string orderNumber)
+            => Assert.AreEqual(AddressSource.Automatic, (await GetDetailsAsync(orderNumber)).BillingAddressSource);
+
+        [Then(@"the billing address for order ""([^""]*)"" is manual")]
+        public async Task ThenTheBillingAddressForOrderIsManual(string orderNumber)
+            => Assert.AreEqual(AddressSource.Manual, (await GetDetailsAsync(orderNumber)).BillingAddressSource);
+
+        [Then(@"the delivery address for order ""([^""]*)"" is automatic")]
+        public async Task ThenTheDeliveryAddressForOrderIsAutomatic(string orderNumber)
+            => Assert.AreEqual(AddressSource.Automatic, (await GetDetailsAsync(orderNumber)).DeliveryAddressSource);
+
+        [Then(@"the delivery address for order ""([^""]*)"" is manual")]
+        public async Task ThenTheDeliveryAddressForOrderIsManual(string orderNumber)
+            => Assert.AreEqual(AddressSource.Manual, (await GetDetailsAsync(orderNumber)).DeliveryAddressSource);
+
         [Then(@"order ""([^""]*)"" can not be found by search")]
         public async Task ThenOrderCanNotBeFoundBySearch(string orderNumber)
         {
@@ -174,12 +278,21 @@ namespace OrderManagement.AcceptanceTests.Steps
         }
 
         private async Task CreateOrderAsync(string orderNumber, string customerNumber, Table linesTable)
+            => await CreateOrderAsync(orderNumber, customerNumber, DefaultDeliveryDate, DefaultAddress, DefaultAddress, linesTable);
+
+        private async Task CreateOrderAsync(
+            string orderNumber,
+            string customerNumber,
+            DateOnly deliveryDate,
+            AddressOverrideInput? billingAddressOverride,
+            AddressOverrideInput? deliveryAddressOverride,
+            Table linesTable)
         {
             int customerId = context.CustomerIdsByNumber[customerNumber];
             IReadOnlyList<CreateOrderLineInput> lines = ToLineInputs(linesTable);
 
             _lastCreateResult = await createOrderUseCase.ExecuteAsync(
-                new CreateOrderCommand(orderNumber, customerId, "Main Street", "1", "8000", "Zurich", "CH", lines));
+                new CreateOrderCommand(orderNumber, customerId, deliveryDate, null, billingAddressOverride, deliveryAddressOverride, lines));
 
             if (_lastCreateResult.Value.IsSuccess)
             {
@@ -196,6 +309,14 @@ namespace OrderManagement.AcceptanceTests.Steps
         {
             int orderId = context.OrderIdsByNumber[orderNumber];
             Result<GetOrderDetailsResponse> result = await getOrderDetailsUseCase.ExecuteAsync(new GetOrderDetailsQuery(orderId));
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            return result.Value!;
+        }
+
+        private async Task<GetArticleForEditResponse> GetArticleAsync(string articleNumber)
+        {
+            int articleId = context.ArticleIdsByNumber[articleNumber];
+            Result<GetArticleForEditResponse> result = await getArticleForEditUseCase.ExecuteAsync(new GetArticleForEditQuery(articleId));
             Assert.IsTrue(result.IsSuccess, result.Error);
             return result.Value!;
         }

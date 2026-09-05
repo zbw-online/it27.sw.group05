@@ -1,3 +1,5 @@
+using OrderManagement.Domain.Catalog.ValueObjects;
+
 namespace OrderManagement.Application.Features.Catalog.Shared
 {
     public sealed record ArticleListItemDto(
@@ -9,6 +11,8 @@ namespace OrderManagement.Application.Features.Catalog.Shared
         int GroupId,
         string GroupName,
         int Stock,
+        int ReorderPoint,
+        StockLevel StockLevel,
         decimal VatRate,
-        int Status);
+        ArticleStatus Status);
 }

@@ -1,3 +1,5 @@
+using OrderManagement.Domain.Catalog.ValueObjects;
+
 namespace OrderManagement.Application.Features.Catalog.GetArticleForEdit
 {
     public sealed record GetArticleForEditResponse(
@@ -8,7 +10,8 @@ namespace OrderManagement.Application.Features.Catalog.GetArticleForEdit
         string PriceCurrency,
         int GroupId,
         int Stock,
+        int ReorderPoint,
         decimal VatRate,
         string? Description,
-        int Status);
+        ArticleStatus Status);
 }

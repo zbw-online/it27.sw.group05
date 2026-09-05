@@ -127,7 +127,7 @@ namespace OrderManagement.AcceptanceTests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/ArticleManagement.feature.ndjson", 7);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/ArticleManagement.feature.ndjson", 10);
         }
         
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Adding a new article to a group")]
@@ -314,6 +314,152 @@ await this.FeatureBackgroundAsync();
 #line hidden
 #line 32
     await testRunner.ThenAsync("article \"ART-00005\" can no longer be found", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("A referenced article cannot be permanently deleted")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("A referenced article cannot be permanently deleted")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Article management")]
+        public async global::System.Threading.Tasks.Task AReferencedArticleCannotBePermanentlyDeleted()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "5";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A referenced article cannot be permanently deleted", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 34
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 35
+    await testRunner.GivenAsync("article \"ART-00006\" named \"Referenced Item\" already exists in group \"Electronics\"" +
+                        "", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 36
+    await testRunner.AndAsync("a customer \"CU40001\" named \"Order Customer\" is already registered", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+                global::Reqnroll.Table table1 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table1.AddRow(new string[] {
+                            "ART-00006",
+                            "1"});
+#line 37
+    await testRunner.AndAsync("order \"ORD-2026-030\" already exists for customer \"CU40001\" with lines:", ((string)(null)), table1, "And ");
+#line hidden
+#line 40
+    await testRunner.WhenAsync("I delete article \"ART-00006\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 41
+    await testRunner.ThenAsync("the article deletion is rejected because it is referenced by an order", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("A referenced article can be deactivated and disappears from the active catalogue")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("A referenced article can be deactivated and disappears from the active catalogue")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Article management")]
+        public async global::System.Threading.Tasks.Task AReferencedArticleCanBeDeactivatedAndDisappearsFromTheActiveCatalogue()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "6";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A referenced article can be deactivated and disappears from the active catalogue", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 43
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 44
+    await testRunner.GivenAsync("article \"ART-00007\" named \"Deactivatable Item\" already exists in group \"Electroni" +
+                        "cs\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 45
+    await testRunner.AndAsync("a customer \"CU40002\" named \"Another Customer\" is already registered", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+                global::Reqnroll.Table table2 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table2.AddRow(new string[] {
+                            "ART-00007",
+                            "1"});
+#line 46
+    await testRunner.AndAsync("order \"ORD-2026-031\" already exists for customer \"CU40002\" with lines:", ((string)(null)), table2, "And ");
+#line hidden
+#line 49
+    await testRunner.WhenAsync("I deactivate article \"ART-00007\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 50
+    await testRunner.ThenAsync("article \"ART-00007\" is inactive", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 51
+    await testRunner.AndAsync("article \"ART-00007\" is excluded from the active article catalogue", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Filtering by a parent category includes articles from descendant groups")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Filtering by a parent category includes articles from descendant groups")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Article management")]
+        public async global::System.Threading.Tasks.Task FilteringByAParentCategoryIncludesArticlesFromDescendantGroups()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "7";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Filtering by a parent category includes articles from descendant groups", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 53
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 54
+    await testRunner.GivenAsync("the article group \"Computers\" exists under \"Electronics\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 55
+    await testRunner.AndAsync("article \"ART-00008\" named \"Desktop PC\" already exists in group \"Electronics\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 56
+    await testRunner.AndAsync("article \"ART-00009\" named \"Laptop\" already exists in group \"Computers\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 57
+    await testRunner.WhenAsync("I filter articles by category \"Electronics\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 58
+    await testRunner.ThenAsync("the filtered article list contains \"ART-00008\" and \"ART-00009\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
