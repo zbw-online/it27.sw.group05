@@ -165,14 +165,14 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table1 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table7 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table1.AddRow(new string[] {
+                table7.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 13
-    await testRunner.WhenAsync("I create order \"ORD-2026-001\" for customer \"CU30001\" with lines:", ((string)(null)), table1, "When ");
+    await testRunner.WhenAsync("I create order \"ORD-2026-001\" for customer \"CU30001\" with lines:", ((string)(null)), table7, "When ");
 #line hidden
 #line 16
     await testRunner.ThenAsync("order \"ORD-2026-001\" is created successfully", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -211,17 +211,17 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table2 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table8 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table2.AddRow(new string[] {
+                table8.AddRow(new string[] {
                             "ART-40001",
                             "1"});
-                table2.AddRow(new string[] {
+                table8.AddRow(new string[] {
                             "ART-40002",
                             "2"});
 #line 21
-    await testRunner.WhenAsync("I create order \"ORD-2026-002\" for customer \"CU30001\" with lines:", ((string)(null)), table2, "When ");
+    await testRunner.WhenAsync("I create order \"ORD-2026-002\" for customer \"CU30001\" with lines:", ((string)(null)), table8, "When ");
 #line hidden
 #line 25
     await testRunner.ThenAsync("order \"ORD-2026-002\" is created successfully", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -260,14 +260,14 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table3 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table9 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table3.AddRow(new string[] {
+                table9.AddRow(new string[] {
                             "ART-40001",
                             "0"});
 #line 30
-    await testRunner.WhenAsync("I create order \"ORD-2026-003\" for customer \"CU30001\" with lines:", ((string)(null)), table3, "When ");
+    await testRunner.WhenAsync("I create order \"ORD-2026-003\" for customer \"CU30001\" with lines:", ((string)(null)), table9, "When ");
 #line hidden
 #line 33
     await testRunner.ThenAsync("the order creation is rejected because the quantity must be positive", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -300,14 +300,14 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table4 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table10 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table4.AddRow(new string[] {
+                table10.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 36
-    await testRunner.WhenAsync("I create order \"ORD-2026-004\" for an unknown customer with lines:", ((string)(null)), table4, "When ");
+    await testRunner.WhenAsync("I create order \"ORD-2026-004\" for an unknown customer with lines:", ((string)(null)), table10, "When ");
 #line hidden
 #line 39
     await testRunner.ThenAsync("the order creation is rejected because the customer was not found", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -375,23 +375,23 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table5 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table11 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table5.AddRow(new string[] {
+                table11.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 46
-    await testRunner.GivenAsync("order \"ORD-2026-006\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table5, "Given ");
+    await testRunner.GivenAsync("order \"ORD-2026-006\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table11, "Given ");
 #line hidden
-                global::Reqnroll.Table table6 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table12 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table6.AddRow(new string[] {
+                table12.AddRow(new string[] {
                             "ART-40002",
                             "1"});
 #line 49
-    await testRunner.WhenAsync("I create order \"ORD-2026-006\" for customer \"CU30001\" with lines:", ((string)(null)), table6, "When ");
+    await testRunner.WhenAsync("I create order \"ORD-2026-006\" for customer \"CU30001\" with lines:", ((string)(null)), table12, "When ");
 #line hidden
 #line 52
     await testRunner.ThenAsync("the order creation is rejected because the order number already exists", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -427,17 +427,17 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table7 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table13 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table7.AddRow(new string[] {
+                table13.AddRow(new string[] {
                             "ART-40001",
                             "2"});
-                table7.AddRow(new string[] {
+                table13.AddRow(new string[] {
                             "ART-40002",
                             "3"});
 #line 55
-    await testRunner.WhenAsync("I create order \"ORD-2026-007\" for customer \"CU30001\" with lines:", ((string)(null)), table7, "When ");
+    await testRunner.WhenAsync("I create order \"ORD-2026-007\" for customer \"CU30001\" with lines:", ((string)(null)), table13, "When ");
 #line hidden
 #line 59
     await testRunner.ThenAsync("the total for order \"ORD-2026-007\" is 375.00 CHF", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -470,14 +470,14 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table8 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table14 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table8.AddRow(new string[] {
+                table14.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 62
-    await testRunner.GivenAsync("order \"ORD-2026-008\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table8, "Given ");
+    await testRunner.GivenAsync("order \"ORD-2026-008\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table14, "Given ");
 #line hidden
 #line 65
     await testRunner.WhenAsync("I change the quantity of article \"ART-40001\" on order \"ORD-2026-008\" to 3", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
@@ -513,14 +513,14 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table9 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table15 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table9.AddRow(new string[] {
+                table15.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 69
-    await testRunner.GivenAsync("order \"ORD-2026-009\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table9, "Given ");
+    await testRunner.GivenAsync("order \"ORD-2026-009\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table15, "Given ");
 #line hidden
 #line 72
     await testRunner.WhenAsync("I search orders for \"ORD-2026-009\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
@@ -556,23 +556,23 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table10 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table16 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table10.AddRow(new string[] {
+                table16.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 76
-    await testRunner.GivenAsync("order \"ORD-2026-010\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table10, "Given ");
+    await testRunner.GivenAsync("order \"ORD-2026-010\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table16, "Given ");
 #line hidden
-                global::Reqnroll.Table table11 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table17 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table11.AddRow(new string[] {
+                table17.AddRow(new string[] {
                             "ART-40002",
                             "1"});
 #line 79
-    await testRunner.AndAsync("order \"ORD-2026-011\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table11, "And ");
+    await testRunner.AndAsync("order \"ORD-2026-011\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table17, "And ");
 #line hidden
 #line 82
     await testRunner.WhenAsync("I list all orders", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
@@ -608,14 +608,14 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table12 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table18 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table12.AddRow(new string[] {
+                table18.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 86
-    await testRunner.GivenAsync("order \"ORD-2026-012\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table12, "Given ");
+    await testRunner.GivenAsync("order \"ORD-2026-012\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table18, "Given ");
 #line hidden
 #line 89
     await testRunner.WhenAsync("I delete order \"ORD-2026-012\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
@@ -697,17 +697,17 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table13 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table19 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table13.AddRow(new string[] {
+                table19.AddRow(new string[] {
                             "ART-40001",
                             "1"});
-                table13.AddRow(new string[] {
+                table19.AddRow(new string[] {
                             "ART-40002",
                             "0"});
 #line 101
-    await testRunner.WhenAsync("I create order \"ORD-2026-013\" for customer \"CU30001\" with lines:", ((string)(null)), table13, "When ");
+    await testRunner.WhenAsync("I create order \"ORD-2026-013\" for customer \"CU30001\" with lines:", ((string)(null)), table19, "When ");
 #line hidden
 #line 105
     await testRunner.ThenAsync("the order creation is rejected because the quantity must be positive", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -751,15 +751,15 @@ await this.FeatureBackgroundAsync();
     await testRunner.AndAsync("customer \"CU30020\" moved to \"New Street 5, 9000 St. Gallen, CH\" valid from \"2026-" +
                         "09-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table14 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table20 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table14.AddRow(new string[] {
+                table20.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 111
     await testRunner.WhenAsync("I create order \"ORD-2026-020\" for customer \"CU30020\" with delivery date \"2026-08-" +
-                        "31\" and lines:", ((string)(null)), table14, "When ");
+                        "31\" and lines:", ((string)(null)), table20, "When ");
 #line hidden
 #line 114
     await testRunner.ThenAsync("order \"ORD-2026-020\" has billing address \"Old Street 1, 8000 Zurich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -803,15 +803,15 @@ await this.FeatureBackgroundAsync();
     await testRunner.AndAsync("customer \"CU30021\" moved to \"New Street 5, 9000 St. Gallen, CH\" valid from \"2026-" +
                         "09-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table15 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table21 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table15.AddRow(new string[] {
+                table21.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 120
     await testRunner.WhenAsync("I create order \"ORD-2026-021\" for customer \"CU30021\" with delivery date \"2026-09-" +
-                        "01\" and lines:", ((string)(null)), table15, "When ");
+                        "01\" and lines:", ((string)(null)), table21, "When ");
 #line hidden
 #line 123
     await testRunner.ThenAsync("order \"ORD-2026-021\" has billing address \"New Street 5, 9000 St. Gallen, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -847,16 +847,16 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table16 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table22 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table16.AddRow(new string[] {
+                table22.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 127
     await testRunner.WhenAsync("I create order \"ORD-2026-022\" for customer \"CU30001\" with delivery date \"2026-09-" +
                         "01\", billing address \"Billing Street 1, 8000 Zurich, CH\" and delivery address \"D" +
-                        "elivery Street 2, 9000 St. Gallen, CH\" and lines:", ((string)(null)), table16, "When ");
+                        "elivery Street 2, 9000 St. Gallen, CH\" and lines:", ((string)(null)), table22, "When ");
 #line hidden
 #line 130
     await testRunner.ThenAsync("order \"ORD-2026-022\" has billing address \"Billing Street 1, 8000 Zurich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
@@ -899,15 +899,15 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 6
 await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table17 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table23 = new global::Reqnroll.Table(new string[] {
                             "ArticleNumber",
                             "Quantity"});
-                table17.AddRow(new string[] {
+                table23.AddRow(new string[] {
                             "ART-40001",
                             "1"});
 #line 136
     await testRunner.WhenAsync("I create order \"ORD-2026-023\" for customer \"CU30001\" with delivery date \"2026-09-" +
-                        "01\" and lines:", ((string)(null)), table17, "When ");
+                        "01\" and lines:", ((string)(null)), table23, "When ");
 #line hidden
 #line 139
     await testRunner.ThenAsync("order \"ORD-2026-023\" has billing address \"Main Street 1, 8000 Zurich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");

@@ -1,0 +1,237 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Pages.Customers
+@using Microsoft.Extensions.Options
+@using OrderManagement.Application.Features.Customers.DataExchange.Shared
+@using OrderManagement.Application.Features.Customers.ImportCustomerData
+@using OrderManagement.Application.Features.Customers.ValidateCustomerDataImport
+@using OrderManagement.Presentation.Blazor.Components.Shared
+@inject IValidateCustomerDataImportUseCase ValidateCustomerDataImportUseCase
+@inject IImportCustomerDataUseCase ImportCustomerDataUseCase
+@inject IOptions<CustomerDataExchangeOptions> DataExchangeOptions
+
+<div class="import-customer-dialog-host">
+<Modal IsOpen="IsOpen" Title="Kundendaten importieren" OnClose="RequestClose">
+    <ChildContent>
+        <p class="text-muted">
+            Wählen Sie eine JSON- oder XML-Datei mit Kundendaten aus. Der Import erstellt ausschliesslich neue
+            Kunden; bestehende Kunden werden nie überschrieben. Enthält die Datei auch nur einen ungültigen
+            Datensatz, wird der gesamte Import abgelehnt.
+        </p>
+
+        @if (_errorMessage is not null)
+        {
+            <div class="inline-alert inline-alert-danger" role="alert">@_errorMessage</div>
+        }
+
+        <div class="form-field">
+            <label for="import-file">Datei auswählen</label>
+            <InputFile id="import-file" class="form-control" OnChange="OnFileSelectedAsync" accept=".json,.xml" />
+        </div>
+
+        @if (_safeFileName is not null)
+        {
+            <dl class="file-summary">
+                <dt>Datei</dt>
+                <dd>@_safeFileName</dd>
+                <dt>Format</dt>
+                <dd>@(_detectedFormat?.ToString() ?? "Unbekannt")</dd>
+                <dt>Grösse</dt>
+                <dd>@_fileSizeDisplay</dd>
+            </dl>
+        }
+
+        @if (_hasChecked)
+        {
+            <div class="inline-alert @(_issues.Count == 0 ? "inline-alert-success" : "inline-alert-danger")" role="status">
+                @if (_issues.Count == 0)
+                {
+                    <span>@_previewCount Kunden bereit zum Import.</span>
+                }
+                else
+                {
+                    <span>@_previewCount Kunden in der Datei, @_issues.Count Problem(e) gefunden:</span>
+                }
+            </div>
+
+            @if (_issues.Count > 0)
+            {
+                <ul class="validation-issue-list">
+                    @foreach (CustomerImportValidationIssue issue in _issues)
+                    {
+                        <li>
+                            @if (issue.RecordIndex is not null)
+                            {
+                                <span>Zeile @(issue.RecordIndex + 1)@(issue.CustomerNumber is not null ? $" ({issue.CustomerNumber})" : ""): </span>
+                            }
+                            @issue.Message
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </ChildContent>
+    <FooterContent>
+        <Button Variant="ButtonVariant.Secondary" OnClick="RequestClose" Disabled="_isChecking || _isImporting">Abbrechen</Button>
+        <Button Variant="ButtonVariant.Secondary" OnClick="CheckFileAsync" Disabled="_fileBytes is null || _isChecking || _isImporting">
+            @(_isChecking ? "Wird geprüft …" : "Datei prüfen")
+        </Button>
+        <Button Variant="ButtonVariant.Primary" OnClick="ImportAsync" Disabled="!CanImport">
+            @(_isImporting ? "Wird importiert …" : "In Datenbank importieren")
+        </Button>
+    </FooterContent>
+</Modal>
+</div>
+
+@code {
+    private byte[]? _fileBytes;
+    private string? _safeFileName;
+    private CustomerDataFormat? _detectedFormat;
+    private string? _fileSizeDisplay;
+    private string? _errorMessage;
+    private bool _isChecking;
+    private bool _isImporting;
+    private bool _hasChecked;
+    private int _previewCount;
+    private IReadOnlyList<CustomerImportValidationIssue> _issues = [];
+
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<int> OnImported { get; set; }
+
+    private bool CanImport => _hasChecked && _issues.Count == 0 && !_isChecking && !_isImporting;
+
+    private async Task OnFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        ResetFileState();
+
+        IBrowserFile file = e.File;
+        _safeFileName = System.IO.Path.GetFileName(file.Name);
+        _detectedFormat = _safeFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+            ? CustomerDataFormat.Json
+            : _safeFileName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)
+                ? CustomerDataFormat.Xml
+                : null;
+
+        if (_detectedFormat is null)
+        {
+            _errorMessage = "Nicht unterstütztes Dateiformat. Bitte wählen Sie eine .json- oder .xml-Datei.";
+            return;
+        }
+
+        long maxFileSizeBytes = DataExchangeOptions.Value.MaxFileSizeBytes;
+
+        try
+        {
+            using var stream = new MemoryStream();
+            await file.OpenReadStream(maxFileSizeBytes + 1).CopyToAsync(stream);
+            _fileBytes = stream.ToArray();
+        }
+        catch (IOException)
+        {
+            _errorMessage = $"Die Datei überschreitet die maximale Grösse von {maxFileSizeBytes / (1024 * 1024)} MB.";
+            return;
+        }
+
+        _fileSizeDisplay = FormatFileSize(_fileBytes.LongLength);
+    }
+
+    private async Task CheckFileAsync()
+    {
+        if (_fileBytes is null || _detectedFormat is null || _safeFileName is null)
+        {
+            return;
+        }
+
+        _isChecking = true;
+        _errorMessage = null;
+
+        var file = new CustomerDataFile(_safeFileName, _detectedFormat.Value, MediaTypeFor(_detectedFormat.Value), _fileBytes);
+        var result = await ValidateCustomerDataImportUseCase.ExecuteAsync(new ValidateCustomerDataImportQuery(file));
+
+        _isChecking = false;
+
+        if (!result.IsSuccess)
+        {
+            _errorMessage = result.Error;
+            return;
+        }
+
+        _hasChecked = true;
+        _previewCount = result.Value!.TotalRecordCount;
+        _issues = result.Value.Issues;
+    }
+
+    private async Task ImportAsync()
+    {
+        if (_fileBytes is null || _detectedFormat is null || _safeFileName is null)
+        {
+            return;
+        }
+
+        _isImporting = true;
+        _errorMessage = null;
+
+        var file = new CustomerDataFile(_safeFileName, _detectedFormat.Value, MediaTypeFor(_detectedFormat.Value), _fileBytes);
+        var result = await ImportCustomerDataUseCase.ExecuteAsync(new ImportCustomerDataCommand(file));
+
+        _isImporting = false;
+
+        if (!result.IsSuccess)
+        {
+            _errorMessage = result.Error;
+            return;
+        }
+
+        if (!result.Value!.IsValid)
+        {
+            _previewCount = result.Value.TotalRecordCount;
+            _issues = result.Value.Issues;
+            return;
+        }
+
+        int importedCount = result.Value.ImportedCount;
+        ResetAll();
+        await OnImported.InvokeAsync(importedCount);
+    }
+
+    private async Task RequestClose()
+    {
+        ResetAll();
+        await OnClose.InvokeAsync();
+    }
+
+    private void ResetFileState()
+    {
+        _fileBytes = null;
+        _safeFileName = null;
+        _detectedFormat = null;
+        _fileSizeDisplay = null;
+        _errorMessage = null;
+        _hasChecked = false;
+        _previewCount = 0;
+        _issues = [];
+    }
+
+    private void ResetAll() => ResetFileState();
+
+    private static string MediaTypeFor(CustomerDataFormat format) => format switch
+    {
+        CustomerDataFormat.Json => "application/json",
+        CustomerDataFormat.Xml => "application/xml",
+        _ => "application/octet-stream",
+    };
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return $"{bytes} B";
+        }
+
+        if (bytes < 1024 * 1024)
+        {
+            return $"{bytes / 1024.0:0.0} KB";
+        }
+
+        return $"{bytes / (1024.0 * 1024.0):0.0} MB";
+    }
+}

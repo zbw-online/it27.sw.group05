@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using OrderManagement.Application;
 using OrderManagement.Application.Features.Catalog.ReconcileInventory;
+using OrderManagement.Application.Features.Customers.DataExchange.Shared;
 using OrderManagement.Infrastructure;
 using OrderManagement.Presentation.Blazor.Components;
 
@@ -30,6 +31,8 @@ namespace OrderManagement.Presentation.Blazor
 
             _ = builder.Services.AddOrderManagementApplication();
             _ = builder.Services.AddOrderManagementInfrastructure(connectionString);
+            _ = builder.Services.Configure<CustomerDataExchangeOptions>(
+                builder.Configuration.GetSection(CustomerDataExchangeOptions.SectionName));
 
             string? fixedUtcNow = builder.Configuration["Testing:FixedUtcNow"];
             if (!string.IsNullOrWhiteSpace(fixedUtcNow))

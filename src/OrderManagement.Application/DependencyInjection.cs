@@ -18,13 +18,17 @@ using OrderManagement.Application.Features.Catalog.UpdateArticle;
 using OrderManagement.Application.Features.Catalog.UpdateArticleStock;
 using OrderManagement.Application.Features.Customers.AddCustomerAddress;
 using OrderManagement.Application.Features.Customers.CreateCustomer;
+using OrderManagement.Application.Features.Customers.DataExchange.Shared;
 using OrderManagement.Application.Features.Customers.DeleteCustomer;
+using OrderManagement.Application.Features.Customers.ExportCustomerData;
 using OrderManagement.Application.Features.Customers.GetCustomerDetails;
 using OrderManagement.Application.Features.Customers.GetCustomerForEdit;
 using OrderManagement.Application.Features.Customers.GetCustomersWithoutCurrentAddress;
+using OrderManagement.Application.Features.Customers.ImportCustomerData;
 using OrderManagement.Application.Features.Customers.PreviewAddressForDate;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
 using OrderManagement.Application.Features.Customers.UpdateCustomer;
+using OrderManagement.Application.Features.Customers.ValidateCustomerDataImport;
 using OrderManagement.Application.Features.Orders.AddOrderLine;
 using OrderManagement.Application.Features.Orders.CreateOrder;
 using OrderManagement.Application.Features.Orders.DeleteOrder;
@@ -44,6 +48,7 @@ namespace OrderManagement.Application
         public static IServiceCollection AddOrderManagementApplication(this IServiceCollection services)
         {
             _ = services.AddSingleton(TimeProvider.System);
+            _ = services.AddOptions<CustomerDataExchangeOptions>();
 
             _ = services.AddScoped<ICreateCustomerUseCase, CreateCustomerUseCase>();
             _ = services.AddScoped<ISearchCustomersUseCase, SearchCustomersUseCase>();
@@ -54,6 +59,10 @@ namespace OrderManagement.Application
             _ = services.AddScoped<IAddCustomerAddressUseCase, AddCustomerAddressUseCase>();
             _ = services.AddScoped<IGetCustomersWithoutCurrentAddressUseCase, GetCustomersWithoutCurrentAddressUseCase>();
             _ = services.AddScoped<IPreviewAddressForDateUseCase, PreviewAddressForDateUseCase>();
+            _ = services.AddScoped<ICustomerImportPlanBuilder, CustomerImportPlanBuilder>();
+            _ = services.AddScoped<IValidateCustomerDataImportUseCase, ValidateCustomerDataImportUseCase>();
+            _ = services.AddScoped<IImportCustomerDataUseCase, ImportCustomerDataUseCase>();
+            _ = services.AddScoped<IExportCustomerDataUseCase, ExportCustomerDataUseCase>();
 
             _ = services.AddScoped<ICreateArticleUseCase, CreateArticleUseCase>();
             _ = services.AddScoped<ISearchArticlesUseCase, SearchArticlesUseCase>();

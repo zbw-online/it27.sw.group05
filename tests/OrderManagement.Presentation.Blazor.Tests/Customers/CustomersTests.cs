@@ -2,18 +2,24 @@ using AngleSharp.Dom;
 
 using Bunit;
 
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Application.Features.Customers.AddCustomerAddress;
 using OrderManagement.Application.Features.Customers.CreateCustomer;
+using OrderManagement.Application.Features.Customers.DataExchange.Shared;
 using OrderManagement.Application.Features.Customers.DeleteCustomer;
+using OrderManagement.Application.Features.Customers.ExportCustomerData;
 using OrderManagement.Application.Features.Customers.GetCustomerDetails;
 using OrderManagement.Application.Features.Customers.GetCustomerForEdit;
+using OrderManagement.Application.Features.Customers.ImportCustomerData;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
 using OrderManagement.Application.Features.Customers.Shared;
 using OrderManagement.Application.Features.Customers.UpdateCustomer;
+using OrderManagement.Application.Features.Customers.ValidateCustomerDataImport;
 
 using SharedKernel.Primitives;
 
@@ -121,10 +127,146 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
             Assert.AreEqual(3, cut.FindAll(".feedback-state-empty").Count);
         }
 
+        [TestMethod]
+        public void PageHeader_ShowsImportAndExportButtons()
+        {
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails());
+
+            IElement[] headerButtons = [.. cut.FindAll(".page-header-actions button")];
+
+            Assert.IsTrue(headerButtons.Any(b => b.TextContent.Contains("Kundendaten importieren", StringComparison.Ordinal)));
+            Assert.IsTrue(headerButtons.Any(b => b.TextContent.Contains("Kundendaten exportieren", StringComparison.Ordinal)));
+        }
+
+        [TestMethod]
+        public void ClickingImportButton_OpensImportDialogWithSwissGermanLabels()
+        {
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails());
+
+            cut.Find(".page-header-actions button:nth-child(1)").Click();
+
+            IElement dialog = cut.Find(".import-customer-dialog-host dialog[role=dialog]");
+            StringAssert.Contains(dialog.TextContent, "Kundendaten importieren");
+            StringAssert.Contains(dialog.TextContent, "Datei auswählen");
+            StringAssert.Contains(dialog.TextContent, "In Datenbank importieren");
+            StringAssert.Contains(dialog.TextContent, "Abbrechen");
+        }
+
+        [TestMethod]
+        public void ClickingExportButton_OpensExportDialogWithSwissGermanLabels()
+        {
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails());
+
+            cut.Find(".page-header-actions button:nth-child(2)").Click();
+
+            IElement dialog = cut.Find(".export-customer-dialog-host dialog[role=dialog]");
+            StringAssert.Contains(dialog.TextContent, "Kundendaten exportieren");
+            StringAssert.Contains(dialog.TextContent, "Stichtag");
+            StringAssert.Contains(dialog.TextContent, "Exportieren");
+            Assert.AreEqual("true", dialog.GetAttribute("aria-modal"));
+        }
+
+        [TestMethod]
+        public void ImportDialog_WithUnsupportedFileExtension_ShowsErrorAsAlert()
+        {
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails());
+            cut.Find(".page-header-actions button:nth-child(1)").Click();
+
+            cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("hello", "kunden.txt"));
+
+            IElement alert = cut.Find(".inline-alert-danger");
+            Assert.AreEqual("alert", alert.GetAttribute("role"));
+            StringAssert.Contains(alert.TextContent, "Nicht unterstütztes Dateiformat");
+        }
+
+        [TestMethod]
+        public void ImportDialog_BeforeCheckingFile_DisablesFinalImportButton()
+        {
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails());
+            cut.Find(".page-header-actions button:nth-child(1)").Click();
+
+            cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("[]", "kunden.json"));
+
+            IElement importButton = cut.FindAll("button").Single(b => b.TextContent.Contains("In Datenbank importieren", StringComparison.Ordinal));
+            Assert.IsTrue(importButton.HasAttribute("disabled"));
+        }
+
+        [TestMethod]
+        public void ImportDialog_WithValidationIssues_KeepsFinalImportButtonDisabled()
+        {
+            var validateUseCase = new FakeValidateCustomerDataImportUseCase
+            {
+                ResponseToReturn = Results.Success(new ValidateCustomerDataImportResponse(
+                    false, 2, [new CustomerImportValidationIssue(1, "CU00002", "email", "Die E-Mail-Adresse ist ungültig.")])),
+            };
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), validateUseCase: validateUseCase);
+            cut.Find(".page-header-actions button:nth-child(1)").Click();
+            cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("[]", "kunden.json"));
+
+            cut.FindAll("button").Single(b => b.TextContent.Contains("Datei prüfen", StringComparison.Ordinal)).Click();
+
+            StringAssert.Contains(cut.Markup, "Die E-Mail-Adresse ist ungültig.");
+            IElement importButton = cut.FindAll("button").Single(b => b.TextContent.Contains("In Datenbank importieren", StringComparison.Ordinal));
+            Assert.IsTrue(importButton.HasAttribute("disabled"));
+        }
+
+        [TestMethod]
+        public void ImportDialog_WithSuccessfulImport_ShowsSummaryOnParentPageAndClosesDialog()
+        {
+            var validateUseCase = new FakeValidateCustomerDataImportUseCase
+            {
+                ResponseToReturn = Results.Success(new ValidateCustomerDataImportResponse(true, 3, [])),
+            };
+            var importUseCase = new FakeImportCustomerDataUseCase
+            {
+                ResponseToReturn = Results.Success(new ImportCustomerDataResponse(true, 3, 3, [])),
+            };
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), validateUseCase: validateUseCase, importUseCase: importUseCase);
+            cut.Find(".page-header-actions button:nth-child(1)").Click();
+            cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("[]", "kunden.json"));
+            cut.FindAll("button").Single(b => b.TextContent.Contains("Datei prüfen", StringComparison.Ordinal)).Click();
+
+            cut.FindAll("button").Single(b => b.TextContent.Contains("In Datenbank importieren", StringComparison.Ordinal)).Click();
+
+            StringAssert.Contains(cut.Markup, "3 Kunden wurden importiert.");
+        }
+
+        [TestMethod]
+        public void ExportDialog_WithXmlFormatSelected_PassesXmlFormatToUseCase()
+        {
+            var exportUseCase = new FakeExportCustomerDataUseCase();
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), exportUseCase: exportUseCase);
+            cut.Find(".page-header-actions button:nth-child(2)").Click();
+
+            cut.Find("input[value=Xml]").Change(true);
+            cut.FindAll("button").Single(b => b.TextContent.Contains("Exportieren", StringComparison.Ordinal)).Click();
+
+            Assert.IsNotNull(exportUseCase.CapturedQuery);
+            Assert.AreEqual(CustomerDataFormat.Xml, exportUseCase.CapturedQuery!.Format);
+        }
+
+        [TestMethod]
+        public void ExportDialog_WithChosenStichtag_PassesStichtagToUseCase()
+        {
+            var exportUseCase = new FakeExportCustomerDataUseCase();
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), exportUseCase: exportUseCase);
+            cut.Find(".page-header-actions button:nth-child(2)").Click();
+
+            cut.Find("#export-stichtag").Change("2026-01-15T18:30:00");
+            cut.FindAll("button").Single(b => b.TextContent.Contains("Exportieren", StringComparison.Ordinal)).Click();
+
+            Assert.IsNotNull(exportUseCase.CapturedQuery);
+            Assert.AreEqual(new DateTime(2026, 1, 15, 18, 30, 0), exportUseCase.CapturedQuery!.Stichtag);
+        }
+
         private static GetCustomerDetailsResponse BuildDetails() => new(
             1, "CU00001", "Doe Jane", "jane@example.com", null, null, [], []);
 
-        private IRenderedComponent<CustomersPage> RenderPage(GetCustomerDetailsResponse details)
+        private IRenderedComponent<CustomersPage> RenderPage(
+            GetCustomerDetailsResponse details,
+            FakeValidateCustomerDataImportUseCase? validateUseCase = null,
+            FakeImportCustomerDataUseCase? importUseCase = null,
+            FakeExportCustomerDataUseCase? exportUseCase = null)
         {
             _ = Services.AddSingleton<ISearchCustomersUseCase>(new FakeSearchCustomersUseCase());
             _ = Services.AddSingleton<IGetCustomerDetailsUseCase>(new FakeGetCustomerDetailsUseCase(details));
@@ -133,6 +275,11 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
             _ = Services.AddSingleton<IUpdateCustomerUseCase>(new FakeUpdateCustomerUseCase());
             _ = Services.AddSingleton<IDeleteCustomerUseCase>(new FakeDeleteCustomerUseCase());
             _ = Services.AddSingleton<IAddCustomerAddressUseCase>(new FakeAddCustomerAddressUseCase());
+            _ = Services.AddSingleton<IValidateCustomerDataImportUseCase>(validateUseCase ?? new FakeValidateCustomerDataImportUseCase());
+            _ = Services.AddSingleton<IImportCustomerDataUseCase>(importUseCase ?? new FakeImportCustomerDataUseCase());
+            _ = Services.AddSingleton<IExportCustomerDataUseCase>(exportUseCase ?? new FakeExportCustomerDataUseCase());
+            _ = Services.AddSingleton(Options.Create(new CustomerDataExchangeOptions()));
+            _ = Services.AddSingleton(TimeProvider.System);
 
             return RenderComponent<CustomersPage>();
         }
@@ -184,6 +331,41 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
             public Task<Result> ExecuteAsync(
                 AddCustomerAddressCommand command, CancellationToken cancellationToken = default)
                 => Task.FromResult(Result.Fail("not used"));
+        }
+
+        private sealed class FakeValidateCustomerDataImportUseCase : IValidateCustomerDataImportUseCase
+        {
+            public Result<ValidateCustomerDataImportResponse> ResponseToReturn { get; set; } =
+                Results.Success(new ValidateCustomerDataImportResponse(true, 0, []));
+
+            public Task<Result<ValidateCustomerDataImportResponse>> ExecuteAsync(
+                ValidateCustomerDataImportQuery query, CancellationToken cancellationToken = default)
+                => Task.FromResult(ResponseToReturn);
+        }
+
+        private sealed class FakeImportCustomerDataUseCase : IImportCustomerDataUseCase
+        {
+            public Result<ImportCustomerDataResponse> ResponseToReturn { get; set; } =
+                Results.Success(new ImportCustomerDataResponse(true, 0, 0, []));
+
+            public Task<Result<ImportCustomerDataResponse>> ExecuteAsync(
+                ImportCustomerDataCommand command, CancellationToken cancellationToken = default)
+                => Task.FromResult(ResponseToReturn);
+        }
+
+        private sealed class FakeExportCustomerDataUseCase : IExportCustomerDataUseCase
+        {
+            public ExportCustomerDataQuery? CapturedQuery { get; private set; }
+
+            public Result<CustomerDataFile> ResponseToReturn { get; set; } =
+                Results.Success(new CustomerDataFile("kunden.json", CustomerDataFormat.Json, "application/json", [1, 2, 3]));
+
+            public Task<Result<CustomerDataFile>> ExecuteAsync(
+                ExportCustomerDataQuery query, CancellationToken cancellationToken = default)
+            {
+                CapturedQuery = query;
+                return Task.FromResult(ResponseToReturn);
+            }
         }
     }
 }
