@@ -29,8 +29,10 @@ namespace OrderManagement.Presentation.Blazor
             string connectionString = builder.Configuration.GetConnectionString("OrderManagement")
                 ?? throw new InvalidOperationException("Connection string 'ConnectionStrings:OrderManagement' is missing.");
 
+            bool seedDemoData = builder.Configuration.GetValue<bool>("DatabaseInitialization:SeedDemoData");
+
             _ = builder.Services.AddOrderManagementApplication();
-            _ = builder.Services.AddOrderManagementInfrastructure(connectionString);
+            _ = builder.Services.AddOrderManagementInfrastructure(connectionString, seedDemoData: seedDemoData);
             _ = builder.Services.Configure<CustomerDataExchangeOptions>(
                 builder.Configuration.GetSection(CustomerDataExchangeOptions.SectionName));
 
@@ -51,6 +53,13 @@ namespace OrderManagement.Presentation.Blazor
                 return;
             }
 
+            if (args.Contains("initialize-database", StringComparer.OrdinalIgnoreCase))
+            {
+                bool success = await DatabaseInitializationCliCommand.RunAsync(app.Services);
+                Environment.ExitCode = success ? 0 : 1;
+                return;
+            }
+
             if (!app.Environment.IsDevelopment())
             {
                 _ = app.UseExceptionHandler("/Error");
@@ -64,6 +73,7 @@ namespace OrderManagement.Presentation.Blazor
 
             _ = app.UseHttpsRedirection();
             _ = app.UseStaticFiles();
+            _ = app.MapStaticAssets();
             _ = app.UseAntiforgery();
 
             _ = app.MapHealthChecks("/health/live");

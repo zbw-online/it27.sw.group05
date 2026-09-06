@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 using OrderManagement.Application.Abstractions.Persistence;
 using OrderManagement.Application.Abstractions.Persistence.Catalog.Command;
@@ -11,6 +13,7 @@ using OrderManagement.Application.Abstractions.Persistence.Orders.Command;
 using OrderManagement.Application.Abstractions.Persistence.Orders.Query;
 using OrderManagement.Application.Abstractions.Serialization;
 using OrderManagement.Infrastructure.Persistence;
+using OrderManagement.Infrastructure.Persistence.Initialization;
 using OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Command;
 using OrderManagement.Infrastructure.Persistence.Repositories.Catalog.Query;
 using OrderManagement.Infrastructure.Persistence.Repositories.Customers.Command;
@@ -27,10 +30,24 @@ namespace OrderManagement.Infrastructure
         public static IServiceCollection AddOrderManagementInfrastructure(
             this IServiceCollection services,
             string connectionString,
-            bool enableDetailedErrors = false)
+            bool enableDetailedErrors = false,
+            bool seedDemoData = false)
         {
             _ = services.AddPersistence(connectionString, enableDetailedErrors);
             _ = services.AddCustomerDataSerialization();
+            _ = services.AddDatabaseInitialization(seedDemoData);
+
+            return services;
+        }
+
+        private static IServiceCollection AddDatabaseInitialization(
+            this IServiceCollection services,
+            bool seedDemoData)
+        {
+            _ = services.AddSingleton(Options.Create(new DatabaseInitializationOptions { SeedDemoData = seedDemoData }));
+            services.TryAddSingleton(TimeProvider.System);
+            _ = services.AddScoped<DemoDataSeeder>();
+            _ = services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
 
             return services;
         }

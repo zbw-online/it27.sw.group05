@@ -1,6 +1,5 @@
 **/bin/
 **/obj/
-tests/
 docs/
 infra/
 .git/

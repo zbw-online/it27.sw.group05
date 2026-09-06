@@ -1,0 +1,6 @@
+# Normalize line endings to LF regardless of a contributor's core.autocrlf setting.
+# .editorconfig requires end_of_line = lf; without this file, a Windows checkout with
+# core.autocrlf=true converts every text file to CRLF, which then fails "dotnet build"
+# (EnforceCodeStyleInBuild) and "dotnet format --verify-no-changes", including inside
+# the Docker test-runner image build context.
+* text=auto eol=lf

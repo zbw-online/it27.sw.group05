@@ -25,11 +25,12 @@ namespace OrderManagement.Domain.Orders
             AddressSource billingAddressSource,
             Address deliveryAddress,
             AddressSource deliveryAddressSource,
-            string? customerReference)
+            string? customerReference,
+            TimeProvider timeProvider)
             : base(OrderId.Empty)
         {
             OrderNumber = number;
-            OrderDate = DateTime.UtcNow;
+            OrderDate = timeProvider.GetUtcNow().UtcDateTime;
             CustomerId = customerId;
             DeliveryDate = deliveryDate;
             BillingAddress = billingAddress;
@@ -64,7 +65,8 @@ namespace OrderManagement.Domain.Orders
             AddressSource billingAddressSource,
             Address deliveryAddress,
             AddressSource deliveryAddressSource,
-            string? customerReference = null)
+            string? customerReference = null,
+            TimeProvider? timeProvider = null)
         {
             Result<OrderNumber> nr = OrderNumber.Create(orderNumber);
             if (!nr.IsSuccess)
@@ -88,7 +90,8 @@ namespace OrderManagement.Domain.Orders
                 billingAddressSource,
                 deliveryAddress,
                 deliveryAddressSource,
-                normalizedReference);
+                normalizedReference,
+                timeProvider ?? TimeProvider.System);
 
             return Results.Success(order);
         }
