@@ -1,5 +1,5 @@
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Query;
-using OrderManagement.Application.Abstractions.Interfaces.Orders.Query;
+using OrderManagement.Application.Abstractions.Persistence.Catalog.Query;
+using OrderManagement.Application.Abstractions.Persistence.Orders.Query;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Orders;
 

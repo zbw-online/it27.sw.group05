@@ -1,4 +1,4 @@
-using OrderManagement.Application.Features.Customers.Shared;
+using OrderManagement.Application.Features.Customers.Contracts;
 
 using SharedKernel.Primitives;
 

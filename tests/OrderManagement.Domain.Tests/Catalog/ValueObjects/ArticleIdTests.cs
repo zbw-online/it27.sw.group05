@@ -1,7 +1,5 @@
 using System.Globalization;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Catalog.ValueObjects;
 
 namespace OrderManagement.Domain.Tests.Catalog.ValueObjects
@@ -13,7 +11,7 @@ namespace OrderManagement.Domain.Tests.Catalog.ValueObjects
         // 1) Creation & Immutability
         // ============================================================
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(1)]
         [DataRow(1000)]
         [DataRow(int.MaxValue)]
@@ -68,7 +66,7 @@ namespace OrderManagement.Domain.Tests.Catalog.ValueObjects
         // 3) ToString Serialization
         // ============================================================
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(0, "0")]
         [DataRow(123, "123")]
         [DataRow(-456, "-456")]

@@ -1,13 +1,11 @@
 using System.Globalization;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Application.Abstractions.Serialization;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Features.Customers.Contracts;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 using OrderManagement.Application.Features.Customers.ExportCustomerData;
 using OrderManagement.Application.Features.Customers.ImportCustomerData;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
-using OrderManagement.Application.Features.Customers.Shared;
 
 using Reqnroll;
 

@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Customers.ValueObjects;
 
 namespace OrderManagement.Domain.Tests.Customers.ValueObjects

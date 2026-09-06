@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-using OrderManagement.Application.Abstractions;
+using OrderManagement.Application.Abstractions.Persistence;
 
 using SharedKernel.Primitives;
 

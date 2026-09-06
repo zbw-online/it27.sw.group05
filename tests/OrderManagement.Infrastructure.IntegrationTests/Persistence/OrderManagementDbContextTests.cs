@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;

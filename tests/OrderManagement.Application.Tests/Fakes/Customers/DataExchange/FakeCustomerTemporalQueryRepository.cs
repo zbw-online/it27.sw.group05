@@ -1,5 +1,5 @@
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Query;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 
 namespace OrderManagement.Application.Tests.Fakes.Customers.DataExchange
 {

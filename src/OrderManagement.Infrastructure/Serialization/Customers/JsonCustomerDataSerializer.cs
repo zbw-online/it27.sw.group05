@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 
 using OrderManagement.Application.Abstractions.Serialization;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 using OrderManagement.Infrastructure.Serialization.Customers.Json;
 
 using SharedKernel.Primitives;

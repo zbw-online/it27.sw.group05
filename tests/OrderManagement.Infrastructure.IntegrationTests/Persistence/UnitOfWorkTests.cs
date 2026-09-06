@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using OrderManagement.Application.Abstractions;
+using OrderManagement.Application.Abstractions.Persistence;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Infrastructure.Persistence;
@@ -25,7 +24,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence
         public void Constructor_WithDbContext_ShouldImplementIUnitOfWork() => Assert.IsInstanceOfType<IUnitOfWork>(_unitOfWork);
 
         [TestMethod]
-        public void Constructor_WithNullDbContext_ShouldThrowArgumentNullException() => _ = Assert.ThrowsException<ArgumentNullException>(() => _ = new UnitOfWork(null!));
+        public void Constructor_WithNullDbContext_ShouldThrowArgumentNullException() => _ = Assert.ThrowsExactly<ArgumentNullException>(() => _ = new UnitOfWork(null!));
 
         [TestMethod]
         public async Task CommitAsync_WithNoChanges_ShouldReturnSuccess()

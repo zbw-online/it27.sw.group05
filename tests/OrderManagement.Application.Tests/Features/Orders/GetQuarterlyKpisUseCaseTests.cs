@@ -1,6 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
-using OrderManagement.Application.DTOs.Orders;
+using OrderManagement.Application.Features.Orders.Contracts;
 using OrderManagement.Application.Features.Orders.GetQuarterlyKpis;
 using OrderManagement.Application.Tests.Fakes.Orders;
 

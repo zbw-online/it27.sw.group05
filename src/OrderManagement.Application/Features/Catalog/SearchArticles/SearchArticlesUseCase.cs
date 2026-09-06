@@ -1,5 +1,5 @@
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Query;
-using OrderManagement.Application.Features.Catalog.Shared;
+using OrderManagement.Application.Abstractions.Persistence.Catalog.Query;
+using OrderManagement.Application.Features.Catalog.Contracts;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.ValueObjects;
 

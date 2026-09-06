@@ -2,15 +2,13 @@ using AngleSharp.Dom;
 
 using Bunit;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
-using OrderManagement.Application.DTOs.Catalog;
+using OrderManagement.Application.Features.Catalog.Contracts;
 using OrderManagement.Presentation.Blazor.Components.Shared;
 
 namespace OrderManagement.Presentation.Blazor.Tests.Shared
 {
     [TestClass]
-    public sealed class CategoryTreePickerTests : Bunit.TestContext
+    public sealed class CategoryTreePickerTests : BunitContext
     {
         private static readonly ArticleGroupHierarchyDto[] Hierarchy =
         [
@@ -98,7 +96,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
 
             cut.Find("input[type=search]").Input("USB");
 
-            IRefreshableElementCollection<IElement> results = cut.FindAll(".category-tree-search-result");
+            IReadOnlyList<IElement> results = cut.FindAll(".category-tree-search-result");
             Assert.AreEqual(1, results.Count);
             StringAssert.Contains(results[0].TextContent, "USB");
             StringAssert.Contains(results[0].TextContent, "Elektronik > Kabel & Adapter > USB");
@@ -120,7 +118,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
             int? selectedGroupId = null,
             Action<int>? onApply = null,
             Action? onCancel = null)
-            => RenderComponent<CategoryTreePicker>(parameters => parameters
+            => Render<CategoryTreePicker>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupId, selectedGroupId)
                 .Add(p => p.OnApply, onApply ?? (_ => { }))

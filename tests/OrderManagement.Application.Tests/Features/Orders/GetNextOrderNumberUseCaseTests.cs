@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Application.Features.Orders.GetNextOrderNumber;
 using OrderManagement.Application.Tests.Fakes.Orders;
 using OrderManagement.Domain.Customers.ValueObjects;

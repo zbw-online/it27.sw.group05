@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Application.Features.Catalog.GetArticleForEdit;
 using OrderManagement.Application.Tests.Fakes.Catalog;
 using OrderManagement.Domain.Catalog;

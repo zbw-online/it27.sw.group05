@@ -11,7 +11,7 @@ namespace SharedKernel.SeedWork
             // For ORMs
         }
         public TId Id { get; protected set; } = default!;
-        private bool IsTransient() => EqualityComparer<TId>.Default.Equals(Id, default!);
+        private bool IsTransient() => EqualityComparer<TId>.Default.Equals(Id, default);
         public override bool Equals(object? obj) => obj is Entity<TId> other && Equals(other);
         public bool Equals(Entity<TId>? other)
         {

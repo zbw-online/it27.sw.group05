@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Infrastructure.Persistence.Repositories.Customers.Query;

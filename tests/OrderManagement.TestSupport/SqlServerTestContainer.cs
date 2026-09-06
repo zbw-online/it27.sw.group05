@@ -17,8 +17,7 @@ namespace OrderManagement.TestSupport
 
         public async Task StartAsync()
         {
-            _container = new MsSqlBuilder()
-                .WithImage(ImageTag)
+            _container = new MsSqlBuilder(ImageTag)
                 .WithPassword(Password)
                 .Build();
 

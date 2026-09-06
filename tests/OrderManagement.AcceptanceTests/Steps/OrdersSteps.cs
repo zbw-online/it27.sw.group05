@@ -1,14 +1,12 @@
 using System.Globalization;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.AcceptanceTests.Support;
 using OrderManagement.Application.Features.Catalog.GetArticleForEdit;
+using OrderManagement.Application.Features.Orders.Contracts;
 using OrderManagement.Application.Features.Orders.CreateOrder;
 using OrderManagement.Application.Features.Orders.DeleteOrder;
 using OrderManagement.Application.Features.Orders.GetOrderDetails;
 using OrderManagement.Application.Features.Orders.SearchOrders;
-using OrderManagement.Application.Features.Orders.Shared;
 using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity;
 using OrderManagement.Domain.Orders.ValueObjects;
 

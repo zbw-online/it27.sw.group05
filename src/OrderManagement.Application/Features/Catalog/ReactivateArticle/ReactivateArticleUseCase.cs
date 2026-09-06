@@ -1,6 +1,6 @@
-using OrderManagement.Application.Abstractions;
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Command;
-using OrderManagement.Application.Features.Catalog.Shared;
+using OrderManagement.Application.Abstractions.Persistence;
+using OrderManagement.Application.Abstractions.Persistence.Catalog.Command;
+using OrderManagement.Application.Features.Catalog.Contracts;
 
 using SharedKernel.Primitives;
 

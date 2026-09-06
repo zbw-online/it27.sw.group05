@@ -1,8 +1,8 @@
-using OrderManagement.Application.Abstractions;
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Command;
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
-using OrderManagement.Application.Abstractions.Interfaces.Orders.Command;
-using OrderManagement.Application.Abstractions.Interfaces.Orders.Query;
+using OrderManagement.Application.Abstractions.Persistence;
+using OrderManagement.Application.Abstractions.Persistence.Catalog.Command;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Query;
+using OrderManagement.Application.Abstractions.Persistence.Orders.Command;
+using OrderManagement.Application.Abstractions.Persistence.Orders.Query;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Domain.Customers;

@@ -1,6 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
-using OrderManagement.Application.Features.Orders.Shared;
+using OrderManagement.Application.Features.Orders.Contracts;
 
 using SharedKernel.Primitives;
 

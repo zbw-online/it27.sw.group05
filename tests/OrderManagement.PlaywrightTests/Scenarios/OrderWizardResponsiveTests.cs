@@ -124,8 +124,8 @@ namespace OrderManagement.PlaywrightTests.Scenarios
             Assert.IsNotNull(catalogueBox);
             Assert.IsNotNull(summaryBox);
 
-            Assert.IsTrue(customerBox!.Y < catalogueBox!.Y, "Customer panel should be above the catalogue panel when stacked.");
-            Assert.IsTrue(catalogueBox.Y < summaryBox!.Y, "Catalogue panel should be above the summary panel when stacked.");
+            Assert.IsTrue(customerBox.Y < catalogueBox.Y, "Customer panel should be above the catalogue panel when stacked.");
+            Assert.IsTrue(catalogueBox.Y < summaryBox.Y, "Catalogue panel should be above the summary panel when stacked.");
         }
 
         private async Task AssertSummaryIsNotStickyAsync()

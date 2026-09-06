@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Options;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 using OrderManagement.Application.Features.Customers.ImportCustomerData;
 using OrderManagement.Application.Tests.Fakes;
 using OrderManagement.Application.Tests.Fakes.Customers;
@@ -131,7 +130,7 @@ namespace OrderManagement.Application.Tests.Features.Customers.DataExchange
             using var cts = new CancellationTokenSource();
             await cts.CancelAsync();
 
-            _ = await Assert.ThrowsExceptionAsync<OperationCanceledException>(
+            _ = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
                 () => useCase.ExecuteAsync(new ImportCustomerDataCommand(MakeFile()), cts.Token));
         }
     }

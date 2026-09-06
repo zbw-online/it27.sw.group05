@@ -1,11 +1,9 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.AcceptanceTests.Support;
+using OrderManagement.Application.Features.Customers.Contracts;
 using OrderManagement.Application.Features.Customers.CreateCustomer;
 using OrderManagement.Application.Features.Customers.DeleteCustomer;
 using OrderManagement.Application.Features.Customers.GetCustomerDetails;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
-using OrderManagement.Application.Features.Customers.Shared;
 using OrderManagement.Application.Features.Customers.UpdateCustomer;
 
 using Reqnroll;

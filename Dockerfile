@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1
 
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+COPY ["global.json", "./"]
+COPY ["Directory.Build.props", "./"]
+COPY ["Directory.Packages.props", "./"]
+COPY [".editorconfig", "./"]
 COPY ["src/OrderManagement.Presentation.Blazor/OrderManagement.Presentation.Blazor.csproj", "src/OrderManagement.Presentation.Blazor/"]
 COPY ["src/OrderManagement.Application/OrderManagement.Application.csproj", "src/OrderManagement.Application/"]
 COPY ["src/OrderManagement.Infrastructure/OrderManagement.Infrastructure.csproj", "src/OrderManagement.Infrastructure/"]
@@ -22,11 +26,11 @@ RUN dotnet publish "src/OrderManagement.Presentation.Blazor/OrderManagement.Pres
     --no-restore \
     --output /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-RUN addgroup --system --gid 1000 appgroup \
-    && adduser --system --uid 1000 --ingroup appgroup --shell /sbin/nologin appuser
+RUN groupadd --system --gid 1001 appgroup \
+    && useradd --system --uid 1001 --gid appgroup --no-create-home --shell /sbin/nologin appuser
 
 COPY --from=build /app/publish .
 

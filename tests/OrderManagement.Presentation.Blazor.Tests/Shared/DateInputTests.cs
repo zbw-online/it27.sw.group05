@@ -1,21 +1,20 @@
 using Bunit;
 
 using Microsoft.AspNetCore.Components;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Presentation.Blazor.Components.Shared;
 
 namespace OrderManagement.Presentation.Blazor.Tests.Shared
 {
     [TestClass]
-    public sealed class DateInputTests : Bunit.TestContext
+    public sealed class DateInputTests : BunitContext
     {
         public DateInputTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
         [TestMethod]
         public void Render_ShowsSwissFormattedDate()
         {
-            IRenderedComponent<DateInput> cut = RenderComponent<DateInput>(parameters => parameters
+            IRenderedComponent<DateInput> cut = Render<DateInput>(parameters => parameters
                 .Add(p => p.Value, new DateTime(2026, 6, 9)));
 
             Assert.AreEqual("09.06.2026", cut.Find(".date-input-text").GetAttribute("value"));
@@ -25,7 +24,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void TypingValidSwissDate_RaisesValueChanged()
         {
             DateTime? changed = null;
-            IRenderedComponent<DateInput> cut = RenderComponent<DateInput>(parameters => parameters
+            IRenderedComponent<DateInput> cut = Render<DateInput>(parameters => parameters
                 .Add(p => p.Value, new DateTime(2026, 1, 1))
                 .Add(p => p.ValueChanged, EventCallback.Factory.Create<DateTime>(this, v => changed = v)));
 
@@ -38,7 +37,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void TypingInvalidText_DoesNotRaiseValueChanged()
         {
             DateTime? changed = null;
-            IRenderedComponent<DateInput> cut = RenderComponent<DateInput>(parameters => parameters
+            IRenderedComponent<DateInput> cut = Render<DateInput>(parameters => parameters
                 .Add(p => p.Value, new DateTime(2026, 1, 1))
                 .Add(p => p.ValueChanged, EventCallback.Factory.Create<DateTime>(this, v => changed = v)));
 
@@ -50,7 +49,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_HasNativePickerButton()
         {
-            IRenderedComponent<DateInput> cut = RenderComponent<DateInput>(parameters => parameters
+            IRenderedComponent<DateInput> cut = Render<DateInput>(parameters => parameters
                 .Add(p => p.Value, new DateTime(2026, 6, 9)));
 
             Assert.AreEqual(1, cut.FindAll(".date-input-icon").Count);

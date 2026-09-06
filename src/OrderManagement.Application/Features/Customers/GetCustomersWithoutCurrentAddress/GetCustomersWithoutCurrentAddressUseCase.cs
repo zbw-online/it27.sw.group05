@@ -1,4 +1,4 @@
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Query;
 using OrderManagement.Domain.Customers;
 
 using SharedKernel.Primitives;

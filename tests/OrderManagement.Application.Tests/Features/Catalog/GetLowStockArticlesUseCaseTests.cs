@@ -1,7 +1,5 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
+using OrderManagement.Application.Features.Catalog.Contracts;
 using OrderManagement.Application.Features.Catalog.GetLowStockArticles;
-using OrderManagement.Application.Features.Catalog.Shared;
 using OrderManagement.Application.Tests.Fakes.Catalog;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.ValueObjects;

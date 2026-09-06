@@ -1,6 +1,6 @@
-using OrderManagement.Application.Abstractions;
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Command;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Abstractions.Persistence;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Command;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 using OrderManagement.Domain.Customers;
 
 using SharedKernel.Primitives;

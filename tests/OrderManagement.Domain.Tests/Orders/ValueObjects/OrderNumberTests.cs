@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Orders.ValueObjects;
 
 using SharedKernel.Primitives;
@@ -9,7 +7,7 @@ namespace OrderManagement.Tests.Domain.Orders.ValueObjects
     [TestClass]
     public sealed class OrderNumberTests
     {
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("ORD-2026-001")]
         [DataRow("ORD-1999-999")]
         [DataRow("ORD-2026-000")]
@@ -57,7 +55,7 @@ namespace OrderManagement.Tests.Domain.Orders.ValueObjects
             StringAssert.Contains(result.Error!, "required");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("ORD-PW-DELETE-001", DisplayName = "Alphabetic segment instead of year and sequence")]
         [DataRow("ORD-ABCD-001", DisplayName = "Alphabetic year")]
         [DataRow("ORD-2026-ABC", DisplayName = "Alphabetic sequence")]

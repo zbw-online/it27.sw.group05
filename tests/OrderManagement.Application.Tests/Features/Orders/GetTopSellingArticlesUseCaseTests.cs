@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Application.Features.Orders.GetTopSellingArticles;
 using OrderManagement.Application.Tests.Fakes.Catalog;
 using OrderManagement.Application.Tests.Fakes.Orders;

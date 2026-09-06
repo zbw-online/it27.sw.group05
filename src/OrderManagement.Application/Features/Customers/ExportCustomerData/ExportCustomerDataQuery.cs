@@ -1,4 +1,4 @@
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 
 namespace OrderManagement.Application.Features.Customers.ExportCustomerData
 {

@@ -1,6 +1,6 @@
-using OrderManagement.Application.Abstractions;
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Command;
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
+using OrderManagement.Application.Abstractions.Persistence;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Command;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Query;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Customers.ValueObjects;
 

@@ -4,9 +4,8 @@ using AngleSharp.Html.Dom;
 using Bunit;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using OrderManagement.Application.DTOs.Catalog;
+using OrderManagement.Application.Features.Catalog.Contracts;
 using OrderManagement.Application.Features.Catalog.CreateArticle;
 using OrderManagement.Application.Features.Catalog.CreateArticleGroup;
 using OrderManagement.Application.Features.Catalog.DeactivateArticle;
@@ -19,7 +18,6 @@ using OrderManagement.Application.Features.Catalog.ReactivateArticle;
 using OrderManagement.Application.Features.Catalog.RenameArticleGroup;
 using OrderManagement.Application.Features.Catalog.SearchArticleGroups;
 using OrderManagement.Application.Features.Catalog.SearchArticles;
-using OrderManagement.Application.Features.Catalog.Shared;
 using OrderManagement.Application.Features.Catalog.UpdateArticle;
 using OrderManagement.Domain.Catalog.ValueObjects;
 
@@ -30,7 +28,7 @@ using ArticlesPage = OrderManagement.Presentation.Blazor.Components.Pages.Articl
 namespace OrderManagement.Presentation.Blazor.Tests.Articles
 {
     [TestClass]
-    public sealed class ArticlesTests : Bunit.TestContext
+    public sealed class ArticlesTests : BunitContext
     {
         public ArticlesTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
@@ -207,7 +205,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Articles
             _ = Services.AddSingleton<IRenameArticleGroupUseCase>(new FakeRenameArticleGroupUseCase());
             _ = Services.AddSingleton<IDeleteArticleGroupUseCase>(new FakeDeleteArticleGroupUseCase());
 
-            return RenderComponent<ArticlesPage>();
+            return Render<ArticlesPage>();
         }
 
         private sealed class FakeSearchArticlesUseCase(ArticleListItemDto[] articles) : ISearchArticlesUseCase

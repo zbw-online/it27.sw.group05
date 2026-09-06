@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using SharedKernel.Primitives;
 
 namespace SharedKernel.Tests.Primitives
@@ -87,7 +85,7 @@ namespace SharedKernel.Tests.Primitives
             Money a = Money.From(10m, "CHF").Value!;
             Money b = Money.From(2m, "EUR").Value!;
 
-            _ = Assert.ThrowsException<DomainException>(() =>
+            _ = Assert.ThrowsExactly<DomainException>(() =>
             {
                 _ = a + b;
             });
@@ -119,7 +117,7 @@ namespace SharedKernel.Tests.Primitives
         public void Divide_ByZero_ShouldThrowOrFailFast()
         {
             Money a = Money.From(10m, "CHF").Value!;
-            _ = Assert.ThrowsException<DomainException>(() =>
+            _ = Assert.ThrowsExactly<DomainException>(() =>
             {
                 _ = a / 0;
             });

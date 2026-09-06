@@ -1,14 +1,11 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.AcceptanceTests.Support;
-using OrderManagement.Application.DTOs.Catalog;
+using OrderManagement.Application.Features.Catalog.Contracts;
 using OrderManagement.Application.Features.Catalog.CreateArticleGroup;
 using OrderManagement.Application.Features.Catalog.DeleteArticleGroup;
 using OrderManagement.Application.Features.Catalog.GetArticleGroupForEdit;
 using OrderManagement.Application.Features.Catalog.GetArticleGroupHierarchy;
 using OrderManagement.Application.Features.Catalog.RenameArticleGroup;
 using OrderManagement.Application.Features.Catalog.SearchArticleGroups;
-using OrderManagement.Application.Features.Catalog.Shared;
 
 using Reqnroll;
 

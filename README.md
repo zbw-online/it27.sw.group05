@@ -102,12 +102,10 @@ dann direkt mit [Datenbank erstellen](#datenbank-erstellen) fortfahren.
 
 Installiert sein müssen:
 
-- **.NET 9 SDK**, exakte Version gemäss `global.json`
-  (`9.0.308`, `rollForward: latestPatch` – jede neuere 9.0.x-Patch-Version
-  genügt). Die Anwendung selbst läuft auf **ASP.NET Core 8.0**
-  (`net8.0`); einzelne Testprojekte (`OrderManagement.Domain.Tests`,
-  `OrderManagement.Application.Tests`, `SharedKernel.Tests`) zielen auf
-  `net9.0`. Das .NET 9 SDK deckt beide Zielframeworks ab.
+- **.NET 10 SDK**, exakte Version gemäss `global.json`
+  (`10.0.100`, `rollForward: latestFeature` – jede neuere 10.0.x-Version
+  genügt). Alle Projekte (Anwendung und Tests) zielen einheitlich auf
+  `net10.0`.
 - **Git**
 - Für Variante A oder für die Docker-abhängigen Testebenen:
   **Docker Desktop** (bzw. eine Docker-Engine, unter der Linux-Container
@@ -315,7 +313,7 @@ Playwright-Browser installiert werden:
 
 ``` ps
 dotnet build .\tests\OrderManagement.PlaywrightTests\OrderManagement.PlaywrightTests.csproj
-pwsh .\tests\OrderManagement.PlaywrightTests\bin\Debug\net8.0\playwright.ps1 install chromium
+pwsh .\tests\OrderManagement.PlaywrightTests\bin\Debug\net10.0\playwright.ps1 install chromium
 ```
 
 Testabdeckung erfassen:
@@ -541,7 +539,7 @@ Import-/Export-Workflow:
    die `ICustomerDataSerializer` implementiert (`Format`,
    `FileExtension`, `MediaType`, `SerializeAsync`, `DeserializeAsync`).
 2. Registrierung als weitere Implementierung in
-   `OrderManagement.Infrastructure.DependencyInjection`:
+   `OrderManagement.Infrastructure.InfrastructureServiceCollectionExtensions`:
    `services.AddSingleton<ICustomerDataSerializer, CsvCustomerDataSerializer>();`
 3. `CustomerDataFormat` um `Csv` erweitern.
 

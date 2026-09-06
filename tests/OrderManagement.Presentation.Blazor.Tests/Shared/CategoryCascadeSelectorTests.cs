@@ -3,15 +3,14 @@ using AngleSharp.Dom;
 using Bunit;
 
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using OrderManagement.Application.DTOs.Catalog;
+using OrderManagement.Application.Features.Catalog.Contracts;
 using OrderManagement.Presentation.Blazor.Components.Shared;
 
 namespace OrderManagement.Presentation.Blazor.Tests.Shared
 {
     [TestClass]
-    public sealed class CategoryCascadeSelectorTests : Bunit.TestContext
+    public sealed class CategoryCascadeSelectorTests : BunitContext
     {
         private static readonly ArticleGroupHierarchyDto[] Hierarchy =
         [
@@ -27,7 +26,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_Closed_ShowsAllCategoriesAndNoPanels()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             Assert.AreEqual("Alle Kategorien", cut.Find(".category-flyout-value").TextContent);
@@ -37,7 +36,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void ClickingTrigger_OpensMenuShowingOnlyRootLevelItems()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -57,7 +56,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
             // A focused <button> fires a native click when Enter is pressed, in addition to keydown.
             // Reproduce both events, as a real browser would, to guard against the keydown handler
             // also opening the menu and racing that synthetic click back closed.
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             IElement trigger = cut.Find(".category-flyout-trigger");
@@ -70,7 +69,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void SelectingRootLevelWithChildren_RevealsItsDirectChildrenOnly()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -86,7 +85,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void SelectingLeaf_AppliesSelectionAndClosesMenu()
         {
             int? lastSelected = -1;
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupIdChanged, id => lastSelected = id));
 
@@ -100,7 +99,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void SelectingLeaf_UpdatesClosedControlToShowFullPath()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupId, 100));
 
@@ -111,7 +110,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void SelectingAlleKategorien_ClearsSelection()
         {
             int? lastSelected = -1;
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupId, 2)
                 .Add(p => p.SelectedGroupIdChanged, id => lastSelected = id));
@@ -126,7 +125,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void ClearButton_WhenSelectionActive_ResetsSelectionWithoutOpeningMenu()
         {
             int? lastSelected = -1;
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupId, 2)
                 .Add(p => p.SelectedGroupIdChanged, id => lastSelected = id));
@@ -139,7 +138,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void ClearButton_IsAbsent_WhenNoSelection()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             Assert.AreEqual(0, cut.FindAll(".category-flyout-clear").Count);
@@ -148,7 +147,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void ChangingParentSelection_DoesNotShowPreviouslySelectedDescendant()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -167,7 +166,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void SelectedGroupIdParameter_PreselectsAncestorPathWhenOpened()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupId, 100));
 
@@ -186,7 +185,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void ArrowDown_MovesFocusToNextItem()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -202,7 +201,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void ArrowRight_OnItemWithChildren_OpensChildPanelAndMovesFocusIntoIt()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -215,7 +214,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void ArrowLeft_CollapsesChildPanelAndReturnsFocusToParent()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -232,7 +231,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void Escape_ClosesMenuWithoutChangingSelection()
         {
             int? lastSelected = -1;
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupIdChanged, id => lastSelected = id));
 
@@ -247,7 +246,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Escape_ImmediatelyAfterPanelsBecomeVisible_ClosesSelector()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             IElement trigger = cut.Find(".category-flyout-trigger");
@@ -264,7 +263,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         {
             // Mirrors the real browser race: Enter fires both a keydown and a native click that
             // reopens the selector, so keyboard focus is still on the trigger when Escape follows.
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             IElement trigger = cut.Find(".category-flyout-trigger");
@@ -280,7 +279,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Escape_WhileFocusOnNestedCategory_ClosesSelector()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -299,7 +298,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
             // The trigger is the only element the component ever calls FocusAsync on
             // (CategoryCascadeSelector.razor: CloseAsync), so a single invocation proves
             // focus was restored to it rather than left stranded on the closed menu.
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -314,7 +313,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void Escape_PreservesCurrentSelection()
         {
             int? lastSelected = -1;
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupId, 2)
                 .Add(p => p.SelectedGroupIdChanged, id => lastSelected = id));
@@ -332,7 +331,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Escape_TogglesAriaExpandedFromTrueToFalse()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             IElement trigger = cut.Find(".category-flyout-trigger");
@@ -347,7 +346,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Escape_ThenReopening_StillWorks()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             IElement trigger = cut.Find(".category-flyout-trigger");
@@ -365,7 +364,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void Escape_WhileAlreadyClosed_DoesNothing()
         {
             int? lastSelected = -1;
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.SelectedGroupIdChanged, id => lastSelected = id));
 
@@ -380,7 +379,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Escape_BubblingFromNestedItem_ClosesExactlyOnce()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -395,7 +394,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void EmptyHierarchy_ShowsEmptyState()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, []));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -406,7 +405,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void IsLoading_ShowsLoadingState()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.IsLoading, true));
 
@@ -426,7 +425,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
                 new(4, "Ebene-Vier", 3, 3, "Ebene-Root > Ebene-Zwei > Ebene-Drei > Ebene-Vier")
             ];
 
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, deepHierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -443,7 +442,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         {
             _ = JSInterop.Setup<bool>("applyPlacement", _ => true).SetResult(true);
 
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -460,7 +459,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         {
             _ = JSInterop.Setup<bool>("applyPlacement", _ => true).SetResult(false);
 
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -476,7 +475,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         {
             _ = JSInterop.Setup<bool>("applyPlacement", _ => true).SetResult(true);
 
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy));
 
             cut.Find(".category-flyout-trigger").Click();
@@ -502,7 +501,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void InlineDrilldownMode_NeverOpensAsOverlayAndStaysCompact()
         {
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, Hierarchy)
                 .Add(p => p.Mode, CategorySelectorMode.InlineDrilldown));
 
@@ -523,7 +522,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
                 new(3, "Ebene-Drei", 2, 2, "Ebene-Root > Ebene-Zwei > Ebene-Drei")
             ];
 
-            IRenderedComponent<CategoryCascadeSelector> cut = RenderComponent<CategoryCascadeSelector>(parameters => parameters
+            IRenderedComponent<CategoryCascadeSelector> cut = Render<CategoryCascadeSelector>(parameters => parameters
                 .Add(p => p.Hierarchy, deepHierarchy)
                 .Add(p => p.Mode, CategorySelectorMode.InlineDrilldown));
 

@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Application.Features.Customers.AddCustomerAddress;
 using OrderManagement.Application.Features.Customers.GetCustomerDetails;
 using OrderManagement.Domain.Customers;

@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Infrastructure.Persistence;
 using OrderManagement.TestSupport;

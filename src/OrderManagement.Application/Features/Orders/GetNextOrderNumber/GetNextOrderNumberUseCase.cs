@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-using OrderManagement.Application.Abstractions.Interfaces.Orders.Query;
+using OrderManagement.Application.Abstractions.Persistence.Orders.Query;
 using OrderManagement.Domain.Orders;
 
 using SharedKernel.Primitives;

@@ -1,5 +1,5 @@
-using OrderManagement.Application.Abstractions;
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Command;
+using OrderManagement.Application.Abstractions.Persistence;
+using OrderManagement.Application.Abstractions.Persistence.Catalog.Command;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.ValueObjects;
 
