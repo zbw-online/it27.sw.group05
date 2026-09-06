@@ -1,6 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
-using OrderManagement.Application.DTOs.Invoices;
+using OrderManagement.Application.Features.Invoices.Contracts;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Infrastructure.Persistence.Repositories.Invoices.Query;

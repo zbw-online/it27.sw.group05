@@ -13,14 +13,14 @@ namespace OrderManagement.Infrastructure.Persistence
     {
 
         // DbSets for aggregate roots (optional - Set<T>() works without them)
-        public DbSet<Article> Articles { get; set; }
-        public DbSet<ArticleGroup> ArticleGroups { get; set; }
-        public DbSet<Customer> Customers { get; set; }
-        public DbSet<CustomerAddress> CustomerAddresses { get; set; }
+        public DbSet<Article> Articles { get; set; } = null!;
+        public DbSet<ArticleGroup> ArticleGroups { get; set; } = null!;
+        public DbSet<Customer> Customers { get; set; } = null!;
+        public DbSet<CustomerAddress> CustomerAddresses { get; set; } = null!;
 
-        public DbSet<Order> Orders { get; set; }
+        public DbSet<Order> Orders { get; set; } = null!;
 
-        public DbSet<OrderLine> OrderLines { get; set; }
+        public DbSet<OrderLine> OrderLines { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

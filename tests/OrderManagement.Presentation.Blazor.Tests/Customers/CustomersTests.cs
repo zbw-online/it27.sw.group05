@@ -6,18 +6,17 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Application.Features.Customers.AddCustomerAddress;
+using OrderManagement.Application.Features.Customers.Contracts;
 using OrderManagement.Application.Features.Customers.CreateCustomer;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 using OrderManagement.Application.Features.Customers.DeleteCustomer;
 using OrderManagement.Application.Features.Customers.ExportCustomerData;
 using OrderManagement.Application.Features.Customers.GetCustomerDetails;
 using OrderManagement.Application.Features.Customers.GetCustomerForEdit;
 using OrderManagement.Application.Features.Customers.ImportCustomerData;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
-using OrderManagement.Application.Features.Customers.Shared;
 using OrderManagement.Application.Features.Customers.UpdateCustomer;
 using OrderManagement.Application.Features.Customers.ValidateCustomerDataImport;
 
@@ -28,7 +27,7 @@ using CustomersPage = OrderManagement.Presentation.Blazor.Components.Pages.Custo
 namespace OrderManagement.Presentation.Blazor.Tests.Customers
 {
     [TestClass]
-    public sealed class CustomersTests : Bunit.TestContext
+    public sealed class CustomersTests : BunitContext
     {
         private static readonly CustomerListItemDto[] Customers =
         [
@@ -281,7 +280,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
             _ = Services.AddSingleton(Options.Create(new CustomerDataExchangeOptions()));
             _ = Services.AddSingleton(TimeProvider.System);
 
-            return RenderComponent<CustomersPage>();
+            return Render<CustomersPage>();
         }
 
         private sealed class FakeSearchCustomersUseCase : ISearchCustomersUseCase

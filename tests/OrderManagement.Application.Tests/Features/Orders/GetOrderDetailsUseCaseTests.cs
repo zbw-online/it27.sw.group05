@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Application.Features.Orders.GetOrderDetails;
 using OrderManagement.Application.Tests.Fakes.Customers;
 using OrderManagement.Application.Tests.Fakes.Orders;

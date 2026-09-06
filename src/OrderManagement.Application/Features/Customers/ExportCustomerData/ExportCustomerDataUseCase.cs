@@ -1,8 +1,8 @@
 using System.Globalization;
 
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Query;
 using OrderManagement.Application.Abstractions.Serialization;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 
 using SharedKernel.Primitives;
 

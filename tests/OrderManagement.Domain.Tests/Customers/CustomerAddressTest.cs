@@ -1,7 +1,5 @@
 using System.Reflection;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Customers;
 
 namespace OrderManagement.Domain.Tests.Customers

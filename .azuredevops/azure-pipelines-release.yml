@@ -51,16 +51,10 @@ steps:
   clean: true
 
 - task: UseDotNet@2
-  displayName: Install .NET 8 SDK
+  displayName: Install .NET 10 SDK
   inputs:
     packageType: sdk
-    version: '8.0.x'
-
-- task: UseDotNet@2
-  displayName: Install .NET 9 SDK
-  inputs:
-    packageType: sdk
-    version: 9.x
+    version: 10.x
 
 - script: dotnet restore
   displayName: Restore
@@ -127,7 +121,7 @@ steps:
 - script: |
     set -euo pipefail
 
-    dotnet tool install --global dotnet-ef
+    dotnet tool restore
 
     mkdir -p "$(migrationBundleFolder)"
 
@@ -159,14 +153,16 @@ steps:
     CONTAINER="validate-$(Build.BuildId)"
 
     # Smoke-test only: the app never migrates automatically on startup, so it must come
-    # up and serve requests even without a reachable database.
+    # up and serve requests even without a reachable database. The root page queries the
+    # database and is not a valid liveness probe; /health/live only confirms the ASP.NET Core
+    # process itself is running.
     docker run -d --rm --name "$CONTAINER" -p 18080:8080 \
       -e ConnectionStrings__OrderManagement="Server=unreachable;Database=OrderManagement;User Id=sa;Password=Placeholder_Not_Real!;TrustServerCertificate=True;Connect Timeout=1;" \
       "$IMAGE"
 
     READY=false
     for _ in $(seq 1 20); do
-      if curl -sf -o /dev/null "http://localhost:18080/"; then
+      if curl -sf -o /dev/null "http://localhost:18080/health/live"; then
         READY=true
         break
       fi

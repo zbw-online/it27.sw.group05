@@ -1,7 +1,5 @@
 using System.Globalization;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.AcceptanceTests.Support;
 using OrderManagement.Application.Features.Customers.AddCustomerAddress;
 using OrderManagement.Application.Features.Customers.CreateCustomer;

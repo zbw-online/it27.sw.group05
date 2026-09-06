@@ -1,6 +1,6 @@
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
-using OrderManagement.Application.Abstractions.Interfaces.Orders.Query;
-using OrderManagement.Application.Features.Orders.Shared;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Query;
+using OrderManagement.Application.Abstractions.Persistence.Orders.Query;
+using OrderManagement.Application.Features.Orders.Contracts;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Domain.Orders.ValueObjects;

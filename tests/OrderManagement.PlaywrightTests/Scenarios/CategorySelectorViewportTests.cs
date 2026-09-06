@@ -178,7 +178,7 @@ namespace OrderManagement.PlaywrightTests.Scenarios
             Assert.IsTrue(drawerBox.Width >= (1440 * 2.0 / 3.0) - 2, "Drawer should still be at least two thirds of the viewport width.");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(1280, 800)]
         [DataRow(1366, 768)]
         [DataRow(1440, 900)]

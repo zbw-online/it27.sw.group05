@@ -1,12 +1,11 @@
 @page "/"
-@using OrderManagement.Application.DTOs.Orders
+@using OrderManagement.Application.Features.Orders.Contracts
 @using OrderManagement.Application.Features.Customers.GetCustomersWithoutCurrentAddress
 @using OrderManagement.Application.Features.Catalog.GetLowStockArticles
-@using OrderManagement.Application.Features.Catalog.Shared
+@using OrderManagement.Application.Features.Catalog.Contracts
 @using OrderManagement.Application.Features.Orders.GetDashboardOverview
 @using OrderManagement.Application.Features.Orders.GetQuarterlyKpis
 @using OrderManagement.Application.Features.Orders.GetTopSellingArticles
-@using OrderManagement.Application.Features.Orders.Shared
 @using OrderManagement.Presentation.Blazor.Components.Shared
 @inject IGetDashboardOverviewUseCase GetDashboardOverviewUseCase
 @inject IGetQuarterlyKpisUseCase GetQuarterlyKpisUseCase

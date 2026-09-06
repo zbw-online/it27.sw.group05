@@ -1,5 +1,5 @@
 using OrderManagement.Application.Abstractions.Serialization;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 
 using SharedKernel.Primitives;
 

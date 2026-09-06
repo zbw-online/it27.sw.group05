@@ -1,5 +1,5 @@
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
-using OrderManagement.Application.Features.Customers.Shared;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Query;
+using OrderManagement.Application.Features.Customers.Contracts;
 using OrderManagement.Domain.Customers;
 
 using SharedKernel.Primitives;

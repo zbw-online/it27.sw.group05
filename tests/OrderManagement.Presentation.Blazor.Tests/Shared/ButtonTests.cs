@@ -1,18 +1,16 @@
 using Bunit;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Presentation.Blazor.Components.Shared;
 
 namespace OrderManagement.Presentation.Blazor.Tests.Shared
 {
     [TestClass]
-    public sealed class ButtonTests : Bunit.TestContext
+    public sealed class ButtonTests : BunitContext
     {
         [TestMethod]
         public void Render_WithPrimaryVariant_AppliesPrimaryClass()
         {
-            IRenderedComponent<Button> cut = RenderComponent<Button>(parameters => parameters
+            IRenderedComponent<Button> cut = Render<Button>(parameters => parameters
                 .Add(p => p.Variant, ButtonVariant.Primary)
                 .AddChildContent("Speichern"));
 
@@ -23,7 +21,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_WhenDisabled_RendersDisabledAttribute()
         {
-            IRenderedComponent<Button> cut = RenderComponent<Button>(parameters => parameters
+            IRenderedComponent<Button> cut = Render<Button>(parameters => parameters
                 .Add(p => p.Disabled, true));
 
             Assert.IsTrue(cut.Find("button").HasAttribute("disabled"));
@@ -33,7 +31,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void Click_WhenEnabled_InvokesOnClickCallback()
         {
             bool clicked = false;
-            IRenderedComponent<Button> cut = RenderComponent<Button>(parameters => parameters
+            IRenderedComponent<Button> cut = Render<Button>(parameters => parameters
                 .Add(p => p.OnClick, () => clicked = true));
 
             cut.Find("button").Click();
@@ -44,7 +42,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_WithoutExplicitVariant_DefaultsToSecondary()
         {
-            IRenderedComponent<Button> cut = RenderComponent<Button>();
+            IRenderedComponent<Button> cut = Render<Button>();
 
             Assert.IsTrue(cut.Find("button").ClassList.Contains("app-button-secondary"));
         }

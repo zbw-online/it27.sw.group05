@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Application.Features.Orders.DeleteOrder;
 using OrderManagement.Application.Tests.Fakes;
 using OrderManagement.Application.Tests.Fakes.Catalog;

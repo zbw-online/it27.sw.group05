@@ -1,12 +1,10 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.AcceptanceTests.Support;
+using OrderManagement.Application.Features.Catalog.Contracts;
 using OrderManagement.Application.Features.Catalog.CreateArticle;
 using OrderManagement.Application.Features.Catalog.DeactivateArticle;
 using OrderManagement.Application.Features.Catalog.DeleteArticle;
 using OrderManagement.Application.Features.Catalog.GetArticleForEdit;
 using OrderManagement.Application.Features.Catalog.SearchArticles;
-using OrderManagement.Application.Features.Catalog.Shared;
 using OrderManagement.Application.Features.Catalog.UpdateArticleStock;
 using OrderManagement.Domain.Catalog.ValueObjects;
 

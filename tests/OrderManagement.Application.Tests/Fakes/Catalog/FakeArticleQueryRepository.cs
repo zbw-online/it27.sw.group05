@@ -1,4 +1,4 @@
-using OrderManagement.Application.Abstractions.Interfaces.Catalog.Query;
+using OrderManagement.Application.Abstractions.Persistence.Catalog.Query;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.ValueObjects;
 

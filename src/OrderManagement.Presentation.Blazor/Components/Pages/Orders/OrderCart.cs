@@ -1,5 +1,5 @@
-using OrderManagement.Application.Features.Catalog.Shared;
-using OrderManagement.Application.Features.Orders.Shared;
+using OrderManagement.Application.Features.Catalog.Contracts;
+using OrderManagement.Application.Features.Orders.Contracts;
 using OrderManagement.Domain.Catalog.ValueObjects;
 
 using SharedKernel.Primitives;

@@ -1,6 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
-using OrderManagement.Application.Features.Catalog.Shared;
+using OrderManagement.Application.Features.Catalog.Contracts;
 using OrderManagement.Domain.Catalog.ValueObjects;
 using OrderManagement.Presentation.Blazor.Components.Pages.Orders;
 

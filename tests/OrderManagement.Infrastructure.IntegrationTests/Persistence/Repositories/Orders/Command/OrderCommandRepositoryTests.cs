@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;
@@ -259,7 +258,7 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
 
             _repository.Add(order);
 
-            _ = await Assert.ThrowsExceptionAsync<DbUpdateException>(
+            _ = await Assert.ThrowsExactlyAsync<DbUpdateException>(
                 async () => await DbContext.SaveChangesAsync());
         }
     }

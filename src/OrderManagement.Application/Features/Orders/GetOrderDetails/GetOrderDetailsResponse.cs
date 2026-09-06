@@ -1,4 +1,4 @@
-using OrderManagement.Application.Features.Orders.Shared;
+using OrderManagement.Application.Features.Orders.Contracts;
 using OrderManagement.Domain.Orders.ValueObjects;
 
 namespace OrderManagement.Application.Features.Orders.GetOrderDetails

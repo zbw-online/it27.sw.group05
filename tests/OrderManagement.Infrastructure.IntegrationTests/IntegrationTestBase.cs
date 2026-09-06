@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Infrastructure.Persistence;
 using OrderManagement.TestSupport;

@@ -1,18 +1,16 @@
 using Bunit;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Presentation.Blazor.Components.Shared;
 
 namespace OrderManagement.Presentation.Blazor.Tests.Shared
 {
     [TestClass]
-    public sealed class StatusBadgeTests : Bunit.TestContext
+    public sealed class StatusBadgeTests : BunitContext
     {
         [TestMethod]
         public void Render_WithSuccessTone_AppliesSuccessClassAndText()
         {
-            IRenderedComponent<StatusBadge> cut = RenderComponent<StatusBadge>(parameters => parameters
+            IRenderedComponent<StatusBadge> cut = Render<StatusBadge>(parameters => parameters
                 .Add(p => p.Text, "Aktiv")
                 .Add(p => p.Tone, StatusTone.Success));
 
@@ -23,7 +21,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_DoesNotRelyOnColorAlone_RendersVisibleTextLabel()
         {
-            IRenderedComponent<StatusBadge> cut = RenderComponent<StatusBadge>(parameters => parameters
+            IRenderedComponent<StatusBadge> cut = Render<StatusBadge>(parameters => parameters
                 .Add(p => p.Text, "Tiefer Bestand")
                 .Add(p => p.Tone, StatusTone.Warning));
 

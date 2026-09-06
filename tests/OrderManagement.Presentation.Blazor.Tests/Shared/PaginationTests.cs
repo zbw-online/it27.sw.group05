@@ -1,21 +1,20 @@
 using Bunit;
 
 using Microsoft.AspNetCore.Components;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using OrderManagement.Presentation.Blazor.Components.Shared;
 
 namespace OrderManagement.Presentation.Blazor.Tests.Shared
 {
     [TestClass]
-    public sealed class PaginationTests : Bunit.TestContext
+    public sealed class PaginationTests : BunitContext
     {
         private static readonly string[] ExpectedLeadingPages = ["1", "2", "3", "9"];
 
         [TestMethod]
         public void Render_FewPages_ShowsAllPagesWithoutEllipsis()
         {
-            IRenderedComponent<Pagination> cut = RenderComponent<Pagination>(parameters => parameters
+            IRenderedComponent<Pagination> cut = Render<Pagination>(parameters => parameters
                 .Add(p => p.CurrentPage, 1)
                 .Add(p => p.TotalPages, 3));
 
@@ -26,7 +25,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_ManyPagesAtFirstPage_ShowsLeadingPagesEllipsisAndLast()
         {
-            IRenderedComponent<Pagination> cut = RenderComponent<Pagination>(parameters => parameters
+            IRenderedComponent<Pagination> cut = Render<Pagination>(parameters => parameters
                 .Add(p => p.CurrentPage, 1)
                 .Add(p => p.TotalPages, 9));
 
@@ -38,7 +37,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_CurrentPage_HasAriaCurrent()
         {
-            IRenderedComponent<Pagination> cut = RenderComponent<Pagination>(parameters => parameters
+            IRenderedComponent<Pagination> cut = Render<Pagination>(parameters => parameters
                 .Add(p => p.CurrentPage, 2)
                 .Add(p => p.TotalPages, 3));
 
@@ -49,7 +48,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         public void Click_PageButton_InvokesCallback()
         {
             int? clickedPage = null;
-            IRenderedComponent<Pagination> cut = RenderComponent<Pagination>(parameters => parameters
+            IRenderedComponent<Pagination> cut = Render<Pagination>(parameters => parameters
                 .Add(p => p.CurrentPage, 1)
                 .Add(p => p.TotalPages, 3)
                 .Add(p => p.OnPageChange, EventCallback.Factory.Create<int>(this, page => clickedPage = page)));
@@ -62,7 +61,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_AtFirstPage_DisablesPreviousButton()
         {
-            IRenderedComponent<Pagination> cut = RenderComponent<Pagination>(parameters => parameters
+            IRenderedComponent<Pagination> cut = Render<Pagination>(parameters => parameters
                 .Add(p => p.CurrentPage, 1)
                 .Add(p => p.TotalPages, 3));
 
@@ -73,7 +72,7 @@ namespace OrderManagement.Presentation.Blazor.Tests.Shared
         [TestMethod]
         public void Render_AtLastPage_DisablesNextButton()
         {
-            IRenderedComponent<Pagination> cut = RenderComponent<Pagination>(parameters => parameters
+            IRenderedComponent<Pagination> cut = Render<Pagination>(parameters => parameters
                 .Add(p => p.CurrentPage, 3)
                 .Add(p => p.TotalPages, 3));
 

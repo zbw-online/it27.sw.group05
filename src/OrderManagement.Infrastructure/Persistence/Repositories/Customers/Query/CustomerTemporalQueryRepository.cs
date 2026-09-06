@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
-using OrderManagement.Application.Abstractions.Interfaces.Customers.Query;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Abstractions.Persistence.Customers.Query;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Customers.ValueObjects;
 

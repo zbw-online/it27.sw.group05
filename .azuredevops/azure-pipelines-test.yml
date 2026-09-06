@@ -58,15 +58,10 @@ stages:
     - checkout: self
       clean: true
     - task: UseDotNet@2
-      displayName: Install .NET 8 SDK
+      displayName: Install .NET 10 SDK
       inputs:
         packageType: sdk
-        version: '8.0.x'
-    - task: UseDotNet@2
-      displayName: Install .NET 9 SDK
-      inputs:
-        packageType: sdk
-        version: '9.x'
+        version: '10.x'
     - script: dotnet restore
       displayName: Restore
     - script: dotnet build --configuration $(buildConfiguration) --no-restore
@@ -84,7 +79,7 @@ stages:
     - task: UseDotNet@2
       inputs:
         packageType: sdk
-        version: 9.x
+        version: 10.x
     - script: dotnet restore
       displayName: Restore
     - script: dotnet format --verify-no-changes
@@ -104,6 +99,21 @@ stages:
         buildConfiguration: $(buildConfiguration)
         coverageArtifactName: 'coverage-unit'
         testResultsTitle: 'UnitAndComponentTests'
+
+# --- Stage 3b: architecture tests (enforce Clean Architecture layering rules) ---
+- stage: ArchitectureTests
+  displayName: '3b. Architecture tests'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Test
+    steps:
+    - template: templates/dotnet-test-with-coverage.yml
+      parameters:
+        displayName: 'Run architecture tests'
+        projects: 'tests/OrderManagement.ArchitectureTests/OrderManagement.ArchitectureTests.csproj'
+        buildConfiguration: $(buildConfiguration)
+        coverageArtifactName: 'coverage-architecture'
+        testResultsTitle: 'ArchitectureTests'
 
 # --- Stage 4: SQL Server integration tests (Testcontainers; Docker is available on the hosted ubuntu-latest agent) ---
 - stage: SqlServerIntegrationTests
@@ -145,20 +155,15 @@ stages:
     - checkout: self
       clean: true
     - task: UseDotNet@2
-      displayName: Install .NET 8 SDK
+      displayName: Install .NET 10 SDK
       inputs:
         packageType: sdk
-        version: '8.0.x'
-    - task: UseDotNet@2
-      displayName: Install .NET 9 SDK
-      inputs:
-        packageType: sdk
-        version: '9.x'
+        version: '10.x'
     - script: dotnet restore
       displayName: Restore
     - script: dotnet build --configuration $(buildConfiguration) --no-restore
       displayName: Build
-    - script: pwsh tests/OrderManagement.PlaywrightTests/bin/$(buildConfiguration)/net8.0/playwright.ps1 install --with-deps chromium
+    - script: pwsh tests/OrderManagement.PlaywrightTests/bin/$(buildConfiguration)/net10.0/playwright.ps1 install --with-deps chromium
       displayName: Install Playwright browser
     - script: dotnet test tests/OrderManagement.PlaywrightTests/OrderManagement.PlaywrightTests.csproj --configuration $(buildConfiguration) --no-build --logger trx --results-directory "$(Agent.TempDirectory)/trx"
       displayName: Run Playwright tests
@@ -184,6 +189,7 @@ stages:
   displayName: '7-8. Coverage generation and threshold enforcement'
   dependsOn:
   - UnitAndComponentTests
+  - ArchitectureTests
   - SqlServerIntegrationTests
   - AcceptanceTests
   condition: succeededOrFailed()
@@ -197,6 +203,11 @@ stages:
         artifact: coverage-unit
         path: '$(Agent.TempDirectory)/coverage/unit'
     - task: DownloadPipelineArtifact@2
+      displayName: Download coverage-architecture
+      inputs:
+        artifact: coverage-architecture
+        path: '$(Agent.TempDirectory)/coverage/architecture'
+    - task: DownloadPipelineArtifact@2
       displayName: Download coverage-integration
       inputs:
         artifact: coverage-integration
@@ -209,8 +220,8 @@ stages:
     - task: UseDotNet@2
       inputs:
         packageType: sdk
-        version: 9.x
-    - script: dotnet tool install --global dotnet-reportgenerator-globaltool
+        version: 10.x
+    - script: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.5.11
       displayName: Install ReportGenerator
     - script: |
         reportgenerator \

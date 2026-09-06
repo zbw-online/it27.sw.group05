@@ -1,4 +1,4 @@
-using OrderManagement.Application.DTOs.Orders;
+using OrderManagement.Application.Features.Orders.Contracts;
 
 using SharedKernel.Primitives;
 

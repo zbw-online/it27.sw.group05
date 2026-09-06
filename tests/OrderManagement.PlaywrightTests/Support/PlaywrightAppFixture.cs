@@ -99,7 +99,7 @@ namespace OrderManagement.PlaywrightTests.Support
             string repositoryRoot = FindRepositoryRoot();
             string appDll = Path.Combine(
                 repositoryRoot,
-                "src", "OrderManagement.Presentation.Blazor", "bin", configuration, "net8.0",
+                "src", "OrderManagement.Presentation.Blazor", "bin", configuration, "net10.0",
                 "OrderManagement.Presentation.Blazor.dll");
 
             if (!File.Exists(appDll))

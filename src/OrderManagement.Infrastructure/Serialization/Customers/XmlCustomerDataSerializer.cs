@@ -6,7 +6,7 @@ using System.Xml.Serialization;
 using Microsoft.Extensions.Options;
 
 using OrderManagement.Application.Abstractions.Serialization;
-using OrderManagement.Application.Features.Customers.DataExchange.Shared;
+using OrderManagement.Application.Features.Customers.DataExchange.Contracts;
 using OrderManagement.Infrastructure.Serialization.Customers.Xml;
 
 using SharedKernel.Primitives;

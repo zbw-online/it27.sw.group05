@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using SharedKernel.Primitives;
 
 namespace SharedKernel.Tests.Primitives

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
-using OrderManagement.Application.Abstractions.Interfaces.Invoices.Query;
-using OrderManagement.Application.DTOs.Invoices;
+using OrderManagement.Application.Abstractions.Persistence.Invoices.Query;
+using OrderManagement.Application.Features.Invoices.Contracts;
 
 namespace OrderManagement.Infrastructure.Persistence.Repositories.Invoices.Query
 {

@@ -1,7 +1,5 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
+using OrderManagement.Application.Features.Customers.Contracts;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
-using OrderManagement.Application.Features.Customers.Shared;
 using OrderManagement.Application.Tests.Fakes.Customers;
 using OrderManagement.Domain.Customers;
 
