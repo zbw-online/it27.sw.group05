@@ -110,7 +110,11 @@ namespace OrderManagement.Application.Features.Orders.CreateOrder
                     return Results.Fail<CreateOrderResponse>(availabilityResult.Error!);
                 }
 
-                Result addLineResult = order.AddLine(article.Id, article.Name, article.Price, lineInput.Quantity);
+                // A fresh Money instance per line: EF Core owns Article.Price and each OrderLine.UnitPrice
+                // separately and cannot track the same instance as both, which surfaces the moment a
+                // second order line reuses an already-tracked article within the same DbContext.
+                Money lineUnitPrice = Money.From(article.Price.Amount, article.Price.Currency).EnsureValue();
+                Result addLineResult = order.AddLine(article.Id, article.Name, lineUnitPrice, lineInput.Quantity);
                 if (!addLineResult.IsSuccess)
                 {
                     return Results.Fail<CreateOrderResponse>(addLineResult.Error!);

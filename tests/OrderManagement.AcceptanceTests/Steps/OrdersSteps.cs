@@ -2,11 +2,15 @@ using System.Globalization;
 
 using OrderManagement.AcceptanceTests.Support;
 using OrderManagement.Application.Features.Catalog.GetArticleForEdit;
+using OrderManagement.Application.Features.Orders.CancelOrder;
+using OrderManagement.Application.Features.Orders.CompleteOrder;
 using OrderManagement.Application.Features.Orders.Contracts;
 using OrderManagement.Application.Features.Orders.CreateOrder;
 using OrderManagement.Application.Features.Orders.DeleteOrder;
 using OrderManagement.Application.Features.Orders.GetOrderDetails;
-using OrderManagement.Application.Features.Orders.SearchOrders;
+using OrderManagement.Application.Features.Orders.SearchActiveOrders;
+using OrderManagement.Application.Features.Orders.SearchArchivedOrders;
+using OrderManagement.Application.Features.Orders.StartOrderProcessing;
 using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity;
 using OrderManagement.Domain.Orders.ValueObjects;
 
@@ -19,10 +23,14 @@ namespace OrderManagement.AcceptanceTests.Steps
     [Binding]
     public sealed class OrdersSteps(
         ICreateOrderUseCase createOrderUseCase,
-        ISearchOrdersUseCase searchOrdersUseCase,
+        ISearchActiveOrdersUseCase searchActiveOrdersUseCase,
+        ISearchArchivedOrdersUseCase searchArchivedOrdersUseCase,
         IGetOrderDetailsUseCase getOrderDetailsUseCase,
         IUpdateOrderLineQuantityUseCase updateOrderLineQuantityUseCase,
         IDeleteOrderUseCase deleteOrderUseCase,
+        IStartOrderProcessingUseCase startOrderProcessingUseCase,
+        ICompleteOrderUseCase completeOrderUseCase,
+        ICancelOrderUseCase cancelOrderUseCase,
         IGetArticleForEditUseCase getArticleForEditUseCase,
         AcceptanceTestContext context)
     {
@@ -34,12 +42,76 @@ namespace OrderManagement.AcceptanceTests.Steps
         private static readonly AddressOverrideInput DefaultAddress = new("Main Street", "1", "8000", "Zurich", "CH");
 
         private Result<CreateOrderResponse>? _lastCreateResult;
-        private IReadOnlyList<OrderListItemDto>? _lastSearchResult;
+        private IReadOnlyList<OrderSearchItemDto>? _lastSearchResult;
+        private IReadOnlyList<OrderSearchItemDto>? _lastArchiveSearchResult;
+        private Result? _lastStatusChangeResult;
         private int _stockScenarioStockBeforeDeduction;
 
         [Given(@"order ""([^""]*)"" already exists for customer ""([^""]*)"" with lines:")]
         public async Task GivenOrderAlreadyExistsForCustomerWithLines(string orderNumber, string customerNumber, Table linesTable)
             => await CreateOrderAsync(orderNumber, customerNumber, linesTable);
+
+        [Given(@"order ""([^""]*)"" already exists for customer ""([^""]*)"" with delivery date ""([^""]*)"" and lines:")]
+        public async Task GivenOrderAlreadyExistsForCustomerWithDeliveryDateAndLines(string orderNumber, string customerNumber, string deliveryDate, Table linesTable)
+            => await CreateOrderAsync(orderNumber, customerNumber, DateOnly.Parse(deliveryDate, CultureInfo.InvariantCulture), DefaultAddress, DefaultAddress, linesTable);
+
+        [Given(@"I start processing order ""([^""]*)""")]
+        [When(@"I start processing order ""([^""]*)""")]
+        public async Task WhenIStartProcessingOrder(string orderNumber)
+        {
+            int orderId = context.OrderIdsByNumber[orderNumber];
+            _lastStatusChangeResult = await startOrderProcessingUseCase.ExecuteAsync(new StartOrderProcessingCommand(orderId));
+        }
+
+        [Given(@"I complete order ""([^""]*)""")]
+        [When(@"I complete order ""([^""]*)""")]
+        public async Task WhenICompleteOrder(string orderNumber)
+        {
+            int orderId = context.OrderIdsByNumber[orderNumber];
+            _lastStatusChangeResult = await completeOrderUseCase.ExecuteAsync(new CompleteOrderCommand(orderId));
+        }
+
+        [Given(@"I cancel order ""([^""]*)""")]
+        [When(@"I cancel order ""([^""]*)""")]
+        public async Task WhenICancelOrder(string orderNumber)
+        {
+            int orderId = context.OrderIdsByNumber[orderNumber];
+            _lastStatusChangeResult = await cancelOrderUseCase.ExecuteAsync(new CancelOrderCommand(orderId));
+        }
+
+        [Then(@"the last status change is rejected")]
+        public void ThenTheLastStatusChangeIsRejected()
+            => Assert.IsFalse(_lastStatusChangeResult!.Value.IsSuccess);
+
+        [Then(@"order ""([^""]*)"" has status ""([^""]*)""")]
+        public async Task ThenOrderHasStatus(string orderNumber, string statusName)
+        {
+            GetOrderDetailsResponse details = await GetDetailsAsync(orderNumber);
+            Assert.AreEqual(Enum.Parse<OrderStatus>(statusName), details.Status);
+        }
+
+        [Then(@"order ""([^""]*)"" is overdue")]
+        public async Task ThenOrderIsOverdue(string orderNumber)
+        {
+            GetOrderDetailsResponse details = await GetDetailsAsync(orderNumber);
+            Assert.IsTrue(details.IsOverdue);
+        }
+
+        [When(@"I search archived orders for ""([^""]*)""")]
+        public async Task WhenISearchArchivedOrdersFor(string searchTerm)
+        {
+            Result<OrderSearchResultDto> result = await searchArchivedOrdersUseCase.ExecuteAsync(
+                new SearchArchivedOrdersQuery(searchTerm, Page: 1, PageSize: 100));
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            _lastArchiveSearchResult = result.Value!.Items;
+        }
+
+        [Then(@"the archived order search contains ""([^""]*)"" but not ""([^""]*)""")]
+        public void ThenTheArchivedOrderSearchContainsButNot(string includedOrderNumber, string excludedOrderNumber)
+        {
+            Assert.IsTrue(_lastArchiveSearchResult!.Any(o => o.OrderNumber == includedOrderNumber));
+            Assert.IsFalse(_lastArchiveSearchResult!.Any(o => o.OrderNumber == excludedOrderNumber));
+        }
 
         [When(@"I create order ""([^""]*)"" for customer ""([^""]*)"" with lines:")]
         public async Task WhenICreateOrderForCustomerWithLines(string orderNumber, string customerNumber, Table linesTable)
@@ -101,19 +173,11 @@ namespace OrderManagement.AcceptanceTests.Steps
 
         [When(@"I search orders for ""([^""]*)""")]
         public async Task WhenISearchOrdersFor(string searchTerm)
-        {
-            Result<IReadOnlyList<OrderListItemDto>> result = await searchOrdersUseCase.ExecuteAsync(new SearchOrdersQuery(searchTerm));
-            Assert.IsTrue(result.IsSuccess, result.Error);
-            _lastSearchResult = result.Value;
-        }
+            => _lastSearchResult = await SearchActiveOrdersAsync(searchTerm);
 
         [When(@"I list all orders")]
         public async Task WhenIListAllOrders()
-        {
-            Result<IReadOnlyList<OrderListItemDto>> result = await searchOrdersUseCase.ExecuteAsync(new SearchOrdersQuery(null));
-            Assert.IsTrue(result.IsSuccess, result.Error);
-            _lastSearchResult = result.Value;
-        }
+            => _lastSearchResult = await SearchActiveOrdersAsync(null);
 
         [When(@"I delete order ""([^""]*)""")]
         public async Task WhenIDeleteOrder(string orderNumber)
@@ -151,9 +215,8 @@ namespace OrderManagement.AcceptanceTests.Steps
         [Then(@"all order lines are removed")]
         public async Task ThenAllOrderLinesAreRemoved()
         {
-            Result<IReadOnlyList<OrderListItemDto>> result = await searchOrdersUseCase.ExecuteAsync(new SearchOrdersQuery(StockScenarioOrderNumber));
-            Assert.IsTrue(result.IsSuccess, result.Error);
-            Assert.IsFalse(result.Value!.Any(o => o.OrderNumber == StockScenarioOrderNumber));
+            IReadOnlyList<OrderSearchItemDto> items = await SearchActiveOrdersAsync(StockScenarioOrderNumber);
+            Assert.IsFalse(items.Any(o => o.OrderNumber == StockScenarioOrderNumber));
         }
 
         [Then(@"the deducted quantity is restored to the article stock")]
@@ -270,9 +333,16 @@ namespace OrderManagement.AcceptanceTests.Steps
         [Then(@"order ""([^""]*)"" can not be found by search")]
         public async Task ThenOrderCanNotBeFoundBySearch(string orderNumber)
         {
-            Result<IReadOnlyList<OrderListItemDto>> result = await searchOrdersUseCase.ExecuteAsync(new SearchOrdersQuery(orderNumber));
+            IReadOnlyList<OrderSearchItemDto> items = await SearchActiveOrdersAsync(orderNumber);
+            Assert.IsFalse(items.Any(o => o.OrderNumber == orderNumber));
+        }
+
+        private async Task<IReadOnlyList<OrderSearchItemDto>> SearchActiveOrdersAsync(string? searchTerm)
+        {
+            Result<OrderSearchResultDto> result = await searchActiveOrdersUseCase.ExecuteAsync(
+                new SearchActiveOrdersQuery(searchTerm, Page: 1, PageSize: 100));
             Assert.IsTrue(result.IsSuccess, result.Error);
-            Assert.IsFalse(result.Value!.Any(o => o.OrderNumber == orderNumber));
+            return result.Value!.Items;
         }
 
         private async Task CreateOrderAsync(string orderNumber, string customerNumber, Table linesTable)

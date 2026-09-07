@@ -71,6 +71,7 @@ namespace OrderManagement.Infrastructure
 
             _ = services.AddScoped<ICustomerCommandRepository, CustomerCommandRepository>();
             _ = services.AddScoped<ICustomerQueryRepository, CustomerQueryRepository>();
+            _ = services.AddScoped<ICustomerCurrentQueryRepository, CustomerCurrentQueryRepository>();
             _ = services.AddScoped<ICustomerTemporalQueryRepository, CustomerTemporalQueryRepository>();
 
             _ = services.AddScoped<IArticleCommandRepository, ArticleCommandRepository>();
@@ -80,6 +81,7 @@ namespace OrderManagement.Infrastructure
 
             _ = services.AddScoped<IOrderCommandRepository, OrderCommandRepository>();
             _ = services.AddScoped<IOrderQueryRepository, OrderQueryRepository>();
+            _ = services.AddScoped<IOrderSearchQueryRepository, OrderSearchQueryRepository>();
             _ = services.AddScoped<IQuarterlyKpiQueryRepository, QuarterlyKpiQueryRepository>();
             _ = services.AddScoped<IInvoiceQueryRepository, InvoiceQueryRepository>();
 

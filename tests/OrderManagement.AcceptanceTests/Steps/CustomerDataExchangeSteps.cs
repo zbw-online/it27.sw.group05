@@ -25,6 +25,7 @@ namespace OrderManagement.AcceptanceTests.Steps
         private CustomerDataFile? _fileToImport;
         private Result<ImportCustomerDataResponse>? _importResult;
         private Result<CustomerDataFile>? _exportResult;
+        private DateTime? _notedStichtagUtc;
 
         [Given(@"a JSON customer data file with:")]
         public async Task GivenAJsonCustomerDataFileWith(Table table) => await BuildFileAsync(CustomerDataFormat.Json, table);
@@ -35,13 +36,39 @@ namespace OrderManagement.AcceptanceTests.Steps
         [When(@"I import the customer data file")]
         public async Task WhenIImportTheCustomerDataFile() => _importResult = await importCustomerDataUseCase.ExecuteAsync(new ImportCustomerDataCommand(_fileToImport!));
 
-        [When(@"I export the customer data as ""([^""]*)"" as of today")]
-        public async Task WhenIExportTheCustomerDataAsAsOfToday(string formatName)
+        [When(@"I export the current customer data as ""([^""]*)""")]
+        public async Task WhenIExportTheCurrentCustomerDataAs(string formatName)
         {
             CustomerDataFormat format = Enum.Parse<CustomerDataFormat>(formatName, ignoreCase: true);
-            DateTime zurichNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ZurichTimeZone);
 
-            _exportResult = await exportCustomerDataUseCase.ExecuteAsync(new ExportCustomerDataQuery(format, zurichNow.AddMinutes(10)));
+            _exportResult = await exportCustomerDataUseCase.ExecuteAsync(ExportCustomerDataQuery.Current(format));
+        }
+
+        [When(@"I export the customer data as ""([^""]*)"" as of ""([^""]*)""")]
+        public async Task WhenIExportTheCustomerDataAsOf(string formatName, string stichtag)
+        {
+            CustomerDataFormat format = Enum.Parse<CustomerDataFormat>(formatName, ignoreCase: true);
+            var parsedStichtag = DateTime.Parse(stichtag, CultureInfo.InvariantCulture);
+
+            _exportResult = await exportCustomerDataUseCase.ExecuteAsync(ExportCustomerDataQuery.Historical(format, parsedStichtag));
+        }
+
+        [Given(@"the current moment is noted as the historical Stichtag")]
+        public void GivenTheCurrentMomentIsNotedAsTheHistoricalStichtag() => _notedStichtagUtc = DateTime.UtcNow;
+
+        [When(@"I export the customer data as ""([^""]*)"" as of the noted historical Stichtag")]
+        public async Task WhenIExportTheCustomerDataAsOfTheNotedHistoricalStichtag(string formatName)
+        {
+            CustomerDataFormat format = Enum.Parse<CustomerDataFormat>(formatName, ignoreCase: true);
+
+            // The temporal query compares against SQL Server's own system-versioning clock, so the
+            // Stichtag must be a genuinely elapsed real instant (captured between the two saves via
+            // the step above) rather than an arbitrary literal date - a literal date far in the past
+            // would predate the row's real SysStartTime and the temporal query would find nothing,
+            // exactly like the FarFutureStichtag workaround this suite intentionally does not use.
+            DateTime localStichtag = TimeZoneInfo.ConvertTimeFromUtc(_notedStichtagUtc!.Value, ZurichTimeZone);
+
+            _exportResult = await exportCustomerDataUseCase.ExecuteAsync(ExportCustomerDataQuery.Historical(format, localStichtag));
         }
 
         [Then(@"the import succeeds with (\d+) imported customer(?:s)?")]

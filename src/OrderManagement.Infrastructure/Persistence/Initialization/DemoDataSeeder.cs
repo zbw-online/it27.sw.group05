@@ -185,19 +185,21 @@ namespace OrderManagement.Infrastructure.Persistence.Initialization
         {
             DateTimeOffset now = _timeProvider.GetUtcNow();
 
-            (string CustomerNumber, int MonthsAgo, int Sequence, (string ArticleNumber, int Quantity)[] Lines)[] seedOrders =
+            // Delivery dates are always in the past (MonthsAgo >= 0), so any order left Open or
+            // InProgress here is also a demonstration of an overdue-but-still-active order.
+            (string CustomerNumber, int MonthsAgo, int Sequence, (string ArticleNumber, int Quantity)[] Lines, OrderStatus TargetStatus)[] seedOrders =
             [
-                ("CU00001", 14, 1, [("ART-00001", 1), ("ART-00007", 5)]),
-                ("CU00002", 11, 2, [("ART-00003", 2), ("ART-00009", 3)]),
-                ("CU00003", 8, 3, [("ART-00005", 1)]),
-                ("CU00004", 6, 4, [("ART-00001", 1), ("ART-00004", 1)]),
-                ("CU00005", 5, 5, [("ART-00006", 1), ("ART-00010", 2)]),
-                ("CU00001", 3, 6, [("ART-00009", 2)]),
-                ("CU00002", 1, 7, [("ART-00002", 1)]),
-                ("CU00003", 0, 8, [("ART-00003", 1), ("ART-00008", 1)]),
+                ("CU00001", 14, 1, [("ART-00001", 1), ("ART-00007", 5)], OrderStatus.Completed),
+                ("CU00002", 11, 2, [("ART-00003", 2), ("ART-00009", 3)], OrderStatus.Completed),
+                ("CU00003", 8, 3, [("ART-00005", 1)], OrderStatus.Cancelled),
+                ("CU00004", 6, 4, [("ART-00001", 1), ("ART-00004", 1)], OrderStatus.Completed),
+                ("CU00005", 5, 5, [("ART-00006", 1), ("ART-00010", 2)], OrderStatus.InProgress),
+                ("CU00001", 3, 6, [("ART-00009", 2)], OrderStatus.Open),
+                ("CU00002", 1, 7, [("ART-00002", 1)], OrderStatus.Open),
+                ("CU00003", 0, 8, [("ART-00003", 1), ("ART-00008", 1)], OrderStatus.Open),
             ];
 
-            foreach ((string customerNumber, int monthsAgo, int sequence, (string ArticleNumber, int Quantity)[] lines) in seedOrders)
+            foreach ((string customerNumber, int monthsAgo, int sequence, (string ArticleNumber, int Quantity)[] lines, OrderStatus targetStatus) in seedOrders)
             {
                 DateTimeOffset orderInstant = now.AddMonths(-monthsAgo);
                 string orderNumberValue = $"ORD-{orderInstant.Year:D4}-{sequence:D3}";
@@ -258,6 +260,34 @@ namespace OrderManagement.Infrastructure.Persistence.Initialization
                 }
 
                 order.MarkInventoryApplied().EnsureSuccess();
+
+                DateTime statusChangeInstant = orderInstant.UtcDateTime;
+
+                switch (targetStatus)
+                {
+                    case OrderStatus.InProgress:
+                        order.StartProcessing(statusChangeInstant).EnsureSuccess();
+                        break;
+
+                    case OrderStatus.Completed:
+                        order.StartProcessing(statusChangeInstant).EnsureSuccess();
+                        order.Complete(statusChangeInstant).EnsureSuccess();
+                        break;
+
+                    case OrderStatus.Cancelled:
+                        order.Cancel(statusChangeInstant).EnsureSuccess();
+
+                        foreach ((string articleNumber, int quantity) in lines)
+                        {
+                            articles[articleNumber].UpdateStock(quantity).EnsureSuccess();
+                        }
+
+                        break;
+
+                    case OrderStatus.Open:
+                    default:
+                        break;
+                }
 
                 _ = _dbContext.Orders.Add(order);
             }

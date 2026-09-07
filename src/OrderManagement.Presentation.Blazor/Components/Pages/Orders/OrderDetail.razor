@@ -2,9 +2,12 @@
 @using OrderManagement.Application.Features.Catalog.SearchArticles
 @using OrderManagement.Application.Features.Catalog.Contracts
 @using OrderManagement.Application.Features.Orders.AddOrderLine
+@using OrderManagement.Application.Features.Orders.CancelOrder
+@using OrderManagement.Application.Features.Orders.CompleteOrder
 @using OrderManagement.Application.Features.Orders.DeleteOrder
 @using OrderManagement.Application.Features.Orders.GetOrderDetails
 @using OrderManagement.Application.Features.Orders.RemoveOrderLine
+@using OrderManagement.Application.Features.Orders.StartOrderProcessing
 @using OrderManagement.Application.Features.Orders.Contracts
 @using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity
 @using OrderManagement.Domain.Catalog.ValueObjects
@@ -15,6 +18,9 @@
 @inject IRemoveOrderLineUseCase RemoveOrderLineUseCase
 @inject IAddOrderLineUseCase AddOrderLineUseCase
 @inject IDeleteOrderUseCase DeleteOrderUseCase
+@inject IStartOrderProcessingUseCase StartOrderProcessingUseCase
+@inject ICompleteOrderUseCase CompleteOrderUseCase
+@inject ICancelOrderUseCase CancelOrderUseCase
 @inject ISearchArticlesUseCase SearchArticlesUseCase
 @inject NavigationManager Navigation
 
@@ -33,9 +39,34 @@ else if (_order is not null)
     <PageHeader Title="@_order.OrderNumber" Subtitle="@($"{_order.CustomerNumber} · {_order.CustomerName}")">
         <Actions>
             <Button Variant="ButtonVariant.Secondary" OnClick='() => Navigation.NavigateTo("auftraege")'>Zurück zur Übersicht</Button>
+            @if (_order.Status == OrderStatus.Open)
+            {
+                <Button Variant="ButtonVariant.Secondary" OnClick="StartProcessingAsync" Disabled="_isBusy">Bearbeitung starten</Button>
+            }
+            @if (_order.Status == OrderStatus.InProgress)
+            {
+                <Button Variant="ButtonVariant.Primary" OnClick="CompleteOrderAsync" Disabled="_isBusy">Auftrag abschliessen</Button>
+            }
+            @if (_order.Status is OrderStatus.Open or OrderStatus.InProgress)
+            {
+                <Button Variant="ButtonVariant.Danger" OnClick="RequestCancelOrder" Disabled="_isBusy">Auftrag stornieren</Button>
+            }
             <Button Variant="ButtonVariant.Danger" OnClick="RequestDeleteOrder">Auftrag löschen</Button>
         </Actions>
     </PageHeader>
+
+    <div class="grid-row grid-row-2">
+        <div>
+            <h3>Status</h3>
+            <p class="order-status">
+                <StatusBadge Text="@OrderStatusPresentation.Label(_order.Status)" Tone="@OrderStatusPresentation.Tone(_order.Status)" />
+                @if (_order.IsOverdue)
+                {
+                    <StatusBadge Text="Überfällig" Tone="StatusTone.Danger" />
+                }
+            </p>
+        </div>
+    </div>
 
     <div class="grid-row grid-row-2">
         <div>
@@ -148,6 +179,14 @@ else if (_order is not null)
                    IsBusy="_isDeletingOrder"
                    OnConfirm="ConfirmDeleteOrderAsync"
                    OnCancel="() => _isDeleteConfirmOpen = false" />
+
+    <ConfirmDialog IsOpen="_isCancelConfirmOpen"
+                   Title="Auftrag stornieren"
+                   Message="@CancelConfirmMessage()"
+                   ConfirmText="Stornieren"
+                   IsBusy="_isCancellingOrder"
+                   OnConfirm="ConfirmCancelOrderAsync"
+                   OnCancel="() => _isCancelConfirmOpen = false" />
 }
 
 @code {
@@ -168,6 +207,9 @@ else if (_order is not null)
 
     private bool _isDeleteConfirmOpen;
     private bool _isDeletingOrder;
+
+    private bool _isCancelConfirmOpen;
+    private bool _isCancellingOrder;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -313,5 +355,85 @@ else if (_order is not null)
         }
 
         Navigation.NavigateTo("auftraege");
+    }
+
+    private async Task StartProcessingAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _error = null;
+
+        var result = await StartOrderProcessingUseCase.ExecuteAsync(new StartOrderProcessingCommand(_order.OrderId));
+
+        _isBusy = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _message = "Auftrag ist jetzt in Bearbeitung.";
+        await LoadAsync();
+    }
+
+    private async Task CompleteOrderAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _error = null;
+
+        var result = await CompleteOrderUseCase.ExecuteAsync(new CompleteOrderCommand(_order.OrderId));
+
+        _isBusy = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _message = "Auftrag wurde abgeschlossen.";
+        await LoadAsync();
+    }
+
+    private string CancelConfirmMessage() =>
+        $"Soll der Auftrag «{_order?.OrderNumber}» storniert werden?\n" +
+        "Bereits abgezogene Artikelmengen werden dem Lagerbestand automatisch wieder gutgeschrieben.\n" +
+        "Dieser Vorgang kann nicht rückgängig gemacht werden.";
+
+    private void RequestCancelOrder() => _isCancelConfirmOpen = true;
+
+    private async Task ConfirmCancelOrderAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _isCancellingOrder = true;
+        _error = null;
+
+        var result = await CancelOrderUseCase.ExecuteAsync(new CancelOrderCommand(_order.OrderId));
+
+        _isCancellingOrder = false;
+        _isCancelConfirmOpen = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;
+            return;
+        }
+
+        _message = "Auftrag wurde storniert. Der Lagerbestand wurde zurückgebucht.";
+        await LoadAsync();
     }
 }

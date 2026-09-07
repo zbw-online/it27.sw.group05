@@ -26,5 +26,7 @@ namespace OrderManagement.Application.Features.Orders.GetOrderDetails
         AddressSource DeliveryAddressSource,
         decimal TotalAmount,
         string TotalCurrency,
+        OrderStatus Status,
+        bool IsOverdue,
         IReadOnlyList<OrderLineDto> Lines);
 }

@@ -45,6 +45,15 @@ namespace OrderManagement.Infrastructure.Persistence
                 }
             }
 
+            foreach (EntityEntry<Order> entry in ChangeTracker.Entries<Order>())
+            {
+                if (entry.State == EntityState.Modified)
+                {
+                    int currentVersion = (int)entry.Property("RowVersion").CurrentValue!;
+                    entry.Property("RowVersion").CurrentValue = currentVersion + 1;
+                }
+            }
+
             return base.SaveChangesAsync(cancellationToken);
         }
     }

@@ -138,7 +138,7 @@ namespace OrderManagement.AcceptanceTests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Orders.feature.ndjson", 19);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/Orders.feature.ndjson", 29);
         }
         
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Creating an order for an existing customer with one valid article")]
@@ -920,6 +920,464 @@ await this.FeatureBackgroundAsync();
 #line hidden
 #line 142
     await testRunner.AndAsync("the delivery address for order \"ORD-2026-023\" is automatic", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("A newly created order is Open")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("A newly created order is Open")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task ANewlyCreatedOrderIsOpen()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "17";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A newly created order is Open", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 144
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table24 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table24.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 145
+    await testRunner.GivenAsync("order \"ORD-2026-030\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table24, "Given ");
+#line hidden
+#line 148
+    await testRunner.ThenAsync("order \"ORD-2026-030\" has status \"Open\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("An order goes into processing")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("An order goes into processing")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task AnOrderGoesIntoProcessing()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "18";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("An order goes into processing", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 150
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table25 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table25.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 151
+    await testRunner.GivenAsync("order \"ORD-2026-031\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table25, "Given ");
+#line hidden
+#line 154
+    await testRunner.WhenAsync("I start processing order \"ORD-2026-031\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 155
+    await testRunner.ThenAsync("order \"ORD-2026-031\" has status \"InProgress\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("An order in processing is completed")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("An order in processing is completed")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task AnOrderInProcessingIsCompleted()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "19";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("An order in processing is completed", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 157
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table26 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table26.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 158
+    await testRunner.GivenAsync("order \"ORD-2026-032\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table26, "Given ");
+#line hidden
+#line 161
+    await testRunner.AndAsync("I start processing order \"ORD-2026-032\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 162
+    await testRunner.WhenAsync("I complete order \"ORD-2026-032\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 163
+    await testRunner.ThenAsync("order \"ORD-2026-032\" has status \"Completed\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("An open order is cancelled")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("An open order is cancelled")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task AnOpenOrderIsCancelled()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "20";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("An open order is cancelled", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 165
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table27 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table27.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 166
+    await testRunner.GivenAsync("order \"ORD-2026-033\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table27, "Given ");
+#line hidden
+#line 169
+    await testRunner.WhenAsync("I cancel order \"ORD-2026-033\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 170
+    await testRunner.ThenAsync("order \"ORD-2026-033\" has status \"Cancelled\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("An invalid status transition is rejected")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("An invalid status transition is rejected")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task AnInvalidStatusTransitionIsRejected()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "21";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("An invalid status transition is rejected", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 172
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table28 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table28.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 173
+    await testRunner.GivenAsync("order \"ORD-2026-034\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table28, "Given ");
+#line hidden
+#line 176
+    await testRunner.WhenAsync("I complete order \"ORD-2026-034\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 177
+    await testRunner.ThenAsync("the last status change is rejected", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("A completed order cannot be cancelled")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("A completed order cannot be cancelled")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task ACompletedOrderCannotBeCancelled()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "22";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A completed order cannot be cancelled", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 179
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table29 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table29.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 180
+    await testRunner.GivenAsync("order \"ORD-2026-035\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table29, "Given ");
+#line hidden
+#line 183
+    await testRunner.AndAsync("I start processing order \"ORD-2026-035\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 184
+    await testRunner.AndAsync("I complete order \"ORD-2026-035\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 185
+    await testRunner.WhenAsync("I cancel order \"ORD-2026-035\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 186
+    await testRunner.ThenAsync("the last status change is rejected", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 187
+    await testRunner.AndAsync("order \"ORD-2026-035\" has status \"Completed\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Cancelling an order restores the deducted article stock")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Cancelling an order restores the deducted article stock")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task CancellingAnOrderRestoresTheDeductedArticleStock()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "23";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Cancelling an order restores the deducted article stock", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 189
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 190
+    await testRunner.GivenAsync("an article has a defined stock", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 191
+    await testRunner.AndAsync("an order deducted a quantity of that article", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 192
+    await testRunner.WhenAsync("I cancel order \"ORD-2026-090\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 193
+    await testRunner.ThenAsync("order \"ORD-2026-090\" has status \"Cancelled\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 194
+    await testRunner.AndAsync("the deducted quantity is restored to the article stock", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Cancelling an already cancelled order does not restore stock again")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Cancelling an already cancelled order does not restore stock again")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task CancellingAnAlreadyCancelledOrderDoesNotRestoreStockAgain()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "24";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Cancelling an already cancelled order does not restore stock again", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 196
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+#line 197
+    await testRunner.GivenAsync("an article has a defined stock", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 198
+    await testRunner.AndAsync("an order deducted a quantity of that article", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 199
+    await testRunner.AndAsync("I cancel order \"ORD-2026-090\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 200
+    await testRunner.WhenAsync("I cancel order \"ORD-2026-090\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 201
+    await testRunner.ThenAsync("the last status change is rejected", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 202
+    await testRunner.AndAsync("the deducted quantity is restored to the article stock", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("An overdue open order remains active rather than being auto-completed")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("An overdue open order remains active rather than being auto-completed")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task AnOverdueOpenOrderRemainsActiveRatherThanBeingAuto_Completed()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "25";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("An overdue open order remains active rather than being auto-completed", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 204
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table30 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table30.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 205
+    await testRunner.GivenAsync("order \"ORD-2026-036\" already exists for customer \"CU30001\" with delivery date \"20" +
+                        "20-01-01\" and lines:", ((string)(null)), table30, "Given ");
+#line hidden
+#line 208
+    await testRunner.ThenAsync("order \"ORD-2026-036\" has status \"Open\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 209
+    await testRunner.AndAsync("order \"ORD-2026-036\" is overdue", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("The archive contains only terminal orders")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("The archive contains only terminal orders")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Order management")]
+        public async global::System.Threading.Tasks.Task TheArchiveContainsOnlyTerminalOrders()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "26";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("The archive contains only terminal orders", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 211
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 6
+await this.FeatureBackgroundAsync();
+#line hidden
+                global::Reqnroll.Table table31 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table31.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 212
+    await testRunner.GivenAsync("order \"ORD-2026-037\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table31, "Given ");
+#line hidden
+                global::Reqnroll.Table table32 = new global::Reqnroll.Table(new string[] {
+                            "ArticleNumber",
+                            "Quantity"});
+                table32.AddRow(new string[] {
+                            "ART-40001",
+                            "1"});
+#line 215
+    await testRunner.AndAsync("order \"ORD-2026-038\" already exists for customer \"CU30001\" with lines:", ((string)(null)), table32, "And ");
+#line hidden
+#line 218
+    await testRunner.AndAsync("I start processing order \"ORD-2026-038\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 219
+    await testRunner.AndAsync("I complete order \"ORD-2026-038\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 220
+    await testRunner.WhenAsync("I search archived orders for \"ORD-2026-03\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 221
+    await testRunner.ThenAsync("the archived order search contains \"ORD-2026-038\" but not \"ORD-2026-037\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

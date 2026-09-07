@@ -13,11 +13,13 @@ namespace OrderManagement.Application.Features.Orders.GetDashboardOverview
     public sealed class GetDashboardOverviewUseCase(
         IOrderQueryRepository orderQueryRepository,
         ICustomerQueryRepository customerQueryRepository,
-        IArticleQueryRepository articleQueryRepository) : IGetDashboardOverviewUseCase
+        IArticleQueryRepository articleQueryRepository,
+        TimeProvider timeProvider) : IGetDashboardOverviewUseCase
     {
         private readonly IOrderQueryRepository _orderQueryRepository = orderQueryRepository;
         private readonly ICustomerQueryRepository _customerQueryRepository = customerQueryRepository;
         private readonly IArticleQueryRepository _articleQueryRepository = articleQueryRepository;
+        private readonly TimeProvider _timeProvider = timeProvider;
 
         public async Task<Result<DashboardOverviewDto>> ExecuteAsync(
             GetDashboardOverviewQuery query,
@@ -38,7 +40,8 @@ namespace OrderManagement.Application.Features.Orders.GetDashboardOverview
                 .Take(query.RecentOrdersLimit)
                 .Select(o => ToListItem(o, customerNumberById))];
 
-            IReadOnlyList<MonthlyTrendPointDto> trend = BuildMonthlyTrend(orders, query.TrendMonths);
+            DateTime today = _timeProvider.GetUtcNow().UtcDateTime;
+            IReadOnlyList<MonthlyTrendPointDto> trend = BuildMonthlyTrend(orders, query.TrendMonths, today);
 
             var dto = new DashboardOverviewDto(
                 orders.Count,
@@ -53,9 +56,8 @@ namespace OrderManagement.Application.Features.Orders.GetDashboardOverview
             return Results.Success(dto);
         }
 
-        private static List<MonthlyTrendPointDto> BuildMonthlyTrend(IReadOnlyList<Order> orders, int trendMonths)
+        private static List<MonthlyTrendPointDto> BuildMonthlyTrend(IReadOnlyList<Order> orders, int trendMonths, DateTime today)
         {
-            DateTime today = DateTime.UtcNow;
             var buckets = new List<MonthlyTrendPointDto>();
 
             for (int offset = trendMonths - 1; offset >= 0; offset--)

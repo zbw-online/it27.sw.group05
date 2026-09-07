@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;
 using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
 using OrderManagement.Infrastructure.Persistence.Initialization;
 
 using SharedKernel.Primitives;
@@ -149,11 +150,60 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Initializa
             {
                 decimal expectedTotal = order.Lines.Sum(l => l.LineTotal.Amount);
                 Assert.AreEqual(expectedTotal, order.Total.Amount);
-                Assert.IsTrue(order.IsInventoryApplied);
+
+                // A cancelled demo order has its inventory effect deliberately reversed; every other
+                // status still reflects the stock deduction applied when it was created.
+                Assert.AreEqual(order.Status != OrderStatus.Cancelled, order.IsInventoryApplied);
             }
 
             List<Article> articles = await DbContext.Articles.AsNoTracking().ToListAsync();
             Assert.IsTrue(articles.All(a => a.Stock >= 0));
+        }
+
+        [TestMethod]
+        public async Task SeedAsync_ProducesExpectedOrderStatusDistribution()
+        {
+            Result result = await RunInitializerAsync(seedDemoData: true);
+            Assert.IsTrue(result.IsSuccess, result.Error);
+
+            List<Order> orders = await DbContext.Orders.AsNoTracking().ToListAsync();
+            var today = DateOnly.FromDateTime(Now.UtcDateTime);
+
+            Assert.IsTrue(orders.Any(o => o.Status == OrderStatus.Open), "Expected at least one Open demo order.");
+            Assert.IsTrue(orders.Any(o => o.Status == OrderStatus.InProgress), "Expected at least one InProgress demo order.");
+            Assert.IsTrue(orders.Count(o => o.Status == OrderStatus.Completed) >= 2, "Expected several Completed demo orders.");
+            Assert.IsTrue(orders.Any(o => o.Status == OrderStatus.Cancelled), "Expected at least one Cancelled demo order.");
+            Assert.IsTrue(orders.Any(o => o.IsOverdue(today)), "Expected at least one overdue-but-active demo order.");
+            Assert.IsFalse(orders.Where(o => o.Status is OrderStatus.Completed or OrderStatus.Cancelled).Any(o => o.IsOverdue(today)),
+                "Archived demo orders must never be reported as overdue.");
+        }
+
+        [TestMethod]
+        public async Task SeedAsync_RunTwice_DoesNotResetStatusOrDoubleAdjustStock()
+        {
+            _ = await RunInitializerAsync(seedDemoData: true);
+
+            List<Order> firstRunOrders = await DbContext.Orders.AsNoTracking().ToListAsync();
+            var firstRunStatuses = firstRunOrders.ToDictionary(o => o.OrderNumber.Value, o => o.Status);
+            // ArticleNumber is an owned type (see ArticleConfiguration), so it cannot be ordered by
+            // in SQL directly - not needed here anyway, only the lookup by its Value matters.
+            List<Article> firstRunArticles = await DbContext.Articles.AsNoTracking().ToListAsync();
+            var firstRunStock = firstRunArticles.ToDictionary(a => a.ArticleNumber.Value, a => a.Stock);
+
+            Result second = await RunInitializerAsync(seedDemoData: true);
+            Assert.IsTrue(second.IsSuccess, second.Error);
+
+            List<Order> secondRunOrders = await DbContext.Orders.AsNoTracking().ToListAsync();
+            foreach (Order order in secondRunOrders)
+            {
+                Assert.AreEqual(firstRunStatuses[order.OrderNumber.Value], order.Status, $"Status of {order.OrderNumber.Value} must not change on re-seeding.");
+            }
+
+            List<Article> secondRunArticles = await DbContext.Articles.AsNoTracking().ToListAsync();
+            foreach (Article article in secondRunArticles)
+            {
+                Assert.AreEqual(firstRunStock[article.ArticleNumber.Value], article.Stock, $"Stock of {article.ArticleNumber.Value} must not change on re-seeding.");
+            }
         }
 
         [TestMethod]
