@@ -81,8 +81,8 @@
                             <td>@customer.Email</td>
                             <td>@customer.City</td>
                             <td class="table-actions">
-                                <Button Variant="ButtonVariant.Secondary" OnClick="() => StartEditAsync(customer.CustomerId)" AdditionalAttributes="StopPropagation">Bearbeiten</Button>
-                                <Button Variant="ButtonVariant.Danger" OnClick="() => RequestDelete(customer.CustomerId, customer.FullName)" AdditionalAttributes="StopPropagation">Löschen</Button>
+                                <Button Variant="ButtonVariant.Secondary" OnClick="() => StartEditAsync(customer.CustomerId)" StopPropagation="true">Bearbeiten</Button>
+                                <Button Variant="ButtonVariant.Danger" OnClick="() => RequestDelete(customer.CustomerId, customer.FullName)" StopPropagation="true">Löschen</Button>
                             </td>
                         </tr>
                     }
@@ -362,8 +362,6 @@
                           OnClose="() => _isExportDialogOpen = false" />
 
 @code {
-    private static readonly Dictionary<string, object> StopPropagation = new() { { "onclick:stopPropagation", true } };
-
     private readonly List<CustomerListItemDto> _allCustomers = [];
     private string? _searchTerm;
     private bool _isLoading = true;
@@ -396,6 +394,8 @@
 
     private bool _isImportDialogOpen;
     private bool _isExportDialogOpen;
+
+    private bool _isStartingEdit;
 
     private IReadOnlyList<CustomerListItemDto> _pagedCustomers =>
         [.. _allCustomers.Skip((_page - 1) * _pageSize).Take(_pageSize)];
@@ -507,37 +507,50 @@
 
     private async Task StartEditAsync(int customerId)
     {
-        _isEditMode = true;
-        _activeTab = "stammdaten";
-        _dialogError = null;
-        _message = null;
-
-        var editResult = await GetCustomerForEditUseCase.ExecuteAsync(new GetCustomerForEditQuery(customerId));
-        if (!editResult.IsSuccess)
+        if (_isStartingEdit)
         {
-            _error = editResult.Error;
             return;
         }
 
-        GetCustomerForEditResponse customer = editResult.Value!;
-        _form.CustomerId = customer.CustomerId;
-        _form.CustomerNumber = customer.CustomerNumber;
-        _form.LastName = customer.LastName;
-        _form.SurName = customer.SurName;
-        _form.Email = customer.Email;
-        _form.Website = customer.Website;
-        _form.AddressValidFrom = customer.AddressValidFrom.ToDateTime(TimeOnly.MinValue);
-        _form.Street = customer.Street;
-        _form.HouseNumber = customer.HouseNumber;
-        _form.PostalCode = customer.PostalCode;
-        _form.City = customer.City;
-        _form.CountryCode = customer.CountryCode;
+        _isStartingEdit = true;
+        try
+        {
+            _isEditMode = true;
+            _activeTab = "stammdaten";
+            _dialogError = null;
+            _message = null;
 
-        var detailsResult = await GetCustomerDetailsUseCase.ExecuteAsync(new GetCustomerDetailsQuery(customerId));
-        _details = detailsResult.IsSuccess ? detailsResult.Value : null;
+            var editResult = await GetCustomerForEditUseCase.ExecuteAsync(new GetCustomerForEditQuery(customerId));
+            if (!editResult.IsSuccess)
+            {
+                _error = editResult.Error;
+                return;
+            }
 
-        _addressForm.Reset();
-        _isDialogOpen = true;
+            GetCustomerForEditResponse customer = editResult.Value!;
+            _form.CustomerId = customer.CustomerId;
+            _form.CustomerNumber = customer.CustomerNumber;
+            _form.LastName = customer.LastName;
+            _form.SurName = customer.SurName;
+            _form.Email = customer.Email;
+            _form.Website = customer.Website;
+            _form.AddressValidFrom = customer.AddressValidFrom.ToDateTime(TimeOnly.MinValue);
+            _form.Street = customer.Street;
+            _form.HouseNumber = customer.HouseNumber;
+            _form.PostalCode = customer.PostalCode;
+            _form.City = customer.City;
+            _form.CountryCode = customer.CountryCode;
+
+            var detailsResult = await GetCustomerDetailsUseCase.ExecuteAsync(new GetCustomerDetailsQuery(customerId));
+            _details = detailsResult.IsSuccess ? detailsResult.Value : null;
+
+            _addressForm.Reset();
+            _isDialogOpen = true;
+        }
+        finally
+        {
+            _isStartingEdit = false;
+        }
     }
 
     private void CloseDialog()

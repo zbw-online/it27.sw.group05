@@ -113,16 +113,16 @@
                             <td class="table-actions">
                                 @if (_selectedArticleId == article.ArticleId)
                                 {
-                                    <Button Variant="ButtonVariant.Secondary" OnClick="() => StartEditArticleAsync(article.ArticleId)" AdditionalAttributes="StopPropagation">Bearbeiten</Button>
+                                    <Button Variant="ButtonVariant.Secondary" OnClick="() => StartEditArticleAsync(article.ArticleId)" StopPropagation="true">Bearbeiten</Button>
                                     @if (article.Status == ArticleStatus.Active)
                                     {
-                                        <Button Variant="ButtonVariant.Secondary" OnClick="() => DeactivateArticleAsync(article.ArticleId)" AdditionalAttributes="StopPropagation">Deaktivieren</Button>
+                                        <Button Variant="ButtonVariant.Secondary" OnClick="() => DeactivateArticleAsync(article.ArticleId)" StopPropagation="true">Deaktivieren</Button>
                                     }
                                     else
                                     {
-                                        <Button Variant="ButtonVariant.Secondary" OnClick="() => ReactivateArticleAsync(article.ArticleId)" AdditionalAttributes="StopPropagation">Reaktivieren</Button>
+                                        <Button Variant="ButtonVariant.Secondary" OnClick="() => ReactivateArticleAsync(article.ArticleId)" StopPropagation="true">Reaktivieren</Button>
                                     }
-                                    <Button Variant="ButtonVariant.Danger" OnClick="() => RequestDeleteArticle(article.ArticleId, article.Name)" AdditionalAttributes="StopPropagation">Löschen</Button>
+                                    <Button Variant="ButtonVariant.Danger" OnClick="() => RequestDeleteArticle(article.ArticleId, article.Name)" StopPropagation="true">Löschen</Button>
                                 }
                             </td>
                         </tr>
@@ -295,8 +295,6 @@
 </Modal>
 
 @code {
-    private static readonly Dictionary<string, object> StopPropagation = new() { { "onclick:stopPropagation", true } };
-
     private readonly List<ArticleListItemDto> _allArticles = [];
     private IReadOnlyList<ArticleGroupHierarchyDto> _hierarchy = [];
     private IReadOnlyDictionary<int, string> _groupPathById = new Dictionary<int, string>();

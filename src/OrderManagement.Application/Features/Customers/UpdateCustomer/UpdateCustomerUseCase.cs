@@ -11,11 +11,13 @@ namespace OrderManagement.Application.Features.Customers.UpdateCustomer
     public sealed class UpdateCustomerUseCase(
         ICustomerCommandRepository customerCommandRepository,
         ICustomerQueryRepository customerQueryRepository,
-        IUnitOfWork unitOfWork) : IUpdateCustomerUseCase
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider) : IUpdateCustomerUseCase
     {
         private readonly ICustomerCommandRepository _customerCommandRepository = customerCommandRepository;
         private readonly ICustomerQueryRepository _customerQueryRepository = customerQueryRepository;
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
+        private readonly TimeProvider _timeProvider = timeProvider;
 
         public async Task<Result> ExecuteAsync(
             UpdateCustomerCommand command,
@@ -63,7 +65,7 @@ namespace OrderManagement.Application.Features.Customers.UpdateCustomer
                 return websiteResult;
             }
 
-            CustomerAddress? currentAddress = customer.AddressAt(DateOnly.FromDateTime(DateTime.Today));
+            CustomerAddress? currentAddress = customer.AddressAt(DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime));
             bool addressChanged = currentAddress is null ||
                 currentAddress.ValidFrom != command.AddressValidFrom ||
                 !string.Equals(currentAddress.Street, command.Street.Trim(), StringComparison.Ordinal) ||
