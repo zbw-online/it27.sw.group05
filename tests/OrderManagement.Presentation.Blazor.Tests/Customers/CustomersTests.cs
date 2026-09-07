@@ -19,6 +19,7 @@ using OrderManagement.Application.Features.Customers.ImportCustomerData;
 using OrderManagement.Application.Features.Customers.SearchCustomers;
 using OrderManagement.Application.Features.Customers.UpdateCustomer;
 using OrderManagement.Application.Features.Customers.ValidateCustomerDataImport;
+using OrderManagement.Presentation.Blazor.Components.Shared;
 
 using SharedKernel.Primitives;
 
@@ -124,6 +125,108 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
             cut.Find("tbody tr").Click();
 
             Assert.AreEqual(3, cut.FindAll(".feedback-state-empty").Count);
+        }
+
+        [TestMethod]
+        public void ClickingEditButton_OpensOnlyEditDrawer()
+        {
+            var editUseCase = new FakeGetCustomerForEditUseCase { ResponseToReturn = Results.Success(SampleEditResponse()) };
+            var detailsUseCase = new FakeGetCustomerDetailsUseCase(BuildDetails());
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), editUseCase: editUseCase, detailsUseCase: detailsUseCase);
+
+            IElement editButton = RowEditButton(cut);
+            Assert.IsTrue(
+                editButton.HasAttribute("blazor:onclick:stopPropagation"),
+                "The row's Bearbeiten button must render with the stopPropagation event modifier so its click never bubbles to the row.");
+
+            editButton.Click();
+
+            Assert.AreEqual(1, editUseCase.CallCount);
+            Assert.AreEqual(1, editUseCase.LastQuery!.CustomerId);
+
+            Assert.IsTrue(EditDrawer(cut).Instance.IsOpen);
+            Assert.AreEqual("Kunde bearbeiten", EditDrawer(cut).Instance.Title);
+            Assert.AreEqual("Doe", cut.Find("#cust-lastname").GetAttribute("value"));
+            Assert.AreEqual("Jane", cut.Find("#cust-surname").GetAttribute("value"));
+
+            Assert.IsFalse(CustomerDetailsDrawer(cut).Instance.IsOpen);
+            Assert.IsFalse(cut.Find("tbody tr").ClassList.Contains("is-selected"));
+        }
+
+        [TestMethod]
+        public void ClickingEditButton_DoesNotInvokeCustomerRowAction()
+        {
+            var editUseCase = new FakeGetCustomerForEditUseCase { ResponseToReturn = Results.Success(SampleEditResponse()) };
+            var detailsUseCase = new FakeGetCustomerDetailsUseCase(BuildDetails());
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), editUseCase: editUseCase, detailsUseCase: detailsUseCase);
+
+            RowEditButton(cut).Click();
+
+            Assert.IsFalse(CustomerDetailsDrawer(cut).Instance.IsOpen);
+            Assert.AreEqual(
+                1,
+                detailsUseCase.CallCount,
+                "Only StartEditAsync's own address-history lookup may run - the row's click handler must not fire as well.");
+            Assert.IsFalse(cut.Find("tbody tr").ClassList.Contains("is-selected"));
+        }
+
+        [TestMethod]
+        public void ClickingDeleteButton_DoesNotOpenCustomerDetails()
+        {
+            var detailsUseCase = new FakeGetCustomerDetailsUseCase(BuildDetails());
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), detailsUseCase: detailsUseCase);
+
+            IElement deleteButton = RowDeleteButton(cut);
+            Assert.IsTrue(
+                deleteButton.HasAttribute("blazor:onclick:stopPropagation"),
+                "The row's Löschen button must render with the stopPropagation event modifier so its click never bubbles to the row.");
+
+            deleteButton.Click();
+
+            Assert.IsTrue(cut.FindComponent<ConfirmDialog>().Instance.IsOpen);
+            Assert.AreEqual(0, detailsUseCase.CallCount);
+            Assert.IsFalse(CustomerDetailsDrawer(cut).Instance.IsOpen);
+            Assert.IsFalse(cut.Find("tbody tr").ClassList.Contains("is-selected"));
+        }
+
+        [TestMethod]
+        public void ClickingEditFromDetails_ClosesDetailsAndOpensEditDrawer()
+        {
+            var editUseCase = new FakeGetCustomerForEditUseCase { ResponseToReturn = Results.Success(SampleEditResponse()) };
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), editUseCase: editUseCase);
+
+            cut.Find("tbody tr").Click();
+            Assert.IsTrue(CustomerDetailsDrawer(cut).Instance.IsOpen);
+
+            IElement detailsEditButton = CustomerDetailsDrawer(cut).Find(".app-drawer-footer button:nth-child(3)");
+            StringAssert.Contains(detailsEditButton.TextContent, "Bearbeiten");
+            detailsEditButton.Click();
+
+            Assert.IsFalse(CustomerDetailsDrawer(cut).Instance.IsOpen);
+            Assert.IsTrue(EditDrawer(cut).Instance.IsOpen);
+            Assert.AreEqual(1, editUseCase.CallCount);
+        }
+
+        [TestMethod]
+        public async Task RepeatedEditClick_DoesNotStartConcurrentDatabaseOperations()
+        {
+            var editUseCase = new FakeGetCustomerForEditUseCase();
+            var pending = new TaskCompletionSource<Result<GetCustomerForEditResponse>>();
+            editUseCase.PendingCompletion = pending;
+
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), editUseCase: editUseCase);
+
+            _ = cut.InvokeAsync(() => RowEditButton(cut).Click());
+            cut.WaitForState(() => editUseCase.CallCount > 0, TimeSpan.FromSeconds(2));
+
+            await cut.InvokeAsync(() => RowEditButton(cut).Click());
+
+            Assert.AreEqual(1, editUseCase.CallCount, "A second click while the first edit request is still in flight must not start a parallel request.");
+
+            pending.SetResult(Results.Success(SampleEditResponse()));
+            cut.WaitForState(() => EditDrawer(cut).Instance.IsOpen, TimeSpan.FromSeconds(2));
+
+            Assert.IsTrue(EditDrawer(cut).Instance.IsOpen);
         }
 
         [TestMethod]
@@ -287,12 +390,14 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
             GetCustomerDetailsResponse details,
             FakeValidateCustomerDataImportUseCase? validateUseCase = null,
             FakeImportCustomerDataUseCase? importUseCase = null,
-            FakeExportCustomerDataUseCase? exportUseCase = null)
+            FakeExportCustomerDataUseCase? exportUseCase = null,
+            FakeGetCustomerForEditUseCase? editUseCase = null,
+            FakeGetCustomerDetailsUseCase? detailsUseCase = null)
         {
             _ = Services.AddSingleton<ISearchCustomersUseCase>(new FakeSearchCustomersUseCase());
-            _ = Services.AddSingleton<IGetCustomerDetailsUseCase>(new FakeGetCustomerDetailsUseCase(details));
+            _ = Services.AddSingleton<IGetCustomerDetailsUseCase>(detailsUseCase ?? new FakeGetCustomerDetailsUseCase(details));
             _ = Services.AddSingleton<ICreateCustomerUseCase>(new FakeCreateCustomerUseCase());
-            _ = Services.AddSingleton<IGetCustomerForEditUseCase>(new FakeGetCustomerForEditUseCase());
+            _ = Services.AddSingleton<IGetCustomerForEditUseCase>(editUseCase ?? new FakeGetCustomerForEditUseCase());
             _ = Services.AddSingleton<IUpdateCustomerUseCase>(new FakeUpdateCustomerUseCase());
             _ = Services.AddSingleton<IDeleteCustomerUseCase>(new FakeDeleteCustomerUseCase());
             _ = Services.AddSingleton<IAddCustomerAddressUseCase>(new FakeAddCustomerAddressUseCase());
@@ -305,6 +410,22 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
             return Render<CustomersPage>();
         }
 
+        private static IElement RowEditButton(IRenderedComponent<CustomersPage> cut) =>
+            cut.Find("tbody tr td.table-actions button:nth-child(1)");
+
+        private static IElement RowDeleteButton(IRenderedComponent<CustomersPage> cut) =>
+            cut.Find("tbody tr td.table-actions button:nth-child(2)");
+
+        private static IRenderedComponent<SideDrawer> EditDrawer(IRenderedComponent<CustomersPage> cut) =>
+            cut.FindComponents<SideDrawer>()[0];
+
+        private static IRenderedComponent<SideDrawer> CustomerDetailsDrawer(IRenderedComponent<CustomersPage> cut) =>
+            cut.FindComponents<SideDrawer>()[1];
+
+        private static GetCustomerForEditResponse SampleEditResponse(int customerId = 1) => new(
+            customerId, "CU00001", "Doe", "Jane", "jane@example.com", null,
+            new DateOnly(2026, 1, 1), "Main Street", "1", "8000", "Zurich", "CH");
+
         private sealed class FakeSearchCustomersUseCase : ISearchCustomersUseCase
         {
             public Task<Result<IReadOnlyList<CustomerListItemDto>>> ExecuteAsync(
@@ -314,9 +435,17 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
 
         private sealed class FakeGetCustomerDetailsUseCase(GetCustomerDetailsResponse response) : IGetCustomerDetailsUseCase
         {
+            public int CallCount { get; private set; }
+
+            public List<GetCustomerDetailsQuery> CapturedQueries { get; } = [];
+
             public Task<Result<GetCustomerDetailsResponse>> ExecuteAsync(
                 GetCustomerDetailsQuery query, CancellationToken cancellationToken = default)
-                => Task.FromResult(Results.Success(response));
+            {
+                CallCount++;
+                CapturedQueries.Add(query);
+                return Task.FromResult(Results.Success(response));
+            }
         }
 
         private sealed class FakeCreateCustomerUseCase : ICreateCustomerUseCase
@@ -328,9 +457,22 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
 
         private sealed class FakeGetCustomerForEditUseCase : IGetCustomerForEditUseCase
         {
+            public int CallCount { get; private set; }
+
+            public GetCustomerForEditQuery? LastQuery { get; private set; }
+
+            public Result<GetCustomerForEditResponse> ResponseToReturn { get; set; } =
+                Results.Fail<GetCustomerForEditResponse>("not used");
+
+            public TaskCompletionSource<Result<GetCustomerForEditResponse>>? PendingCompletion { get; set; }
+
             public Task<Result<GetCustomerForEditResponse>> ExecuteAsync(
                 GetCustomerForEditQuery query, CancellationToken cancellationToken = default)
-                => Task.FromResult(Results.Fail<GetCustomerForEditResponse>("not used"));
+            {
+                CallCount++;
+                LastQuery = query;
+                return PendingCompletion is not null ? PendingCompletion.Task : Task.FromResult(ResponseToReturn);
+            }
         }
 
         private sealed class FakeUpdateCustomerUseCase : IUpdateCustomerUseCase

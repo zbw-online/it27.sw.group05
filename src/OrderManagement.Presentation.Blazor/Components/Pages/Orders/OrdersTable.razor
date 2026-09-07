@@ -33,7 +33,7 @@
                     <td class="numeric">@order.LineCount</td>
                     <td class="numeric">@Formatting.Chf(order.TotalAmount)</td>
                     <td class="table-actions">
-                        <Button Variant="ButtonVariant.Danger" OnClick="() => OnDeleteRequested.InvokeAsync((order.OrderId, order.OrderNumber))" AdditionalAttributes="StopPropagation">Löschen</Button>
+                        <Button Variant="ButtonVariant.Danger" OnClick="() => OnDeleteRequested.InvokeAsync((order.OrderId, order.OrderNumber))" StopPropagation="true">Löschen</Button>
                     </td>
                 </tr>
             }
@@ -42,8 +42,6 @@
 </div>
 
 @code {
-    private static readonly Dictionary<string, object> StopPropagation = new() { { "onclick:stopPropagation", true } };
-
     [Parameter, EditorRequired] public IReadOnlyList<OrderSearchItemDto> Items { get; set; } = [];
     [Parameter] public EventCallback<int> OnRowClick { get; set; }
     [Parameter] public EventCallback<(int OrderId, string OrderNumber)> OnDeleteRequested { get; set; }

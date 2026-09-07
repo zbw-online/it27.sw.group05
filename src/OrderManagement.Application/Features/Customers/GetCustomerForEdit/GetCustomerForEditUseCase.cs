@@ -6,9 +6,12 @@ using SharedKernel.Primitives;
 
 namespace OrderManagement.Application.Features.Customers.GetCustomerForEdit
 {
-    public sealed class GetCustomerForEditUseCase(ICustomerQueryRepository customerQueryRepository) : IGetCustomerForEditUseCase
+    public sealed class GetCustomerForEditUseCase(
+        ICustomerQueryRepository customerQueryRepository,
+        TimeProvider timeProvider) : IGetCustomerForEditUseCase
     {
         private readonly ICustomerQueryRepository _customerQueryRepository = customerQueryRepository;
+        private readonly TimeProvider _timeProvider = timeProvider;
 
         public async Task<Result<GetCustomerForEditResponse>> ExecuteAsync(
             GetCustomerForEditQuery query,
@@ -23,7 +26,7 @@ namespace OrderManagement.Application.Features.Customers.GetCustomerForEdit
                 return Results.Fail<GetCustomerForEditResponse>("Customer was not found.");
             }
 
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime);
             CustomerAddress? address = customer.AddressAt(today) ?? customer.Addresses.OrderByDescending(a => a.ValidFrom).FirstOrDefault();
 
             return Results.Success(new GetCustomerForEditResponse(

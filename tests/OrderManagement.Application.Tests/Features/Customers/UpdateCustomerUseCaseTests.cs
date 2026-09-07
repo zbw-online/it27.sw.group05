@@ -10,9 +10,15 @@ namespace OrderManagement.Application.Tests.Features.Customers
     [TestClass]
     public sealed class UpdateCustomerUseCaseTests
     {
+        private static readonly DateOnly Today = new(2026, 8, 30);
+
         private static UpdateCustomerCommand CommandFor(Customer customer, string email = "jane.doe@example.com")
             => new(customer.Id.Value, "Doe", "Jane", email, "example.com",
-                DateOnly.FromDateTime(DateTime.Today).AddMonths(-1), "Main Street", "1", "8000", "Zurich", "CH");
+                Today.AddMonths(-1), "Main Street", "1", "8000", "Zurich", "CH");
+
+        private static UpdateCustomerUseCase CreateUseCase(
+            FakeCustomerCommandRepository commandRepository, FakeCustomerQueryRepository queryRepository, FakeUnitOfWork unitOfWork)
+            => new(commandRepository, queryRepository, unitOfWork, new FakeTimeProvider(new DateTimeOffset(Today.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)));
 
         [TestMethod]
         public async Task ExecuteAsync_WithValidChanges_ShouldUpdateAndCommit()
@@ -20,7 +26,7 @@ namespace OrderManagement.Application.Tests.Features.Customers
             var commandRepository = new FakeCustomerCommandRepository();
             var queryRepository = new FakeCustomerQueryRepository();
             var unitOfWork = new FakeUnitOfWork();
-            var useCase = new UpdateCustomerUseCase(commandRepository, queryRepository, unitOfWork);
+            UpdateCustomerUseCase useCase = CreateUseCase(commandRepository, queryRepository, unitOfWork);
 
             Customer customer = commandRepository.Seed(
                 Customer.Create("CU00001", "Old", "Name", "old@example.com", null).EnsureValue());
@@ -39,7 +45,7 @@ namespace OrderManagement.Application.Tests.Features.Customers
             var commandRepository = new FakeCustomerCommandRepository();
             var queryRepository = new FakeCustomerQueryRepository();
             var unitOfWork = new FakeUnitOfWork();
-            var useCase = new UpdateCustomerUseCase(commandRepository, queryRepository, unitOfWork);
+            UpdateCustomerUseCase useCase = CreateUseCase(commandRepository, queryRepository, unitOfWork);
 
             Customer customer = Customer.Create("CU00001", "Old", "Name", "old@example.com", null).EnsureValue();
             _ = commandRepository.Seed(customer);
@@ -60,13 +66,32 @@ namespace OrderManagement.Application.Tests.Features.Customers
             var commandRepository = new FakeCustomerCommandRepository();
             var queryRepository = new FakeCustomerQueryRepository();
             var unitOfWork = new FakeUnitOfWork();
-            var useCase = new UpdateCustomerUseCase(commandRepository, queryRepository, unitOfWork);
+            UpdateCustomerUseCase useCase = CreateUseCase(commandRepository, queryRepository, unitOfWork);
 
             Result result = await useCase.ExecuteAsync(new UpdateCustomerCommand(
                 999, "Doe", "Jane", "jane.doe@example.com", null,
-                DateOnly.FromDateTime(DateTime.Today), "Main Street", "1", "8000", "Zurich", "CH"));
+                Today, "Main Street", "1", "8000", "Zurich", "CH"));
 
             Assert.IsFalse(result.IsSuccess);
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsync_WithUnchangedAddress_ShouldNotAttemptToRecreateTheCurrentAddress()
+        {
+            var commandRepository = new FakeCustomerCommandRepository();
+            var queryRepository = new FakeCustomerQueryRepository();
+            var unitOfWork = new FakeUnitOfWork();
+            UpdateCustomerUseCase useCase = CreateUseCase(commandRepository, queryRepository, unitOfWork);
+
+            Customer customer = Customer.Create("CU00001", "Old", "Name", "old@example.com", null).EnsureValue();
+            customer.ChangeAddress(Today.AddMonths(-1), "Main Street", "1", "8000", "Zurich", "CH").EnsureSuccess();
+            _ = commandRepository.Seed(customer);
+
+            Result result = await useCase.ExecuteAsync(new UpdateCustomerCommand(
+                customer.Id.Value, "Doe", "Jane", "jane.doe@example.com", "example.com",
+                Today.AddMonths(-1), "Main Street", "1", "8000", "Zurich", "CH"));
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
         }
     }
 }
