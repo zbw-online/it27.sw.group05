@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Customers;
@@ -124,7 +125,25 @@ namespace OrderManagement.Infrastructure.IntegrationTests.Persistence.Repositori
             Result addLineResult = detached.AddLine(article.Id, article.Name, article.Price, quantity: 2);
             Assert.IsTrue(addLineResult.IsSuccess, addLineResult.Error);
 
+            // Order.RowVersion is a shadow concurrency token: AsNoTracking() cannot carry it forward
+            // on the detached CLR object, so a caller re-attaching a detached aggregate must supply
+            // the version it actually read (e.g. from an ETag) as the concurrency check's baseline -
+            // exactly like a real "edit this specific version" API request would.
+            int actualRowVersion = await DbContext.Database
+                .SqlQueryRaw<int>("SELECT [RowVersion] AS [Value] FROM [Orders] WHERE [OrderId] = {0}", orderId.Value)
+                .SingleAsync();
+
             _repository.Update(detached);
+
+            // Update() skips marking shadow properties still at their CLR default (0) as modified,
+            // so when RowVersion's real baseline also happens to be 0, setting OriginalValue alone is a
+            // no-op for EF's change tracker - Current and Original stay aliased to the same slot and the
+            // SaveChangesAsync RowVersion bump below then corrupts both. Forcing IsModified=true makes
+            // EF materialize a real, independent original-value snapshot.
+            EntityEntry<Order> orderEntry = DbContext.Entry(detached);
+            orderEntry.Property("RowVersion").OriginalValue = actualRowVersion;
+            orderEntry.Property("RowVersion").IsModified = true;
+
             _ = await DbContext.SaveChangesAsync();
 
             DbContext.ChangeTracker.Clear();

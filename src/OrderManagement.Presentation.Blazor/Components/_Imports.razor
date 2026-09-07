@@ -32,10 +32,15 @@
 @using OrderManagement.Application.Features.Catalog.Contracts
 
 @using OrderManagement.Application.Features.Orders.AddOrderLine
+@using OrderManagement.Application.Features.Orders.CancelOrder
+@using OrderManagement.Application.Features.Orders.CompleteOrder
 @using OrderManagement.Application.Features.Orders.CreateOrder
 @using OrderManagement.Application.Features.Orders.DeleteOrder
 @using OrderManagement.Application.Features.Orders.GetOrderDetails
 @using OrderManagement.Application.Features.Orders.RemoveOrderLine
-@using OrderManagement.Application.Features.Orders.SearchOrders
+@using OrderManagement.Application.Features.Orders.SearchActiveOrders
+@using OrderManagement.Application.Features.Orders.SearchArchivedOrders
+@using OrderManagement.Application.Features.Orders.StartOrderProcessing
 @using OrderManagement.Application.Features.Orders.Contracts
 @using OrderManagement.Application.Features.Orders.UpdateOrderLineQuantity
+@using OrderManagement.Domain.Orders.ValueObjects

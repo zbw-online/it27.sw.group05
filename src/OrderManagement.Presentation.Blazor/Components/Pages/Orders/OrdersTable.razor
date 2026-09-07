@@ -1,0 +1,50 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Pages.Orders
+@using OrderManagement.Application.Features.Orders.Contracts
+@using OrderManagement.Domain.Orders.ValueObjects
+@using OrderManagement.Presentation.Blazor.Components.Shared
+
+<div class="table-scroll">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th scope="col">Auftrags-Nr.</th>
+                <th scope="col">Status</th>
+                <th scope="col">Auftragsdatum</th>
+                <th scope="col">Kunde</th>
+                <th scope="col">Positionen</th>
+                <th scope="col">Auftragswert</th>
+                <th scope="col"><span class="visually-hidden">Aktionen</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (OrderSearchItemDto order in Items)
+            {
+                <tr data-clickable="true" @onclick="() => OnRowClick.InvokeAsync(order.OrderId)">
+                    <td class="numeric">@order.OrderNumber</td>
+                    <td>
+                        <StatusBadge Text="@OrderStatusPresentation.Label(order.Status)" Tone="@OrderStatusPresentation.Tone(order.Status)" />
+                        @if (order.IsOverdue)
+                        {
+                            <StatusBadge Text="Überfällig" Tone="StatusTone.Danger" />
+                        }
+                    </td>
+                    <td class="numeric">@Formatting.Date(order.OrderDate)</td>
+                    <td class="numeric">@order.CustomerNumber</td>
+                    <td class="numeric">@order.LineCount</td>
+                    <td class="numeric">@Formatting.Chf(order.TotalAmount)</td>
+                    <td class="table-actions">
+                        <Button Variant="ButtonVariant.Danger" OnClick="() => OnDeleteRequested.InvokeAsync((order.OrderId, order.OrderNumber))" AdditionalAttributes="StopPropagation">Löschen</Button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private static readonly Dictionary<string, object> StopPropagation = new() { { "onclick:stopPropagation", true } };
+
+    [Parameter, EditorRequired] public IReadOnlyList<OrderSearchItemDto> Items { get; set; } = [];
+    [Parameter] public EventCallback<int> OnRowClick { get; set; }
+    [Parameter] public EventCallback<(int OrderId, string OrderNumber)> OnDeleteRequested { get; set; }
+}

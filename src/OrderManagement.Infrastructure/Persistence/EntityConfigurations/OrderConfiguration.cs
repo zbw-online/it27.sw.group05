@@ -68,6 +68,16 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .HasColumnName("IsInventoryApplied")
                 .IsRequired();
 
+            _ = builder.Property(o => o.Status)
+                .HasColumnName("Status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            _ = builder.Property(o => o.StatusChangedAtUtc)
+                .HasColumnName("StatusChangedAtUtc")
+                .HasColumnType("datetime2");
+
             _ = builder.Property(o => o.BillingAddressSource)
                 .HasColumnName("BillingAddressSource")
                 .HasConversion<string>()
@@ -173,6 +183,15 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .OnDelete(DeleteBehavior.Restrict);
 
             _ = builder.HasIndex(o => o.CustomerId);
+
+            // Without this, two concurrent status-changing requests for the same order (e.g. two
+            // cancellations) would both blindly overwrite the row: Order carries no other field that
+            // changes on every transition and blocks a stale second write the way Article.RowVersion
+            // already does for stock updates.
+            _ = builder.Property<int>("RowVersion")
+                .HasColumnName("RowVersion")
+                .IsConcurrencyToken()
+                .HasDefaultValue(0);
         }
     }
 }

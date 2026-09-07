@@ -36,18 +36,25 @@ Scenario: Importing an already existing customer number is rejected
     When I import the customer data file
     Then the import is rejected
 
-Scenario: Historical JSON export reflects the customer's address as of today
+Scenario: Current JSON export reflects the customer's currently valid address
     Given a customer "CU70005" is registered with address "Old Street 1, 8000 Zurich, CH" valid from "2020-01-01"
-    When I export the customer data as "Json" as of today
+    When I export the current customer data as "Json"
     Then the exported file contains customer "CU70005" with address "Old Street 1, 8000 Zurich, CH"
 
-Scenario: Historical XML export reflects the customer's address as of today
+Scenario: Current XML export reflects the customer's currently valid address
     Given a customer "CU70006" is registered with address "Bahnhofstrasse 5, 8001 Zurich, CH" valid from "2020-01-01"
-    When I export the customer data as "Xml" as of today
+    When I export the current customer data as "Xml"
     Then the exported file contains customer "CU70006" with address "Bahnhofstrasse 5, 8001 Zurich, CH"
 
 Scenario: The correct address is selected for a customer who has since moved
     Given a customer "CU70007" is registered with address "Old Street 1, 8000 Zurich, CH" valid from "2020-01-01"
     And customer "CU70007" moved to "New Street 2, 9000 St. Gallen, CH" valid from "2099-01-01"
-    When I export the customer data as "Json" as of today
+    When I export the current customer data as "Json"
     Then the exported file contains customer "CU70007" with address "Old Street 1, 8000 Zurich, CH"
+
+Scenario: Historical export returns the address that was valid at a past Stichtag
+    Given a customer "CU70008" is registered with address "Old Street 1, 8000 Zurich, CH" valid from "2020-01-01"
+    And the current moment is noted as the historical Stichtag
+    And customer "CU70008" moved to "New Street 2, 9000 St. Gallen, CH" valid from "2024-06-01"
+    When I export the customer data as "Json" as of the noted historical Stichtag
+    Then the exported file contains customer "CU70008" with address "Old Street 1, 8000 Zurich, CH"

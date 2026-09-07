@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 using Microsoft.Playwright;
 using Microsoft.Playwright.MSTest;
 
@@ -8,11 +10,6 @@ namespace OrderManagement.PlaywrightTests.Scenarios
     [TestClass]
     public sealed class CustomerDataExchangeTests : PageTest
     {
-        // Safely past any real wall-clock time this suite could run at, so the SQL Server temporal
-        // query always finds rows created "now" during assembly seeding, independent of the app's
-        // clock (pinned to PlaywrightSeedData.ReferenceNow via Testing__FixedUtcNow).
-        private const string FarFutureStichtag = "2099-01-01T12:00";
-
         [TestMethod]
         public async Task ExportingAsJson_DownloadsFileContainingCurrentCustomerData()
         {
@@ -20,8 +17,8 @@ namespace OrderManagement.PlaywrightTests.Scenarios
             _ = await Page.GotoAsync($"{PlaywrightAppFixture.BaseUrl}/kunden");
             await Page.WaitForBlazorInteractiveAsync();
 
+            // Default mode is "Aktueller Datenstand" - no Stichtag is chosen.
             ILocator dialog = await OpenExportDialogAsync();
-            await dialog.Locator("#export-stichtag").FillAsync(FarFutureStichtag);
 
             IDownload download = await Page.RunAndWaitForDownloadAsync(
                 async () => await dialog.Locator("button", new() { HasText = "Exportieren" }).ClickAsync());
@@ -31,7 +28,9 @@ namespace OrderManagement.PlaywrightTests.Scenarios
             string path = await download.PathAsync() ?? throw new InvalidOperationException("Download path missing.");
             string content = await File.ReadAllTextAsync(path);
             StringAssert.Contains(content, PlaywrightSeedData.CustomerWithFutureMoveNumber);
-            StringAssert.Contains(content, "Neue Gasse");
+            // The customer's move to "Neue Gasse" only becomes valid tomorrow relative to the
+            // app's pinned clock, so the current export must still show the currently valid address.
+            StringAssert.Contains(content, "Alte Gasse");
         }
 
         [TestMethod]
@@ -43,7 +42,6 @@ namespace OrderManagement.PlaywrightTests.Scenarios
 
             ILocator dialog = await OpenExportDialogAsync();
             await dialog.Locator("input[value=Xml]").CheckAsync();
-            await dialog.Locator("#export-stichtag").FillAsync(FarFutureStichtag);
 
             IDownload download = await Page.RunAndWaitForDownloadAsync(
                 async () => await dialog.Locator("button", new() { HasText = "Exportieren" }).ClickAsync());
@@ -53,7 +51,52 @@ namespace OrderManagement.PlaywrightTests.Scenarios
             string path = await download.PathAsync() ?? throw new InvalidOperationException("Download path missing.");
             string content = await File.ReadAllTextAsync(path);
             StringAssert.Contains(content, PlaywrightSeedData.CustomerWithFutureMoveNumber);
-            StringAssert.Contains(content, "Neue Gasse");
+            StringAssert.Contains(content, "Alte Gasse");
+        }
+
+        [TestMethod]
+        public async Task ExportingAsJson_ViaFullRoundtrip_ImportsIdenticalCustomerIntoFreshDatabase()
+        {
+            await Page.SetViewportSizeAsync(1280, 800);
+            _ = await Page.GotoAsync($"{PlaywrightAppFixture.BaseUrl}/kunden");
+            await Page.WaitForBlazorInteractiveAsync();
+
+            ILocator exportDialog = await OpenExportDialogAsync();
+            IDownload download = await Page.RunAndWaitForDownloadAsync(
+                async () => await exportDialog.Locator("button", new() { HasText = "Exportieren" }).ClickAsync());
+            string exportedPath = await download.PathAsync() ?? throw new InvalidOperationException("Download path missing.");
+            string exportedJson = await File.ReadAllTextAsync(exportedPath);
+
+            // The current export always contains every seeded customer. Re-importing that whole file
+            // into this same database (the isolated Playwright database is the "fresh target
+            // database" here) would collide on every customer except the one we rename, so pick out
+            // just that one customer's record and re-point its number and email (both are checked
+            // for uniqueness independently) before importing.
+            JsonArray allCustomers = JsonNode.Parse(exportedJson)!.AsArray();
+            JsonObject renamedCustomer = allCustomers
+                .Select(node => node!.AsObject())
+                .Single(customer => (string?)customer["customerNumber"] == PlaywrightSeedData.CustomerWithFutureMoveNumber);
+            renamedCustomer["customerNumber"] = "CU00901";
+            renamedCustomer["email"] = "maria.muster.roundtrip@example.com";
+            string roundtripJson = new JsonArray(renamedCustomer.DeepClone()).ToJsonString();
+            string filePath = WriteTempFile("kunden-roundtrip.json", roundtripJson);
+
+            try
+            {
+                ILocator importDialog = await OpenImportDialogAsync();
+                await importDialog.Locator("input[type=file]").SetInputFilesAsync(filePath);
+                await importDialog.Locator("button", new() { HasText = "Datei prüfen" }).ClickAsync();
+                await Expect(importDialog.Locator(".inline-alert-success")).ToContainTextAsync("bereit zum Import");
+
+                await importDialog.Locator("button", new() { HasText = "In Datenbank importieren" }).ClickAsync();
+
+                await Expect(Page.Locator(".inline-alert-success")).ToContainTextAsync("importiert");
+                await Expect(Page.Locator("tbody")).ToContainTextAsync("CU00901");
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
         }
 
         [TestMethod]

@@ -118,7 +118,7 @@ namespace OrderManagement.AcceptanceTests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/CustomerDataExchange.feature.ndjson", 9);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/CustomerDataExchange.feature.ndjson", 10);
         }
         
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Importing a valid JSON file creates the customer")]
@@ -369,15 +369,15 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             await this.ScenarioCleanupAsync();
         }
         
-        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Historical JSON export reflects the customer\'s address as of today")]
-        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Historical JSON export reflects the customer\'s address as of today")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Current JSON export reflects the customer\'s currently valid address")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Current JSON export reflects the customer\'s currently valid address")]
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Customer data exchange")]
-        public async global::System.Threading.Tasks.Task HistoricalJSONExportReflectsTheCustomersAddressAsOfToday()
+        public async global::System.Threading.Tasks.Task CurrentJSONExportReflectsTheCustomersCurrentlyValidAddress()
         {
             string[] tagsOfScenario = ((string[])(null));
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "4";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Historical JSON export reflects the customer\'s address as of today", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Current JSON export reflects the customer\'s currently valid address", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
 #line 39
@@ -395,7 +395,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
                         "alid from \"2020-01-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 41
-    await testRunner.WhenAsync("I export the customer data as \"Json\" as of today", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.WhenAsync("I export the current customer data as \"Json\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 42
     await testRunner.ThenAsync("the exported file contains customer \"CU70005\" with address \"Old Street 1, 8000 Zu" +
@@ -405,15 +405,15 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             await this.ScenarioCleanupAsync();
         }
         
-        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Historical XML export reflects the customer\'s address as of today")]
-        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Historical XML export reflects the customer\'s address as of today")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Current XML export reflects the customer\'s currently valid address")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Current XML export reflects the customer\'s currently valid address")]
         [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Customer data exchange")]
-        public async global::System.Threading.Tasks.Task HistoricalXMLExportReflectsTheCustomersAddressAsOfToday()
+        public async global::System.Threading.Tasks.Task CurrentXMLExportReflectsTheCustomersCurrentlyValidAddress()
         {
             string[] tagsOfScenario = ((string[])(null));
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "5";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Historical XML export reflects the customer\'s address as of today", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Current XML export reflects the customer\'s currently valid address", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
 #line 44
@@ -431,7 +431,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
                         "H\" valid from \"2020-01-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 46
-    await testRunner.WhenAsync("I export the customer data as \"Xml\" as of today", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.WhenAsync("I export the current customer data as \"Xml\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 47
     await testRunner.ThenAsync("the exported file contains customer \"CU70006\" with address \"Bahnhofstrasse 5, 800" +
@@ -471,10 +471,53 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
                         "01-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
 #line 52
-    await testRunner.WhenAsync("I export the customer data as \"Json\" as of today", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.WhenAsync("I export the current customer data as \"Json\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 53
     await testRunner.ThenAsync("the exported file contains customer \"CU70007\" with address \"Old Street 1, 8000 Zu" +
+                        "rich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("Historical export returns the address that was valid at a past Stichtag")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.DescriptionAttribute("Historical export returns the address that was valid at a past Stichtag")]
+        [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestPropertyAttribute("FeatureTitle", "Customer data exchange")]
+        public async global::System.Threading.Tasks.Task HistoricalExportReturnsTheAddressThatWasValidAtAPastStichtag()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "7";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Historical export returns the address that was valid at a past Stichtag", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 55
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 56
+    await testRunner.GivenAsync("a customer \"CU70008\" is registered with address \"Old Street 1, 8000 Zurich, CH\" v" +
+                        "alid from \"2020-01-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 57
+    await testRunner.AndAsync("the current moment is noted as the historical Stichtag", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 58
+    await testRunner.AndAsync("customer \"CU70008\" moved to \"New Street 2, 9000 St. Gallen, CH\" valid from \"2024-" +
+                        "06-01\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 59
+    await testRunner.WhenAsync("I export the customer data as \"Json\" as of the noted historical Stichtag", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 60
+    await testRunner.ThenAsync("the exported file contains customer \"CU70008\" with address \"Old Street 1, 8000 Zu" +
                         "rich, CH\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }

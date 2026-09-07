@@ -84,56 +84,14 @@
     private int MaxOrders => Points.Count == 0 ? 0 : Points.Max(p => p.OrderCount);
     private decimal MaxRevenue => Points.Count == 0 ? 0m : Points.Max(p => p.Revenue);
 
-    private int MaxOrderTick => OrderTicks.Count == 0 ? 1 : OrderTicks[^1];
-    private decimal MaxRevenueTick => RevenueTicks.Count == 0 ? 1m : RevenueTicks[^1];
+    private int MaxOrderTick => OrderTicks[^1];
+    private decimal MaxRevenueTick => RevenueTicks[^1];
 
-    private List<int> OrderTicks => BuildIntTicks(MaxOrders);
-    private List<decimal> RevenueTicks => BuildDecimalTicks(MaxRevenue);
+    private List<int> OrderTicks => [.. TrendChartAxisScale.ForOrders(MaxOrders, GridLineCount).Ticks];
+    private List<decimal> RevenueTicks => [.. TrendChartAxisScale.ForRevenue(MaxRevenue, GridLineCount).Ticks];
 
     private IEnumerable<double> GridLineYPositions => Enumerable.Range(0, GridLineCount + 1)
         .Select(i => 5 + i * (SvgHeight - 10) / GridLineCount);
-
-    private static List<int> BuildIntTicks(int max)
-    {
-        int niceMax = NiceCeiling(max);
-        int step = niceMax / GridLineCount;
-        return step == 0
-            ? [0]
-            : [.. Enumerable.Range(0, GridLineCount + 1).Select(i => i * step)];
-    }
-
-    private static List<decimal> BuildDecimalTicks(decimal max)
-    {
-        decimal niceMax = NiceCeiling(max);
-        decimal step = niceMax / GridLineCount;
-        return step == 0m
-            ? [0m]
-            : [.. Enumerable.Range(0, GridLineCount + 1).Select(i => i * step)];
-    }
-
-    private static int NiceCeiling(int value)
-    {
-        if (value <= 0)
-        {
-            return GridLineCount;
-        }
-
-        int magnitude = (int)Math.Pow(10, Math.Floor(Math.Log10(value)));
-        int step = Math.Max(1, magnitude / 2);
-        return ((value / step) + 1) * step;
-    }
-
-    private static decimal NiceCeiling(decimal value)
-    {
-        if (value <= 0m)
-        {
-            return GridLineCount;
-        }
-
-        decimal magnitude = (decimal)Math.Pow(10, Math.Floor(Math.Log10((double)value)));
-        decimal step = Math.Max(1m, magnitude / 2m);
-        return (Math.Floor(value / step) + 1) * step;
-    }
 
     private static string FormatAxisRevenue(decimal value)
     {

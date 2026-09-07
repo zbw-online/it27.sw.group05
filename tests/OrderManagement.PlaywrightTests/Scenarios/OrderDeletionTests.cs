@@ -38,7 +38,10 @@ namespace OrderManagement.PlaywrightTests.Scenarios
             ILocator deleteButton = Page.Locator("button", new() { HasText = "Auftrag löschen" });
             await deleteButton.ClickAsync();
 
-            ILocator dialog = Page.Locator("dialog.app-modal");
+            // OrderDetail.razor can render more than one Modal instance (e.g. the cancel-order
+            // confirmation): [open] scopes this to the one actually visible via the native <dialog>
+            // "open" attribute, which Modal.razor toggles through JS instead of removing the element.
+            ILocator dialog = Page.Locator("dialog.app-modal[open]");
             await Expect(dialog).ToBeVisibleAsync();
             await Expect(dialog).ToContainTextAsync($"«{PlaywrightSeedData.DeletableOrderNumber}»");
             await Expect(dialog).ToContainTextAsync("Lagerbestand wieder gutgeschrieben");

@@ -3,6 +3,7 @@ using OrderManagement.Domain.Customers.ValueObjects;
 using OrderManagement.Domain.Orders;
 using OrderManagement.Domain.Orders.Events;
 using OrderManagement.Domain.Orders.ValueObjects;
+using OrderManagement.Tests.Domain.Fakes;
 
 using SharedKernel.Primitives;
 
@@ -59,6 +60,27 @@ namespace OrderManagement.Tests.Domain.Orders
             Assert.IsTrue(order.OrderDate <= after);
 
             Assert.IsFalse(order.IsInventoryApplied);
+        }
+
+        [TestMethod]
+        public void Create_WithTimeProvider_UsesTimeProviderForOrderDate()
+        {
+            var fixedNow = new DateTimeOffset(2024, 3, 15, 8, 30, 0, TimeSpan.Zero);
+            var timeProvider = new FakeTimeProvider(fixedNow);
+
+            Result<Order> result = Order.Create(
+                "ORD-2024-001",
+                new CustomerId(42),
+                new DateOnly(2024, 3, 20),
+                ValidAddress(),
+                AddressSource.Automatic,
+                ValidAddress(),
+                AddressSource.Automatic,
+                timeProvider: timeProvider);
+
+            Order order = result.EnsureValue();
+
+            Assert.AreEqual(fixedNow.UtcDateTime, order.OrderDate);
         }
 
         [TestMethod]

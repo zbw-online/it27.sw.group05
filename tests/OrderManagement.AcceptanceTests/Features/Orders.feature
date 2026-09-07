@@ -140,3 +140,82 @@ Scenario: A submitted order keeps its resolved address snapshots when reopened
     And order "ORD-2026-023" has delivery address "Main Street 1, 8000 Zurich, CH"
     And the billing address for order "ORD-2026-023" is automatic
     And the delivery address for order "ORD-2026-023" is automatic
+
+Scenario: A newly created order is Open
+    Given order "ORD-2026-030" already exists for customer "CU30001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    Then order "ORD-2026-030" has status "Open"
+
+Scenario: An order goes into processing
+    Given order "ORD-2026-031" already exists for customer "CU30001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    When I start processing order "ORD-2026-031"
+    Then order "ORD-2026-031" has status "InProgress"
+
+Scenario: An order in processing is completed
+    Given order "ORD-2026-032" already exists for customer "CU30001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    And I start processing order "ORD-2026-032"
+    When I complete order "ORD-2026-032"
+    Then order "ORD-2026-032" has status "Completed"
+
+Scenario: An open order is cancelled
+    Given order "ORD-2026-033" already exists for customer "CU30001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    When I cancel order "ORD-2026-033"
+    Then order "ORD-2026-033" has status "Cancelled"
+
+Scenario: An invalid status transition is rejected
+    Given order "ORD-2026-034" already exists for customer "CU30001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    When I complete order "ORD-2026-034"
+    Then the last status change is rejected
+
+Scenario: A completed order cannot be cancelled
+    Given order "ORD-2026-035" already exists for customer "CU30001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    And I start processing order "ORD-2026-035"
+    And I complete order "ORD-2026-035"
+    When I cancel order "ORD-2026-035"
+    Then the last status change is rejected
+    And order "ORD-2026-035" has status "Completed"
+
+Scenario: Cancelling an order restores the deducted article stock
+    Given an article has a defined stock
+    And an order deducted a quantity of that article
+    When I cancel order "ORD-2026-090"
+    Then order "ORD-2026-090" has status "Cancelled"
+    And the deducted quantity is restored to the article stock
+
+Scenario: Cancelling an already cancelled order does not restore stock again
+    Given an article has a defined stock
+    And an order deducted a quantity of that article
+    And I cancel order "ORD-2026-090"
+    When I cancel order "ORD-2026-090"
+    Then the last status change is rejected
+    And the deducted quantity is restored to the article stock
+
+Scenario: An overdue open order remains active rather than being auto-completed
+    Given order "ORD-2026-036" already exists for customer "CU30001" with delivery date "2020-01-01" and lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    Then order "ORD-2026-036" has status "Open"
+    And order "ORD-2026-036" is overdue
+
+Scenario: The archive contains only terminal orders
+    Given order "ORD-2026-037" already exists for customer "CU30001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    And order "ORD-2026-038" already exists for customer "CU30001" with lines:
+      | ArticleNumber | Quantity |
+      | ART-40001      | 1        |
+    And I start processing order "ORD-2026-038"
+    And I complete order "ORD-2026-038"
+    When I search archived orders for "ORD-2026-03"
+    Then the archived order search contains "ORD-2026-038" but not "ORD-2026-037"

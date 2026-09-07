@@ -67,6 +67,27 @@ stages:
     - script: dotnet build --configuration $(buildConfiguration) --no-restore
       displayName: Build
 
+# --- Stage 1b: validate the Compose files themselves (config parses and required vars resolve) ---
+- stage: ValidateComposeFiles
+  displayName: '1b. Validate Compose files'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Validate
+    steps:
+    - checkout: self
+      clean: true
+    - script: |
+        set -euo pipefail
+        docker compose -f compose.test.yaml config --quiet
+        echo "compose.test.yaml OK"
+      displayName: Validate compose.test.yaml
+    - script: |
+        set -euo pipefail
+        export MSSQL_SA_PASSWORD="CI_Validation_Only_Not_Real!"
+        docker compose -f compose.yaml config --quiet
+        echo "compose.yaml OK"
+      displayName: Validate compose.yaml
+
 # --- Stage 2: format verification ---
 - stage: FormatVerification
   displayName: '2. Format verification'
@@ -183,6 +204,29 @@ stages:
         targetPath: '$(Agent.TempDirectory)/trx'
         artifact: 'PlaywrightFailureArtifacts'
         publishLocation: pipeline
+
+# --- Stage 6b: validate the Docker-only test path itself (compose.test.yaml), scoped to the
+# Playwright E2E project so the unit/domain/integration/acceptance suites - already run natively
+# above with coverage collection - are not executed a second time for no additional benefit. ---
+- stage: DockerComposeE2ETests
+  displayName: '6b. Docker Compose E2E tests'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Test
+    steps:
+    - checkout: self
+      clean: true
+    - script: |
+        set -euo pipefail
+        export TEST_PROJECTS="tests/OrderManagement.PlaywrightTests/OrderManagement.PlaywrightTests.csproj"
+        docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests
+      displayName: Run Playwright E2E tests against the Compose stack
+    - script: docker compose -f compose.test.yaml logs
+      displayName: Show Compose logs (failure only)
+      condition: failed()
+    - script: docker compose -f compose.test.yaml down -v
+      displayName: Tear down Compose test stack
+      condition: always()
 
 # --- Stage 7 & 8: coverage generation and threshold enforcement ---
 - stage: Coverage

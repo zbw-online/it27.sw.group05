@@ -52,6 +52,22 @@ namespace OrderManagement.PlaywrightTests.Support
         [AssemblyInitialize]
         public static async Task AssemblyInitializeAsync(TestContext _)
         {
+            string? externalBaseUrl = Environment.GetEnvironmentVariable("PLAYWRIGHT_BASE_URL");
+            string? externalConnectionString = Environment.GetEnvironmentVariable("PLAYWRIGHT_CONNECTION_STRING");
+
+            if (!string.IsNullOrWhiteSpace(externalBaseUrl) && !string.IsNullOrWhiteSpace(externalConnectionString))
+            {
+                // External Compose stack (compose.test.yaml): app-test and sqlserver-test are
+                // already running and owned by Compose - this fixture only migrates/seeds the
+                // dedicated Playwright database and waits for the already-running app.
+                BaseUrl = externalBaseUrl;
+                ConnectionString = externalConnectionString;
+
+                await MigrateAndSeedAsync();
+                await WaitUntilHealthyAsync(BaseUrl);
+                return;
+            }
+
             await Container.StartAsync();
 
             string databaseName = TestDatabaseName.Create("OrderManagement_Playwright");
@@ -173,6 +189,39 @@ namespace OrderManagement.PlaywrightTests.Support
 
             throw new InvalidOperationException(BuildReadinessFailureMessage(
                 baseUrl, $"it did not return a successful response within {ReadinessTimeout.TotalSeconds} seconds (last response: {lastResult})"));
+        }
+
+        private static async Task WaitUntilHealthyAsync(string baseUrl)
+        {
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            using var deadlineCts = new CancellationTokenSource(ReadinessTimeout);
+
+            var healthUrl = new Uri(new Uri(baseUrl), "/health/live");
+            string lastResult = "no attempt completed";
+
+            while (!deadlineCts.IsCancellationRequested)
+            {
+                try
+                {
+                    HttpResponseMessage response = await httpClient.GetAsync(healthUrl, deadlineCts.Token);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return;
+                    }
+
+                    lastResult = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                }
+                catch (Exception ex) when (!deadlineCts.IsCancellationRequested)
+                {
+                    lastResult = ex.Message;
+                }
+
+                await Task.Delay(500, CancellationToken.None);
+            }
+
+            throw new InvalidOperationException(
+                $"The externally hosted application at '{healthUrl}' did not become healthy within " +
+                $"{ReadinessTimeout.TotalSeconds} seconds (last response: {lastResult}).");
         }
 
         private static string BuildReadinessFailureMessage(string baseUrl, string reason)

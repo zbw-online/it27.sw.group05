@@ -11,10 +11,12 @@ namespace OrderManagement.Application.Features.Orders.GetOrderDetails
 {
     public sealed class GetOrderDetailsUseCase(
         IOrderQueryRepository orderQueryRepository,
-        ICustomerQueryRepository customerQueryRepository) : IGetOrderDetailsUseCase
+        ICustomerQueryRepository customerQueryRepository,
+        TimeProvider timeProvider) : IGetOrderDetailsUseCase
     {
         private readonly IOrderQueryRepository _orderQueryRepository = orderQueryRepository;
         private readonly ICustomerQueryRepository _customerQueryRepository = customerQueryRepository;
+        private readonly TimeProvider _timeProvider = timeProvider;
 
         public async Task<Result<GetOrderDetailsResponse>> ExecuteAsync(
             GetOrderDetailsQuery query,
@@ -27,6 +29,8 @@ namespace OrderManagement.Application.Features.Orders.GetOrderDetails
             }
 
             Customer? customer = await _customerQueryRepository.GetByIdAsync(order.CustomerId, cancellationToken);
+
+            var today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
 
             IReadOnlyList<OrderLineDto> lines = [.. order.Lines
                 .OrderBy(l => l.LineNumber)
@@ -64,6 +68,8 @@ namespace OrderManagement.Application.Features.Orders.GetOrderDetails
                 order.DeliveryAddressSource,
                 order.Total.Amount,
                 order.Total.Currency,
+                order.Status,
+                order.IsOverdue(today),
                 lines);
 
             return Results.Success(response);

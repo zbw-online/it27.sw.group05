@@ -11,9 +11,9 @@
 <Modal IsOpen="IsOpen" Title="Kundendaten exportieren" OnClose="RequestClose">
     <ChildContent>
         <p class="text-muted">
-            Der Export enthält den Datenstand aller Kunden zum gewählten Stichtag (Schweizer Zeit), inklusive
-            der zu diesem Zeitpunkt gültigen Adresse. Kunden ohne gültige Adresse zum Stichtag werden ohne
-            Adresse exportiert.
+            Der aktuelle Datenstand enthält alle Kunden mit ihrer heute gültigen Adresse. Für einen
+            vergangenen Stichtag (Schweizer Zeit) kann stattdessen der historische Datenstand gewählt werden.
+            Kunden ohne gültige Adresse werden ohne Adresse exportiert.
         </p>
 
         @if (_errorMessage is not null)
@@ -33,9 +33,21 @@
             </label>
         </fieldset>
 
+        <fieldset class="form-field">
+            <legend>Datenstand</legend>
+            <label class="radio-option">
+                <input type="radio" name="export-mode" value="Current" checked="@(_mode == CustomerExportMode.Current)" @onchange='() => _mode = CustomerExportMode.Current' />
+                Aktueller Datenstand
+            </label>
+            <label class="radio-option">
+                <input type="radio" name="export-mode" value="Historical" checked="@(_mode == CustomerExportMode.Historical)" @onchange='() => _mode = CustomerExportMode.Historical' />
+                Historischer Datenstand
+            </label>
+        </fieldset>
+
         <div class="form-field">
             <label for="export-stichtag">Stichtag</label>
-            <input type="datetime-local" id="export-stichtag" class="form-control" @bind="_stichtag" />
+            <input type="datetime-local" id="export-stichtag" class="form-control" @bind="_stichtag" disabled="@(_mode != CustomerExportMode.Historical)" />
         </div>
     </ChildContent>
     <FooterContent>
@@ -50,6 +62,7 @@
 @code {
     private IJSObjectReference? _module;
     private CustomerDataFormat _format = CustomerDataFormat.Json;
+    private CustomerExportMode _mode = CustomerExportMode.Current;
     private DateTime _stichtag;
     private bool _isExporting;
     private string? _errorMessage;
@@ -62,6 +75,7 @@
     {
         if (IsOpen && !_wasOpen)
         {
+            _mode = CustomerExportMode.Current;
             _stichtag = TimeProvider.GetLocalNow().DateTime;
             _errorMessage = null;
         }
@@ -74,7 +88,11 @@
         _isExporting = true;
         _errorMessage = null;
 
-        var result = await ExportCustomerDataUseCase.ExecuteAsync(new ExportCustomerDataQuery(_format, _stichtag));
+        ExportCustomerDataQuery query = _mode == CustomerExportMode.Current
+            ? ExportCustomerDataQuery.Current(_format)
+            : ExportCustomerDataQuery.Historical(_format, _stichtag);
+
+        var result = await ExportCustomerDataUseCase.ExecuteAsync(query);
 
         _isExporting = false;
 

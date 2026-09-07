@@ -1,15 +1,18 @@
 @page "/auftraege"
-@using OrderManagement.Application.Features.Orders.DeleteOrder
-@using OrderManagement.Application.Features.Orders.SearchOrders
 @using OrderManagement.Application.Features.Orders.Contracts
+@using OrderManagement.Application.Features.Orders.DeleteOrder
+@using OrderManagement.Application.Features.Orders.SearchActiveOrders
+@using OrderManagement.Application.Features.Orders.SearchArchivedOrders
+@using OrderManagement.Domain.Orders.ValueObjects
 @using OrderManagement.Presentation.Blazor.Components.Shared
-@inject ISearchOrdersUseCase SearchOrdersUseCase
+@inject ISearchActiveOrdersUseCase SearchActiveOrdersUseCase
+@inject ISearchArchivedOrdersUseCase SearchArchivedOrdersUseCase
 @inject IDeleteOrderUseCase DeleteOrderUseCase
 @inject NavigationManager Navigation
 
 <PageTitle>Aufträge – Muster AG</PageTitle>
 
-<PageHeader Title="Aufträge" Subtitle="@($"{_allOrders.Count} Aufträge")">
+<PageHeader Title="Laufende Aufträge" Subtitle="@($"{_active.Result?.TotalCount ?? 0} laufende Aufträge")">
     <Actions>
         <Button Variant="ButtonVariant.Primary" OnClick="GoToNewOrder">+ Neuer Auftrag</Button>
     </Actions>
@@ -24,65 +27,78 @@
     <div class="inline-alert inline-alert-danger" role="alert">@_error</div>
 }
 
-<div class="toolbar">
-    <SearchField Label="Aufträge suchen" Placeholder="Auftrags-Nr. oder Kunden-Nr. suchen" @bind-Value="_searchTerm" OnSearch="LoadOrdersAsync" />
-</div>
-
 <article class="panel">
-    @if (_isLoading)
+    <div class="toolbar">
+        <SearchField Label="Aufträge suchen" Placeholder="Auftrags-Nr. oder Kunden-Nr. suchen" @bind-Value="_active.SearchTerm" OnSearch="SearchActiveAsync" />
+    </div>
+
+    @if (_active.IsLoading)
     {
         <LoadingState Text="Aufträge werden geladen …" />
     }
-    else if (_loadError is not null)
+    else if (_active.Error is not null)
     {
-        <ErrorState Title="Aufträge konnten nicht geladen werden" Description="@_loadError" OnRetry="LoadOrdersAsync" />
+        <ErrorState Title="Aufträge konnten nicht geladen werden" Description="@_active.Error" OnRetry="() => LoadActiveAsync()" />
     }
-    else if (_pagedOrders.Count == 0)
+    else if (_active.Result is { Items.Count: 0 })
     {
-        <EmptyState Title="Keine Aufträge gefunden" Description="Erstellen Sie den ersten Auftrag oder passen Sie die Suche an." />
+        <EmptyState Title="Keine laufenden Aufträge gefunden" Description="Erstellen Sie den ersten Auftrag oder passen Sie die Suche an." />
     }
-    else
+    else if (_active.Result is not null)
     {
-        <div class="table-scroll">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Auftrags-Nr.</th>
-                        <th scope="col">Auftragsdatum</th>
-                        <th scope="col">Kunde</th>
-                        <th scope="col">Positionen</th>
-                        <th scope="col">Auftragswert</th>
-                        <th scope="col"><span class="visually-hidden">Aktionen</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (OrderListItemDto order in _pagedOrders)
-                    {
-                        <tr data-clickable="true" @onclick="() => GoToDetail(order.OrderId)">
-                            <td class="numeric">@order.OrderNumber</td>
-                            <td class="numeric">@Formatting.Date(order.OrderDate)</td>
-                            <td class="numeric">@order.CustomerNumber</td>
-                            <td class="numeric">@order.LineCount</td>
-                            <td class="numeric">@Formatting.Chf(order.TotalAmount)</td>
-                            <td class="table-actions">
-                                <Button Variant="ButtonVariant.Danger" OnClick="() => RequestDelete(order.OrderId, order.OrderNumber)" AdditionalAttributes="StopPropagation">Löschen</Button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+        <OrdersTable Items="_active.Result.Items" OnRowClick="GoToDetail" OnDeleteRequested="HandleDeleteRequested" />
 
         <div class="pagination-bar">
-            <FilterSelect Label="Zeilen pro Seite" Value="@_pageSize.ToString()" ValueChanged="OnPageSizeChanged">
+            <FilterSelect Label="Zeilen pro Seite" Value="@_active.PageSize.ToString()" ValueChanged="value => OnActivePageSizeChanged(value)">
                 <option value="10">10</option>
                 <option value="15">15</option>
                 <option value="25">25</option>
                 <option value="50">50</option>
             </FilterSelect>
-            <span class="pagination-summary numeric">@PaginationSummary()</span>
-            <Pagination CurrentPage="_page" TotalPages="TotalPages" OnPageChange="ChangePage" />
+            <span class="pagination-summary numeric">@PaginationSummary(_active.Result)</span>
+            <Pagination CurrentPage="_active.Result.Page" TotalPages="Math.Max(1, _active.Result.TotalPages)" OnPageChange="page => ChangeActivePageAsync(page)" />
         </div>
+    }
+</article>
+
+<article class="panel">
+    <button type="button" class="archive-toggle" aria-expanded="@_isArchiveExpanded" @onclick="ToggleArchiveAsync">
+        @(_isArchiveExpanded ? "Archivierte Aufträge ausblenden" : "Archivierte Aufträge anzeigen")
+    </button>
+
+    @if (_isArchiveExpanded)
+    {
+        <div class="toolbar" style="margin-top: var(--space-3)">
+            <SearchField Label="Archiv durchsuchen" Placeholder="Auftrags-Nr. oder Kunden-Nr. suchen" @bind-Value="_archive.SearchTerm" OnSearch="SearchArchiveAsync" />
+        </div>
+
+        @if (_archive.IsLoading)
+        {
+            <LoadingState Text="Archiv wird geladen …" />
+        }
+        else if (_archive.Error is not null)
+        {
+            <ErrorState Title="Archiv konnte nicht geladen werden" Description="@_archive.Error" OnRetry="() => LoadArchiveAsync(forceReload: true)" />
+        }
+        else if (_archive.Result is { Items.Count: 0 })
+        {
+            <EmptyState Title="Keine archivierten Aufträge gefunden" Description="Abgeschlossene oder stornierte Aufträge erscheinen hier." />
+        }
+        else if (_archive.Result is not null)
+        {
+            <OrdersTable Items="_archive.Result.Items" OnRowClick="GoToDetail" OnDeleteRequested="HandleDeleteRequested" />
+
+            <div class="pagination-bar">
+                <FilterSelect Label="Zeilen pro Seite" Value="@_archive.PageSize.ToString()" ValueChanged="value => OnArchivePageSizeChanged(value)">
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </FilterSelect>
+                <span class="pagination-summary numeric">@PaginationSummary(_archive.Result)</span>
+                <Pagination CurrentPage="_archive.Result.Page" TotalPages="Math.Max(1, _archive.Result.TotalPages)" OnPageChange="page => ChangeArchivePageAsync(page)" />
+            </div>
+        }
     }
 </article>
 
@@ -94,74 +110,147 @@
                OnCancel="() => _isDeleteConfirmOpen = false" />
 
 @code {
-    private static readonly Dictionary<string, object> StopPropagation = new() { { "onclick:stopPropagation", true } };
+    private sealed class OrdersPanelState
+    {
+        public string? SearchTerm { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 15;
+        public bool IsLoading { get; set; } = true;
+        public string? Error { get; set; }
+        public OrderSearchResultDto? Result { get; set; }
+    }
 
-    private readonly List<OrderListItemDto> _allOrders = [];
-    private string? _searchTerm;
-    private bool _isLoading = true;
-    private string? _loadError;
+    private readonly OrdersPanelState _active = new();
+    private readonly OrdersPanelState _archive = new() { IsLoading = false };
+
+    private bool _isArchiveExpanded;
+    private bool _isArchiveLoadingInFlight;
+
     private string? _message;
     private string? _error;
-
-    private int _page = 1;
-    private int _pageSize = 15;
 
     private bool _isDeleteConfirmOpen;
     private int _deleteTargetId;
     private string _deleteTargetNumber = string.Empty;
     private bool _isDeleting;
 
-    private IReadOnlyList<OrderListItemDto> _pagedOrders =>
-        [.. _allOrders.Skip((_page - 1) * _pageSize).Take(_pageSize)];
+    protected override Task OnInitializedAsync() => LoadActiveAsync();
 
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_allOrders.Count / (double)_pageSize));
-
-    protected override Task OnInitializedAsync() => LoadOrdersAsync();
-
-    private async Task LoadOrdersAsync()
+    private async Task LoadActiveAsync()
     {
-        _isLoading = true;
-        _loadError = null;
+        _active.IsLoading = true;
+        _active.Error = null;
 
-        var result = await SearchOrdersUseCase.ExecuteAsync(new SearchOrdersQuery(_searchTerm));
+        var result = await SearchActiveOrdersUseCase.ExecuteAsync(
+            new SearchActiveOrdersQuery(_active.SearchTerm, _active.Page, _active.PageSize));
 
-        _allOrders.Clear();
+        _active.IsLoading = false;
+
         if (!result.IsSuccess)
         {
-            _loadError = result.Error;
-            _isLoading = false;
+            _active.Error = result.Error;
             return;
         }
 
-        _allOrders.AddRange(result.Value!);
-        _page = 1;
-        _isLoading = false;
+        _active.Result = result.Value;
     }
 
-    private string PaginationSummary()
+    private Task SearchActiveAsync()
     {
-        if (_allOrders.Count == 0)
+        _active.Page = 1;
+        return LoadActiveAsync();
+    }
+
+    private Task ChangeActivePageAsync(int page)
+    {
+        _active.Page = Math.Clamp(page, 1, Math.Max(1, _active.Result?.TotalPages ?? 1));
+        return LoadActiveAsync();
+    }
+
+    private Task OnActivePageSizeChanged(string? value)
+    {
+        _active.PageSize = int.TryParse(value, out int size) ? size : 15;
+        _active.Page = 1;
+        return LoadActiveAsync();
+    }
+
+    private async Task ToggleArchiveAsync()
+    {
+        _isArchiveExpanded = !_isArchiveExpanded;
+
+        if (_isArchiveExpanded && _archive.Result is null && _archive.Error is null)
+        {
+            await LoadArchiveAsync();
+        }
+    }
+
+    private async Task LoadArchiveAsync(bool forceReload = false)
+    {
+        if (_isArchiveLoadingInFlight)
+        {
+            return;
+        }
+
+        if (!forceReload && _archive.Result is not null)
+        {
+            return;
+        }
+
+        _isArchiveLoadingInFlight = true;
+        _archive.IsLoading = true;
+        _archive.Error = null;
+
+        var result = await SearchArchivedOrdersUseCase.ExecuteAsync(
+            new SearchArchivedOrdersQuery(_archive.SearchTerm, _archive.Page, _archive.PageSize));
+
+        _archive.IsLoading = false;
+        _isArchiveLoadingInFlight = false;
+
+        if (!result.IsSuccess)
+        {
+            _archive.Error = result.Error;
+            return;
+        }
+
+        _archive.Result = result.Value;
+    }
+
+    private Task SearchArchiveAsync()
+    {
+        _archive.Page = 1;
+        return LoadArchiveAsync(forceReload: true);
+    }
+
+    private Task ChangeArchivePageAsync(int page)
+    {
+        _archive.Page = Math.Clamp(page, 1, Math.Max(1, _archive.Result?.TotalPages ?? 1));
+        return LoadArchiveAsync(forceReload: true);
+    }
+
+    private Task OnArchivePageSizeChanged(string? value)
+    {
+        _archive.PageSize = int.TryParse(value, out int size) ? size : 15;
+        _archive.Page = 1;
+        return LoadArchiveAsync(forceReload: true);
+    }
+
+    private static string PaginationSummary(OrderSearchResultDto result)
+    {
+        if (result.TotalCount == 0)
         {
             return "0 von 0";
         }
 
-        int from = (_page - 1) * _pageSize + 1;
-        int to = Math.Min(_page * _pageSize, _allOrders.Count);
-        return $"{from}–{to} von {_allOrders.Count}";
-    }
-
-    private void ChangePage(int page) => _page = Math.Clamp(page, 1, TotalPages);
-
-    private Task OnPageSizeChanged(string? value)
-    {
-        _pageSize = int.TryParse(value, out int size) ? size : 15;
-        _page = 1;
-        return Task.CompletedTask;
+        int from = (result.Page - 1) * result.PageSize + 1;
+        int to = Math.Min(result.Page * result.PageSize, result.TotalCount);
+        return $"{from}–{to} von {result.TotalCount}";
     }
 
     private void GoToDetail(int orderId) => Navigation.NavigateTo($"auftraege/{orderId}");
 
     private void GoToNewOrder() => Navigation.NavigateTo("auftraege/neu");
+
+    private void HandleDeleteRequested((int OrderId, string OrderNumber) target) => RequestDelete(target.OrderId, target.OrderNumber);
 
     private void RequestDelete(int orderId, string orderNumber)
     {
@@ -192,6 +281,11 @@
         }
 
         _message = "Auftrag wurde gelöscht.";
-        await LoadOrdersAsync();
+        await LoadActiveAsync();
+
+        if (_archive.Result is not null)
+        {
+            await LoadArchiveAsync(forceReload: true);
+        }
     }
 }

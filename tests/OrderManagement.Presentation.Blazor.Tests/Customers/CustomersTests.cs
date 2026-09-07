@@ -245,17 +245,39 @@ namespace OrderManagement.Presentation.Blazor.Tests.Customers
         }
 
         [TestMethod]
-        public void ExportDialog_WithChosenStichtag_PassesStichtagToUseCase()
+        public void ExportDialog_ByDefault_UsesCurrentModeWithDisabledStichtagField()
         {
             var exportUseCase = new FakeExportCustomerDataUseCase();
             IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), exportUseCase: exportUseCase);
             cut.Find(".page-header-actions button:nth-child(2)").Click();
 
-            cut.Find("#export-stichtag").Change("2026-01-15T18:30:00");
+            IElement stichtagField = cut.Find("#export-stichtag");
+            Assert.IsTrue(stichtagField.HasAttribute("disabled"));
+
             cut.FindAll("button").Single(b => b.TextContent.Contains("Exportieren", StringComparison.Ordinal)).Click();
 
             Assert.IsNotNull(exportUseCase.CapturedQuery);
-            Assert.AreEqual(new DateTime(2026, 1, 15, 18, 30, 0), exportUseCase.CapturedQuery!.Stichtag);
+            Assert.AreEqual(CustomerExportMode.Current, exportUseCase.CapturedQuery!.Mode);
+            Assert.IsNull(exportUseCase.CapturedQuery.Stichtag);
+        }
+
+        [TestMethod]
+        public void ExportDialog_WithHistoricalModeAndChosenStichtag_PassesStichtagToUseCase()
+        {
+            var exportUseCase = new FakeExportCustomerDataUseCase();
+            IRenderedComponent<CustomersPage> cut = RenderPage(BuildDetails(), exportUseCase: exportUseCase);
+            cut.Find(".page-header-actions button:nth-child(2)").Click();
+
+            cut.Find("input[value=Historical]").Change(true);
+            IElement stichtagField = cut.Find("#export-stichtag");
+            Assert.IsFalse(stichtagField.HasAttribute("disabled"));
+
+            stichtagField.Change("2026-01-15T18:30:00");
+            cut.FindAll("button").Single(b => b.TextContent.Contains("Exportieren", StringComparison.Ordinal)).Click();
+
+            Assert.IsNotNull(exportUseCase.CapturedQuery);
+            Assert.AreEqual(CustomerExportMode.Historical, exportUseCase.CapturedQuery!.Mode);
+            Assert.AreEqual(new DateTime(2026, 1, 15, 18, 30, 0), exportUseCase.CapturedQuery.Stichtag);
         }
 
         private static GetCustomerDetailsResponse BuildDetails() => new(

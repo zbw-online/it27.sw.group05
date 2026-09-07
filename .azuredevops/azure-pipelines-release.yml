@@ -182,6 +182,70 @@ steps:
 
 - script: |
     set -euo pipefail
+
+    export MSSQL_SA_PASSWORD="CI_$(openssl rand -base64 24)Aa1!"
+    export SEED_DEMO_DATA=true
+    export APP_PORT=18090
+
+    docker compose -f compose.yaml up --build -d
+
+    echo "Waiting for sqlserver to become healthy..."
+    SQLSERVER_READY=false
+    for _ in $(seq 1 60); do
+      CID="$(docker compose -f compose.yaml ps -q sqlserver)"
+      STATUS="$(docker inspect --format='{{.State.Health.Status}}' "$CID" 2>/dev/null || echo starting)"
+      if [ "$STATUS" = "healthy" ]; then
+        SQLSERVER_READY=true
+        break
+      fi
+      sleep 5
+    done
+    if [ "$SQLSERVER_READY" != "true" ]; then
+      echo "##vso[task.logissue type=error]sqlserver did not become healthy within the expected time."
+      docker compose -f compose.yaml logs
+      exit 1
+    fi
+
+    echo "Waiting for database-init to complete..."
+    for _ in $(seq 1 60); do
+      STATE="$(docker inspect --format='{{.State.Status}}' "$(docker compose -f compose.yaml ps -a -q database-init)" 2>/dev/null || echo running)"
+      if [ "$STATE" = "exited" ]; then
+        break
+      fi
+      sleep 5
+    done
+    INIT_EXIT_CODE="$(docker inspect --format='{{.State.ExitCode}}' "$(docker compose -f compose.yaml ps -a -q database-init)")"
+    if [ "$INIT_EXIT_CODE" != "0" ]; then
+      echo "##vso[task.logissue type=error]database-init failed (exit code $INIT_EXIT_CODE)."
+      docker compose -f compose.yaml logs database-init
+      exit 1
+    fi
+
+    echo "Waiting for app to report healthy via /health/live..."
+    APP_READY=false
+    for _ in $(seq 1 30); do
+      if curl -sf -o /dev/null "http://localhost:${APP_PORT}/health/live"; then
+        APP_READY=true
+        break
+      fi
+      sleep 2
+    done
+
+    docker compose -f compose.yaml logs
+    if [ "$APP_READY" != "true" ]; then
+      echo "##vso[task.logissue type=error]app did not become ready via the runtime Compose stack."
+      exit 1
+    fi
+
+    echo "Runtime Compose stack validated: sqlserver healthy, database-init succeeded, app serves /health/live."
+  displayName: Validate runtime Compose stack (compose.yaml)
+
+- script: docker compose -f compose.yaml down -v
+  displayName: Tear down runtime Compose stack
+  condition: always()
+
+- script: |
+    set -euo pipefail
     echo "$(dockerImageName):$(Build.BuildId)" > "$(Build.ArtifactStagingDirectory)/docker-image-tag.txt"
   displayName: Record built image tag
 

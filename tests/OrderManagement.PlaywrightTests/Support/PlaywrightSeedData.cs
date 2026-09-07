@@ -26,6 +26,12 @@ namespace OrderManagement.PlaywrightTests.Support
         internal const string AnchorOrderNumber = "ORD-2026-900";
         internal const string AnchorOrderCustomerNumber = "CU00003";
 
+        // Dedicated to the order-lifecycle/archive Playwright scenario: starts Open with a past
+        // delivery date (overdue while still active) and is driven through InProgress -> Completed
+        // by that test only.
+        internal const string LifecycleOrderNumber = "ORD-2026-902";
+        internal const string LifecycleOrderCustomerNumber = "CU00004";
+
         // The application clock is pinned to this instant (see PlaywrightAppFixture), so address
         // classification in GetCustomerDetailsUseCase stays deterministic regardless of the real calendar date.
         internal static readonly DateOnly ReferenceDate = new(2026, 6, 15);
@@ -106,6 +112,30 @@ namespace OrderManagement.PlaywrightTests.Support
             inactiveCandidateArticle.UpdateStock(-1).EnsureSuccess();
             anchorOrder.MarkInventoryApplied().EnsureSuccess();
             _ = dbContext.Orders.Add(anchorOrder);
+
+            Customer lifecycleCustomer = Customer.Create(
+                LifecycleOrderCustomerNumber, "Muster", "Lea", "lea.muster@example.com", null).EnsureValue();
+            lifecycleCustomer.ChangeAddress(new DateOnly(2026, 1, 1), "Poststrasse", "3", "3000", "Bern", "CH").EnsureSuccess();
+            _ = dbContext.Customers.Add(lifecycleCustomer);
+            _ = await dbContext.SaveChangesAsync();
+
+            Article lifecycleArticle = Article.Create(
+                "ART-REF-003", "Lifecycle-Testartikel", 5.00m, "CHF", level4.Id, stock: 50).EnsureValue();
+            _ = dbContext.Articles.Add(lifecycleArticle);
+            _ = await dbContext.SaveChangesAsync();
+
+            Order lifecycleOrder = Order.Create(
+                LifecycleOrderNumber,
+                lifecycleCustomer.Id,
+                ReferenceDate.AddDays(-5),
+                Address.Create("Poststrasse", "3", "3000", "Bern", "CH").EnsureValue(),
+                AddressSource.Automatic,
+                Address.Create("Poststrasse", "3", "3000", "Bern", "CH").EnsureValue(),
+                AddressSource.Automatic).EnsureValue();
+            lifecycleOrder.AddLine(lifecycleArticle.Id, lifecycleArticle.Name, lifecycleArticle.Price, 1).EnsureSuccess();
+            lifecycleArticle.UpdateStock(-1).EnsureSuccess();
+            lifecycleOrder.MarkInventoryApplied().EnsureSuccess();
+            _ = dbContext.Orders.Add(lifecycleOrder);
 
             _ = await dbContext.SaveChangesAsync();
         }

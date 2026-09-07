@@ -25,11 +25,12 @@ namespace OrderManagement.Domain.Orders
             AddressSource billingAddressSource,
             Address deliveryAddress,
             AddressSource deliveryAddressSource,
-            string? customerReference)
+            string? customerReference,
+            TimeProvider timeProvider)
             : base(OrderId.Empty)
         {
             OrderNumber = number;
-            OrderDate = DateTime.UtcNow;
+            OrderDate = timeProvider.GetUtcNow().UtcDateTime;
             CustomerId = customerId;
             DeliveryDate = deliveryDate;
             BillingAddress = billingAddress;
@@ -39,6 +40,7 @@ namespace OrderManagement.Domain.Orders
             CustomerReference = customerReference;
             Total = Money.From(0, "CHF").EnsureValue();
             IsInventoryApplied = false;
+            Status = OrderStatus.Open;
 
             AddDomainEvent(new OrderCreated(number, DateTime.UtcNow));
         }
@@ -54,7 +56,14 @@ namespace OrderManagement.Domain.Orders
         public string? CustomerReference { get; private set; }
         public Money Total { get; private set; } = default!;
         public bool IsInventoryApplied { get; private set; }
+        public OrderStatus Status { get; private set; } = OrderStatus.Open;
+        public DateTime? StatusChangedAtUtc { get; private set; }
         public IReadOnlyCollection<OrderLine> Lines => _lines.AsReadOnly();
+
+        public bool IsActive => Status is OrderStatus.Open or OrderStatus.InProgress;
+        public bool IsArchived => Status is OrderStatus.Completed or OrderStatus.Cancelled;
+
+        public bool IsOverdue(DateOnly today) => IsActive && DeliveryDate < today;
 
         public static Result<Order> Create(
             string orderNumber,
@@ -64,7 +73,8 @@ namespace OrderManagement.Domain.Orders
             AddressSource billingAddressSource,
             Address deliveryAddress,
             AddressSource deliveryAddressSource,
-            string? customerReference = null)
+            string? customerReference = null,
+            TimeProvider? timeProvider = null)
         {
             Result<OrderNumber> nr = OrderNumber.Create(orderNumber);
             if (!nr.IsSuccess)
@@ -88,7 +98,8 @@ namespace OrderManagement.Domain.Orders
                 billingAddressSource,
                 deliveryAddress,
                 deliveryAddressSource,
-                normalizedReference);
+                normalizedReference,
+                timeProvider ?? TimeProvider.System);
 
             return Results.Success(order);
         }
@@ -167,6 +178,51 @@ namespace OrderManagement.Domain.Orders
                 return Result.Fail("Inventory has already been applied for this order.");
 
             IsInventoryApplied = true;
+            return Result.Success();
+        }
+
+        public Result StartProcessing(DateTime nowUtc)
+        {
+            if (Status != OrderStatus.Open)
+                return Result.Fail("Nur offene Aufträge können in Bearbeitung gesetzt werden.");
+
+            Status = OrderStatus.InProgress;
+            StatusChangedAtUtc = nowUtc;
+
+            AddDomainEvent(new OrderStartedProcessing(OrderNumber, nowUtc));
+            return Result.Success();
+        }
+
+        public Result Complete(DateTime nowUtc)
+        {
+            if (Status != OrderStatus.InProgress)
+                return Result.Fail("Nur Aufträge in Bearbeitung können abgeschlossen werden.");
+
+            if (_lines.Count == 0)
+                return Result.Fail("Ein Auftrag ohne Positionen kann nicht abgeschlossen werden.");
+
+            if (!IsInventoryApplied)
+                return Result.Fail("Der Auftrag kann erst abgeschlossen werden, wenn der Lagerbestand abgezogen wurde.");
+
+            Status = OrderStatus.Completed;
+            StatusChangedAtUtc = nowUtc;
+
+            AddDomainEvent(new OrderCompleted(OrderNumber, nowUtc));
+            return Result.Success();
+        }
+
+        public Result Cancel(DateTime nowUtc)
+        {
+            if (Status is OrderStatus.Completed or OrderStatus.Cancelled)
+                return Result.Fail("Ein abgeschlossener oder bereits stornierter Auftrag kann nicht storniert werden.");
+
+            bool inventoryReversalRequired = IsInventoryApplied;
+
+            Status = OrderStatus.Cancelled;
+            StatusChangedAtUtc = nowUtc;
+            IsInventoryApplied = false;
+
+            AddDomainEvent(new OrderCancelled(OrderNumber, nowUtc, inventoryReversalRequired));
             return Result.Success();
         }
     }
