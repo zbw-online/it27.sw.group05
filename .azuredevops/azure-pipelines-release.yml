@@ -1,7 +1,7 @@
 trigger:
   branches:
-    include:
-      - main
+    exclude:
+      - '*'
   tags:
     include:
       - 'Abgabe_*'
@@ -14,302 +14,88 @@ pool:
 variables:
 - group: github-secret-Public-Repository
 
-- name: buildConfiguration
-  value: Release
-
 - name: githubRepo
   value: zbw-online/it27.sw.group05
-
-- name: docsFolder
-  value: '$(Build.SourcesDirectory)/docs'
-
-- name: pdfOutputFolder
-  value: '$(Build.ArtifactStagingDirectory)/pdf'
-
-- name: publishOutputFolder
-  value: '$(Build.ArtifactStagingDirectory)/publish'
-
-- name: migrationBundleFolder
-  value: '$(Build.ArtifactStagingDirectory)/migrations'
-
-- name: dockerImageName
-  value: 'ordermanagement-blazor'
-
-# isReleaseTag: this run was triggered by an 'Abgabe_*' tag - only these runs create a
-# GitHub Release, so an ordinary push to main never produces a duplicate/uncontrolled release.
-- name: isReleaseTag
-  value: $[startsWith(variables['Build.SourceBranch'], 'refs/tags/Abgabe_')]
-
-# Set this project/pipeline variable to a real Docker registry service connection name to
-# enable pushing the built image. Left empty, the image is still built and validated locally
-# on the agent, but never pushed anywhere.
-- name: dockerRegistryServiceConnection
-  value: ''
 
 steps:
 - checkout: self
   clean: true
-
-- task: UseDotNet@2
-  displayName: Install .NET 10 SDK
-  inputs:
-    packageType: sdk
-    version: 10.x
-
-- script: dotnet restore
-  displayName: Restore
-
-- script: dotnet format --verify-no-changes
-  displayName: Verify formatting
-
-- script: dotnet build --configuration $(buildConfiguration) --no-restore
-  displayName: Build
-
-- script: dotnet test --configuration $(buildConfiguration) --no-build
-  displayName: Run tests
+  fetchDepth: 0
+  fetchTags: true
+  persistCredentials: true
 
 - script: |
     set -euo pipefail
 
-    sudo apt-get update
-    sudo apt-get install -y libreoffice
+    SOURCE_BRANCH="$(Build.SourceBranch)"
+    PREFIX="refs/tags/"
 
-    mkdir -p "$(pdfOutputFolder)"
-
-    if [ ! -d "$(docsFolder)" ]; then
-      echo "ERROR: Docs folder not found: $(docsFolder)"
+    if [[ "$SOURCE_BRANCH" != "$PREFIX"* ]]; then
+      echo "##vso[task.logissue type=error]This pipeline must be triggered by a tag (refs/tags/...), not by '$SOURCE_BRANCH'."
       exit 1
     fi
 
-    mapfile -d '' files < <(find "$(docsFolder)" -type f -iname "*.docx" -print0)
+    TAG_NAME="${SOURCE_BRANCH#"$PREFIX"}"
 
-    if [ ${#files[@]} -eq 0 ]; then
-      echo "ERROR: No .docx files found in $(docsFolder)"
+    if [[ ! "$TAG_NAME" =~ ^Abgabe_[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+      echo "##vso[task.logissue type=error]Tag '$TAG_NAME' does not match the required release tag pattern '^Abgabe_[A-Za-z0-9][A-Za-z0-9._-]*\$'."
       exit 1
     fi
 
-    for file in "${files[@]}"; do
-      echo "Converting: $file"
-      libreoffice --headless --convert-to pdf --outdir "$(pdfOutputFolder)" "$file"
-    done
-
-    echo "Generated PDFs:"
-    ls -la "$(pdfOutputFolder)"
-  displayName: Convert DOCX to PDF
-
-- task: PublishPipelineArtifact@1
-  displayName: Publish PDF artifact
-  inputs:
-    targetPath: '$(pdfOutputFolder)'
-    artifact: 'PdfFiles'
-    publishLocation: 'pipeline'
-
-- script: |
-    dotnet publish "src/OrderManagement.Presentation.Blazor/OrderManagement.Presentation.Blazor.csproj" \
-      --configuration $(buildConfiguration) \
-      --no-restore \
-      --output "$(publishOutputFolder)"
-  displayName: Publish Blazor Server application
-
-- task: PublishPipelineArtifact@1
-  displayName: Publish application artifact
-  inputs:
-    targetPath: '$(publishOutputFolder)'
-    artifact: 'BlazorAppPublish'
-    publishLocation: 'pipeline'
+    echo "Tag name validated: $TAG_NAME"
+    echo "##vso[task.setvariable variable=tagName]$TAG_NAME"
+  displayName: Validate Abgabe_* tag name
 
 - script: |
     set -euo pipefail
 
-    dotnet tool restore
+    TAG_NAME="$(tagName)"
+    TAG_COMMIT="$(git rev-list -n 1 "$TAG_NAME")"
 
-    mkdir -p "$(migrationBundleFolder)"
-
-    dotnet ef migrations bundle \
-      --project src/OrderManagement.Infrastructure \
-      --startup-project src/OrderManagement.Presentation.Blazor \
-      --configuration $(buildConfiguration) \
-      --self-contained \
-      --output "$(migrationBundleFolder)/efbundle" \
-      --force
-  displayName: Build EF Core migration bundle
-
-- task: PublishPipelineArtifact@1
-  displayName: Publish migration bundle artifact
-  inputs:
-    targetPath: '$(migrationBundleFolder)'
-    artifact: 'MigrationBundle'
-    publishLocation: 'pipeline'
-
-- script: |
-    set -euo pipefail
-    docker build -t "$(dockerImageName):$(Build.BuildId)" -f Dockerfile .
-  displayName: Build production Docker image
-
-- script: |
-    set -euo pipefail
-
-    IMAGE="$(dockerImageName):$(Build.BuildId)"
-    CONTAINER="validate-$(Build.BuildId)"
-
-    # Smoke-test only: the app never migrates automatically on startup, so it must come
-    # up and serve requests even without a reachable database. The root page queries the
-    # database and is not a valid liveness probe; /health/live only confirms the ASP.NET Core
-    # process itself is running.
-    docker run -d --rm --name "$CONTAINER" -p 18080:8080 \
-      -e ConnectionStrings__OrderManagement="Server=unreachable;Database=OrderManagement;User Id=sa;Password=Placeholder_Not_Real!;TrustServerCertificate=True;Connect Timeout=1;" \
-      "$IMAGE"
-
-    READY=false
-    for _ in $(seq 1 20); do
-      if curl -sf -o /dev/null "http://localhost:18080/health/live"; then
-        READY=true
-        break
-      fi
-      sleep 1
-    done
-
-    docker logs "$CONTAINER" || true
-    docker stop "$CONTAINER" || true
-
-    if [ "$READY" != "true" ]; then
-      echo "##vso[task.logissue type=error]Docker image did not start and serve HTTP requests within the expected time."
+    if [ -z "$TAG_COMMIT" ]; then
+      echo "##vso[task.logissue type=error]Could not resolve a commit for tag '$TAG_NAME'."
       exit 1
     fi
 
-    echo "Docker image validated: image starts and serves requests."
-  displayName: Validate production Docker image
+    echo "Tag '$TAG_NAME' points to commit $TAG_COMMIT"
 
-- script: |
-    set -euo pipefail
+    git fetch origin main
 
-    export MSSQL_SA_PASSWORD="CI_$(openssl rand -base64 24)Aa1!"
-    export SEED_DEMO_DATA=true
-    export APP_PORT=18090
-
-    docker compose -f compose.yaml up --build -d
-
-    echo "Waiting for sqlserver to become healthy..."
-    SQLSERVER_READY=false
-    for _ in $(seq 1 60); do
-      CID="$(docker compose -f compose.yaml ps -q sqlserver)"
-      STATUS="$(docker inspect --format='{{.State.Health.Status}}' "$CID" 2>/dev/null || echo starting)"
-      if [ "$STATUS" = "healthy" ]; then
-        SQLSERVER_READY=true
-        break
-      fi
-      sleep 5
-    done
-    if [ "$SQLSERVER_READY" != "true" ]; then
-      echo "##vso[task.logissue type=error]sqlserver did not become healthy within the expected time."
-      docker compose -f compose.yaml logs
+    if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
+      echo "##vso[task.logissue type=error]Commit $TAG_COMMIT for tag '$TAG_NAME' is not part of the history of origin/main."
       exit 1
     fi
 
-    echo "Waiting for database-init to complete..."
-    for _ in $(seq 1 60); do
-      STATE="$(docker inspect --format='{{.State.Status}}' "$(docker compose -f compose.yaml ps -a -q database-init)" 2>/dev/null || echo running)"
-      if [ "$STATE" = "exited" ]; then
-        break
-      fi
-      sleep 5
-    done
-    INIT_EXIT_CODE="$(docker inspect --format='{{.State.ExitCode}}' "$(docker compose -f compose.yaml ps -a -q database-init)")"
-    if [ "$INIT_EXIT_CODE" != "0" ]; then
-      echo "##vso[task.logissue type=error]database-init failed (exit code $INIT_EXIT_CODE)."
-      docker compose -f compose.yaml logs database-init
-      exit 1
-    fi
-
-    echo "Waiting for app to report healthy via /health/live..."
-    APP_READY=false
-    for _ in $(seq 1 30); do
-      if curl -sf -o /dev/null "http://localhost:${APP_PORT}/health/live"; then
-        APP_READY=true
-        break
-      fi
-      sleep 2
-    done
-
-    docker compose -f compose.yaml logs
-    if [ "$APP_READY" != "true" ]; then
-      echo "##vso[task.logissue type=error]app did not become ready via the runtime Compose stack."
-      exit 1
-    fi
-
-    echo "Runtime Compose stack validated: sqlserver healthy, database-init succeeded, app serves /health/live."
-  displayName: Validate runtime Compose stack (compose.yaml)
-
-- script: docker compose -f compose.yaml down -v
-  displayName: Tear down runtime Compose stack
-  condition: always()
+    echo "Confirmed: tag '$TAG_NAME' points to a commit in the history of origin/main."
+  displayName: Verify tag commit is on main
 
 - script: |
     set -euo pipefail
-    echo "$(dockerImageName):$(Build.BuildId)" > "$(Build.ArtifactStagingDirectory)/docker-image-tag.txt"
-  displayName: Record built image tag
-
-- task: PublishPipelineArtifact@1
-  displayName: Publish Docker image tag artifact
-  inputs:
-    targetPath: '$(Build.ArtifactStagingDirectory)/docker-image-tag.txt'
-    artifact: 'DockerImageTag'
-    publishLocation: 'pipeline'
-
-# Only pushes when dockerRegistryServiceConnection has been set to a real Docker registry
-# service connection (see the variable above). No registry is configured by default, so this
-# step is a no-op until the project wires one up.
-- task: Docker@2
-  displayName: Push Docker image to registry
-  condition: and(succeeded(), ne(variables['dockerRegistryServiceConnection'], ''))
-  inputs:
-    containerRegistry: '$(dockerRegistryServiceConnection)'
-    repository: '$(dockerImageName)'
-    command: 'buildAndPush'
-    Dockerfile: 'Dockerfile'
-    tags: |
-      $(Build.BuildId)
-      latest
-
-- script: |
-    set -euo pipefail
-
-    TAG_NAME="$(Build.SourceBranchName)"
-    GH_REPO="$(githubRepo)"
-    PDF_DIR="$(pdfOutputFolder)"
-
-    echo "Repo: $GH_REPO"
-    echo "Tag:  $TAG_NAME"
-    echo "PDFs: $PDF_DIR"
 
     TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
     if [ -z "$TOKEN" ]; then
-      echo "ERROR: No GitHub token injected. Check variable group linking + pipeline permissions."
+      echo "##vso[task.logissue type=error]No GitHub token available. Check the github-secret-Public-Repository variable group and pipeline permissions."
       exit 1
     fi
     export GH_TOKEN="$TOKEN"
     export GITHUB_TOKEN="$TOKEN"
 
-    gh api "repos/$GH_REPO" >/dev/null
+    TAG_NAME="$(tagName)"
+    GH_REPO="$(githubRepo)"
 
-    if ! gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
-      gh release create "$TAG_NAME" \
-        --repo "$GH_REPO" \
-        --title "$TAG_NAME" \
-        --notes "Automated PDF release created by Azure DevOps pipeline."
+    if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
+      echo "A GitHub Release for tag '$TAG_NAME' already exists. Skipping creation."
+      exit 0
     fi
 
-    shopt -s nullglob
-    pdfs=("$PDF_DIR"/*.pdf)
+    gh release create "$TAG_NAME" \
+      --repo "$GH_REPO" \
+      --title "OrderManagement – $TAG_NAME" \
+      --verify-tag \
+      --generate-notes
 
-    if [ ${#pdfs[@]} -eq 0 ]; then
-      echo "ERROR: No PDF files found in $PDF_DIR"
-      exit 1
-    fi
-
-    gh release upload "$TAG_NAME" "${pdfs[@]}" --repo "$GH_REPO" --clobber
-  displayName: Create GitHub Release + upload PDFs (Abgabe_* tags only)
-  condition: and(succeeded(), eq(variables['isReleaseTag'], 'True'))
+    echo "Created GitHub Release for tag '$TAG_NAME'."
+  displayName: Create GitHub Release (idempotent)
   env:
     GH_TOKEN: $(GITHUB_TOKEN)
     GITHUB_TOKEN: $(GITHUB_TOKEN)
