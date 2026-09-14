@@ -1,4 +1,7 @@
 trigger:
+  branches:
+    exclude:
+      - '*'
   tags:
     include:
       - 'Abgabe_*'
@@ -11,110 +14,88 @@ pool:
 variables:
 - group: github-secret-Public-Repository
 
-- name: buildConfiguration
-  value: Release
-
 - name: githubRepo
   value: zbw-online/it27.sw.group05
-
-- name: docsFolder
-  value: '$(Build.SourcesDirectory)/docs'
-
-- name: pdfOutputFolder
-  value: '$(Build.ArtifactStagingDirectory)/pdf'
 
 steps:
 - checkout: self
   clean: true
-
-- task: UseDotNet@2
-  inputs:
-    packageType: sdk
-    version: 9.x
-
-- script: dotnet restore
-  displayName: Restore
-
-- script: dotnet format --verify-no-changes
-  displayName: Verify formatting
-
-- script: dotnet test --configuration $(buildConfiguration) --no-restore
-  displayName: Run tests
+  fetchDepth: 0
+  fetchTags: true
+  persistCredentials: true
 
 - script: |
     set -euo pipefail
 
-    sudo apt-get update
-    sudo apt-get install -y libreoffice
+    SOURCE_BRANCH="$(Build.SourceBranch)"
+    PREFIX="refs/tags/"
 
-    mkdir -p "$(pdfOutputFolder)"
-
-    if [ ! -d "$(docsFolder)" ]; then
-      echo "ERROR: Docs folder not found: $(docsFolder)"
+    if [[ "$SOURCE_BRANCH" != "$PREFIX"* ]]; then
+      echo "##vso[task.logissue type=error]This pipeline must be triggered by a tag (refs/tags/...), not by '$SOURCE_BRANCH'."
       exit 1
     fi
 
-    mapfile -d '' files < <(find "$(docsFolder)" -type f -iname "*.docx" -print0)
+    TAG_NAME="${SOURCE_BRANCH#"$PREFIX"}"
 
-    if [ ${#files[@]} -eq 0 ]; then
-      echo "ERROR: No .docx files found in $(docsFolder)"
+    if [[ ! "$TAG_NAME" =~ ^Abgabe_[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+      echo "##vso[task.logissue type=error]Tag '$TAG_NAME' does not match the required release tag pattern '^Abgabe_[A-Za-z0-9][A-Za-z0-9._-]*\$'."
       exit 1
     fi
 
-    for file in "${files[@]}"; do
-      echo "Converting: $file"
-      libreoffice --headless --convert-to pdf --outdir "$(pdfOutputFolder)" "$file"
-    done
-
-    echo "Generated PDFs:"
-    ls -la "$(pdfOutputFolder)"
-  displayName: Convert DOCX to PDF
-
-- task: PublishPipelineArtifact@1
-  displayName: Publish PDF artifact
-  inputs:
-    targetPath: '$(pdfOutputFolder)'
-    artifact: 'PdfFiles'
-    publishLocation: 'pipeline'
+    echo "Tag name validated: $TAG_NAME"
+    echo "##vso[task.setvariable variable=tagName]$TAG_NAME"
+  displayName: Validate Abgabe_* tag name
 
 - script: |
     set -euo pipefail
 
-    TAG_NAME="$(Build.SourceBranchName)"
-    GH_REPO="$(githubRepo)"
-    PDF_DIR="$(pdfOutputFolder)"
+    TAG_NAME="$(tagName)"
+    TAG_COMMIT="$(git rev-list -n 1 "$TAG_NAME")"
 
-    echo "Repo: $GH_REPO"
-    echo "Tag:  $TAG_NAME"
-    echo "PDFs: $PDF_DIR"
+    if [ -z "$TAG_COMMIT" ]; then
+      echo "##vso[task.logissue type=error]Could not resolve a commit for tag '$TAG_NAME'."
+      exit 1
+    fi
+
+    echo "Tag '$TAG_NAME' points to commit $TAG_COMMIT"
+
+    git fetch origin main
+
+    if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
+      echo "##vso[task.logissue type=error]Commit $TAG_COMMIT for tag '$TAG_NAME' is not part of the history of origin/main."
+      exit 1
+    fi
+
+    echo "Confirmed: tag '$TAG_NAME' points to a commit in the history of origin/main."
+  displayName: Verify tag commit is on main
+
+- script: |
+    set -euo pipefail
 
     TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
     if [ -z "$TOKEN" ]; then
-      echo "ERROR: No GitHub token injected. Check variable group linking + pipeline permissions."
+      echo "##vso[task.logissue type=error]No GitHub token available. Check the github-secret-Public-Repository variable group and pipeline permissions."
       exit 1
     fi
     export GH_TOKEN="$TOKEN"
     export GITHUB_TOKEN="$TOKEN"
 
-    gh api "repos/$GH_REPO" >/dev/null
+    TAG_NAME="$(tagName)"
+    GH_REPO="$(githubRepo)"
 
-    if ! gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
-      gh release create "$TAG_NAME" \
-        --repo "$GH_REPO" \
-        --title "$TAG_NAME" \
-        --notes "Automated PDF release created by Azure DevOps pipeline."
+    if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
+      echo "A GitHub Release for tag '$TAG_NAME' already exists. Skipping creation."
+      exit 0
     fi
 
-    shopt -s nullglob
-    pdfs=("$PDF_DIR"/*.pdf)
+    gh release create "$TAG_NAME" \
+      --repo "$GH_REPO" \
+      --title "OrderManagement – $TAG_NAME" \
+      --verify-tag \
+      --generate-notes
 
-    if [ ${#pdfs[@]} -eq 0 ]; then
-      echo "ERROR: No PDF files found in $PDF_DIR"
-      exit 1
-    fi
-
-    gh release upload "$TAG_NAME" "${pdfs[@]}" --repo "$GH_REPO" --clobber
-  displayName: Create GitHub Release + upload PDFs
+    echo "Created GitHub Release for tag '$TAG_NAME'."
+  displayName: Create GitHub Release (idempotent)
   env:
     GH_TOKEN: $(GITHUB_TOKEN)
     GITHUB_TOKEN: $(GITHUB_TOKEN)

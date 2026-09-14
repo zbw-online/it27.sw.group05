@@ -5,7 +5,7 @@ namespace SharedKernel.Primitives
     public sealed class Money : ValueObject
     {
         public decimal Amount { get; private set; }
-        public string Currency { get; private set; }
+        public string Currency { get; private set; } = default!;
 
         private Money(decimal amount, string currency)
         {

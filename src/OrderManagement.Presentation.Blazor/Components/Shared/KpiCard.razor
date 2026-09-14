@@ -1,0 +1,24 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<article class="kpi-card">
+    <div class="kpi-card-head">
+        @if (Icon is not null)
+        {
+            <span class="kpi-card-icon" aria-hidden="true">@Icon</span>
+        }
+        <span class="kpi-card-label">@Label</span>
+    </div>
+    <strong class="kpi-card-value numeric">@Value</strong>
+    @if (!string.IsNullOrWhiteSpace(TrendText))
+    {
+        <span class="kpi-card-trend kpi-card-trend-@TrendTone.ToString().ToLowerInvariant()">@TrendText</span>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+    [Parameter] public string? TrendText { get; set; }
+    [Parameter] public StatusTone TrendTone { get; set; } = StatusTone.Neutral;
+    [Parameter] public RenderFragment? Icon { get; set; }
+}

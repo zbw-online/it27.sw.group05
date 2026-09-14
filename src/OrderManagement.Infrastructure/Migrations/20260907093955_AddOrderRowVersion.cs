@@ -1,0 +1,23 @@
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace OrderManagement.Infrastructure.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddOrderRowVersion : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder) => _ = migrationBuilder.AddColumn<int>(
+                name: "RowVersion",
+                table: "Orders",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder) => _ = migrationBuilder.DropColumn(
+                name: "RowVersion",
+                table: "Orders");
+    }
+}

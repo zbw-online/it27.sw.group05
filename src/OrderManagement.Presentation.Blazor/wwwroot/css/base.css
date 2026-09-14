@@ -1,0 +1,107 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    background: var(--color-canvas);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--color-text-primary);
+    font-weight: 600;
+    margin: 0;
+}
+
+p {
+    margin: 0;
+}
+
+a {
+    color: var(--color-primary);
+}
+
+a:hover {
+    color: var(--color-primary-hover);
+}
+
+button {
+    font-family: inherit;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+:focus-visible {
+    border-radius: var(--radius-sm);
+    box-shadow: var(--focus-ring);
+    outline: none;
+}
+
+.numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+.skip-link {
+    background: var(--color-elevated);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    left: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    position: absolute;
+    top: -100px;
+    transition: top 0.15s ease-in-out;
+    z-index: 1000;
+}
+
+.skip-link:focus {
+    top: var(--space-3);
+}
+
+#blazor-error-ui {
+    background: var(--color-danger);
+    bottom: 0;
+    box-shadow: var(--shadow-lg);
+    box-sizing: border-box;
+    color: #fff;
+    display: none;
+    left: 0;
+    padding: var(--space-3) var(--space-8) var(--space-3) var(--space-4);
+    position: fixed;
+    width: 100%;
+    z-index: 1001;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: var(--space-4);
+    top: var(--space-3);
+}

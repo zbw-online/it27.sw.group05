@@ -1,0 +1,11 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<span class="status-badge status-badge-@Tone.ToString().ToLowerInvariant()">
+    <span class="status-badge-dot" aria-hidden="true"></span>
+    @Text
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+    [Parameter] public StatusTone Tone { get; set; } = StatusTone.Neutral;
+}

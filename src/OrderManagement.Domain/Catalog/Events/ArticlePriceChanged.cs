@@ -6,7 +6,7 @@ using SharedKernel.SeedWork;
 namespace OrderManagement.Domain.Catalog.Events
 {
     public sealed record ArticlePriceChanged(
-        ArticleId ArticleId,
+        ArticleNumber ArticleNumber,
         Money OldPrice,
         Money NewPrice,
         DateTime OccuredOnUtc

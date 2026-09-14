@@ -5,7 +5,7 @@ using SharedKernel.SeedWork;
 namespace OrderManagement.Domain.Catalog.Events
 {
     public sealed record ArticleStockChanged(
-        ArticleId ArticleId,
+        ArticleNumber ArticleNumber,
         int OldStock,
         int NewStock,
         DateTime OccuredOnUtc

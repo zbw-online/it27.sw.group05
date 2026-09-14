@@ -4,6 +4,6 @@ using SharedKernel.SeedWork;
 
 namespace OrderManagement.Domain.Catalog.Events
 {
-    public sealed record ArticleCreated(ArticleId ArticleId, DateTime OccuredOnUtc)
+    public sealed record ArticleCreated(ArticleNumber ArticleNumber, DateTime OccuredOnUtc)
     : DomainEvent(OccuredOnUtc);
 }

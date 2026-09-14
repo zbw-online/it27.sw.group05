@@ -9,7 +9,7 @@ namespace OrderManagement.Domain.Customers.ValueObjects
     public sealed partial class CustomerNumber : ValueObject
     {
 
-        private static readonly Regex Pattern = MyRegex();
+        private static readonly Regex Pattern = CustomerNumberRegex();
 
         public string Value { get; }
 
@@ -25,7 +25,7 @@ namespace OrderManagement.Domain.Customers.ValueObjects
             return value.Length == 0
                 ? Results.Fail<CustomerNumber>("Customer number is required.")
                 : !Pattern.IsMatch(value)
-                ? Results.Fail<CustomerNumber>("Customer number must match format 'C-00001'.")
+                ? Results.Fail<CustomerNumber>("Customer number must match a format similar to 'CU00001'.")
                 : Results.Success(new CustomerNumber(value));
         }
 
@@ -36,7 +36,7 @@ namespace OrderManagement.Domain.Customers.ValueObjects
         }
 
         public override string ToString() => Value;
-        [GeneratedRegex(@"^C-\d{5}$", RegexOptions.Compiled)]
-        private static partial Regex MyRegex();
+        [GeneratedRegex(@"^CU\d{5}$", RegexOptions.Compiled)]
+        private static partial Regex CustomerNumberRegex();
     }
 }

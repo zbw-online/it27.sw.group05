@@ -1,0 +1,30 @@
+using OrderManagement.Domain.Catalog.ValueObjects;
+using OrderManagement.Domain.Customers.ValueObjects;
+using OrderManagement.Domain.Orders;
+using OrderManagement.Domain.Orders.ValueObjects;
+
+using SharedKernel.SeedWork;
+
+namespace OrderManagement.Application.Abstractions.Persistence.Orders.Query
+{
+    public interface IOrderQueryRepository : IQueryRepository<Order, OrderId>
+    {
+        Task<Order?> GetByOrderNumberAsync(
+            OrderNumber orderNumber,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Order>> GetByCustomerIdAsync(
+            CustomerId customerId,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Order>> GetPendingOrdersAsync(
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Order>> GetUnreconciledOrdersAsync(
+            CancellationToken cancellationToken = default);
+
+        Task<bool> ExistsOrderLineForArticleAsync(
+            ArticleId articleId,
+            CancellationToken cancellationToken = default);
+    }
+}

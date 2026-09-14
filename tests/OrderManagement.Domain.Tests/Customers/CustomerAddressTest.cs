@@ -1,7 +1,5 @@
 using System.Reflection;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Customers;
 
 namespace OrderManagement.Domain.Tests.Customers
@@ -13,14 +11,13 @@ namespace OrderManagement.Domain.Tests.Customers
             DateOnly validFrom,
             DateOnly? validTo)
         {
-            // internal ctor: (int id, DateOnly validFrom, DateOnly? validTo, string street, string houseNumber, string postalCode, string city, string countryCode)
+            // internal ctor: (DateOnly validFrom, DateOnly? validTo, string street, string houseNumber, string postalCode, string city, string countryCode)
             ConstructorInfo ctor = typeof(CustomerAddress)
                 .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-                .Single(c => c.GetParameters().Length == 8);
+                .Single(c => c.GetParameters().Length == 7);
 
             return (CustomerAddress)ctor.Invoke(
             [
-                1,
                 validFrom,
                 validTo,
                 "Seestrasse",

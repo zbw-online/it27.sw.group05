@@ -1,0 +1,27 @@
+using OrderManagement.Domain.Catalog;
+using OrderManagement.Domain.Catalog.ValueObjects;
+
+using SharedKernel.SeedWork;
+
+namespace OrderManagement.Application.Abstractions.Persistence.Catalog.Query
+{
+    public interface IArticleQueryRepository : IQueryRepository<Article, ArticleId>
+    {
+        Task<Article?> GetByNumberAsync(
+            ArticleNumber number,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Article>> GetByGroupAsync(
+            ArticleGroupId groupId,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Article>> GetLowStockAsync(
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<Article>> SearchAsync(
+            IReadOnlyCollection<ArticleGroupId>? groupIds,
+            ArticleStatus? statusFilter,
+            string? searchTerm,
+            CancellationToken cancellationToken = default);
+    }
+}

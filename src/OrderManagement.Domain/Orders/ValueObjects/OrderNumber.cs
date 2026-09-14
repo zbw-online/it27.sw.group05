@@ -24,7 +24,7 @@ namespace OrderManagement.Domain.Orders.ValueObjects
             return value.Length == 0
                 ? Results.Fail<OrderNumber>("Order number is required.")
                 : !Pattern.IsMatch(value)
-                ? Results.Fail<OrderNumber>("Order number must match format 'ORD-2025-001'.")
+                ? Results.Fail<OrderNumber>("Order number must match format 'ORD-YYYY-NNN' (e.g. 'ORD-2026-001').")
                 : Results.Success(new OrderNumber(value));
         }
 

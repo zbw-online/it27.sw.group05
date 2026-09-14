@@ -1,0 +1,38 @@
+@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>Fehler – Muster AG</PageTitle>
+
+<div class="panel">
+    <h1 style="color:var(--color-danger)">Ein Fehler ist aufgetreten</h1>
+    <p class="page-subtitle">Bei der Verarbeitung Ihrer Anfrage ist ein unerwarteter Fehler aufgetreten.</p>
+
+    @if (ShowRequestId)
+    {
+        <p>
+            <strong>Anfrage-ID:</strong> <code class="numeric">@RequestId</code>
+        </p>
+    }
+
+    <h2>Entwicklungsmodus</h2>
+    <p>
+        Im <strong>Development</strong>-Umfeld werden detailliertere Informationen zum aufgetretenen Fehler angezeigt.
+    </p>
+    <p>
+        <strong>Das Development-Umfeld sollte für produktive Umgebungen nicht aktiviert werden.</strong>
+        Es kann dazu führen, dass sensible Informationen aus Ausnahmen an Endbenutzende angezeigt werden.
+        Aktivieren Sie für die lokale Fehlersuche das <strong>Development</strong>-Umfeld, indem Sie die Umgebungsvariable
+        <strong>ASPNETCORE_ENVIRONMENT</strong> auf <strong>Development</strong> setzen und die Anwendung neu starten.
+    </p>
+</div>
+
+@code{
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

@@ -1,0 +1,141 @@
+.nav-brand {
+    align-items: center;
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-5) var(--space-4);
+}
+
+.nav-brand-mark {
+    align-items: center;
+    background: var(--color-primary);
+    border-radius: 999px;
+    color: #fff;
+    display: flex;
+    flex: 0 0 auto;
+    font-weight: 700;
+    height: 32px;
+    justify-content: center;
+    width: 32px;
+}
+
+.nav-brand-text {
+    color: var(--color-text-primary);
+    flex: 1 1 auto;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.nav-collapse-toggle {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    flex: 0 0 auto;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+}
+
+.nav-collapse-toggle:hover {
+    background: var(--color-elevated);
+    color: var(--color-text-primary);
+}
+
+.nav-collapse-icon {
+    transition: transform 0.15s ease;
+}
+
+.is-nav-collapsed .nav-collapse-icon {
+    transform: rotate(180deg);
+}
+
+.nav-links {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+}
+
+.nav-link {
+    align-items: center;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    display: flex;
+    gap: var(--space-3);
+    min-height: var(--hit-target-min);
+    padding: var(--space-2) var(--space-3);
+    text-decoration: none;
+}
+
+.nav-link:hover {
+    background: var(--color-elevated);
+    color: var(--color-text-primary);
+}
+
+.nav-link.is-active {
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.nav-link-icon {
+    align-items: center;
+    display: flex;
+}
+
+.nav-links-secondary {
+    border-top: 1px solid var(--color-border);
+    flex: 0 0 auto;
+    padding-top: var(--space-3);
+}
+
+.nav-footer {
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-4);
+}
+
+.nav-footer-app {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+}
+
+.nav-footer-version {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+}
+
+.is-nav-collapsed .nav-brand {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+}
+
+.is-nav-collapsed .nav-link {
+    justify-content: center;
+}
+
+.is-nav-collapsed .nav-link-label,
+.is-nav-collapsed .nav-brand-text {
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+.is-nav-collapsed .nav-footer {
+    display: none;
+}

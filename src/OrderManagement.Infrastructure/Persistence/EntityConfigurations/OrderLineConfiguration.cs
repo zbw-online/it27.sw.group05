@@ -30,7 +30,8 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(l => l.Id)
                 .HasColumnName("OrderLineId")
                 .HasConversion(id => id.Value, v => new OrderLineId(v))
-                .ValueGeneratedOnAdd();
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn();
 
             // Shadow FK typed as OrderId VO (int in DB)
             _ = builder.Property<OrderId>("OrderId")

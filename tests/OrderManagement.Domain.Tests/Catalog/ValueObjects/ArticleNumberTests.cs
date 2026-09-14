@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Catalog.ValueObjects;
 
 using SharedKernel.Primitives;
@@ -14,7 +12,7 @@ namespace OrderManagement.Domain.Tests.Catalog.ValueObjects
         // 1) Create Factory — Equivalence Classes (ECP)
         // ============================================================
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(null, false, "Article number is required.")]
         [DataRow("", false, "Article number is required.")]
         [DataRow("   ", false, "Article number is required.")]

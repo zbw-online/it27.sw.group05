@@ -31,7 +31,8 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(o => o.Id)
                 .HasColumnName("OrderId")
                 .HasConversion(id => id.Value, v => new OrderId(v))
-                .ValueGeneratedNever();
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn();
 
 
             _ = builder.Property(o => o.OrderNumber)
@@ -40,7 +41,9 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .HasMaxLength(20)
                 .IsRequired();
 
-            _ = builder.HasIndex(o => o.OrderNumber).IsUnique();
+            _ = builder.HasIndex(o => o.OrderNumber).IsUnique()
+                .HasDatabaseName("IX_Orders_OrderNumber");
+
 
             _ = builder.Property(o => o.CustomerId)
                 .HasColumnName("CustomerId")
@@ -50,6 +53,41 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(o => o.OrderDate)
                 .HasColumnName("OrderDate")
                 .HasColumnType("datetime2")
+                .IsRequired();
+
+            _ = builder.Property(o => o.DeliveryDate)
+                .HasColumnName("DeliveryDate")
+                .HasColumnType("date")
+                .IsRequired();
+
+            _ = builder.Property(o => o.CustomerReference)
+                .HasColumnName("CustomerReference")
+                .HasMaxLength(100);
+
+            _ = builder.Property(o => o.IsInventoryApplied)
+                .HasColumnName("IsInventoryApplied")
+                .IsRequired();
+
+            _ = builder.Property(o => o.Status)
+                .HasColumnName("Status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            _ = builder.Property(o => o.StatusChangedAtUtc)
+                .HasColumnName("StatusChangedAtUtc")
+                .HasColumnType("datetime2");
+
+            _ = builder.Property(o => o.BillingAddressSource)
+                .HasColumnName("BillingAddressSource")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            _ = builder.Property(o => o.DeliveryAddressSource)
+                .HasColumnName("DeliveryAddressSource")
+                .HasConversion<string>()
+                .HasMaxLength(20)
                 .IsRequired();
 
             // Total (Money) - owned, table-splitting into Orders
@@ -78,6 +116,29 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                     .HasColumnName("TotalCurrency")
                     .HasColumnType("nchar(3)")
                     .IsRequired();
+            });
+
+            // BillingAddress (Address) - owned, table-splitting into Orders
+            _ = builder.OwnsOne(o => o.BillingAddress, a =>
+            {
+                _ = a.ToTable("Orders", tb =>
+                {
+                    _ = tb.IsTemporal(ttb =>
+                    {
+                        _ = ttb.UseHistoryTable("OrdersHistory");
+                        _ = ttb.HasPeriodStart("RowValidFrom");
+                        _ = ttb.HasPeriodEnd("RowValidUntil");
+                    });
+
+                    _ = tb.Property<DateTime>("RowValidFrom").HasColumnName("RowValidFrom");
+                    _ = tb.Property<DateTime>("RowValidUntil").HasColumnName("RowValidUntil");
+                });
+
+                _ = a.Property(x => x.Street).HasColumnName("BillingStreet").HasMaxLength(200).IsRequired();
+                _ = a.Property(x => x.Number).HasColumnName("BillingHouseNumber").HasMaxLength(20).IsRequired();
+                _ = a.Property(x => x.PostalCode).HasColumnName("BillingPostalCode").HasMaxLength(20).IsRequired();
+                _ = a.Property(x => x.City).HasColumnName("BillingCity").HasMaxLength(100).IsRequired();
+                _ = a.Property(x => x.Country).HasColumnName("BillingCountryCode").HasColumnType("nchar(2)").IsRequired();
             });
 
             // DeliveryAddress (Address) - owned, table-splitting into Orders
@@ -122,6 +183,15 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
                 .OnDelete(DeleteBehavior.Restrict);
 
             _ = builder.HasIndex(o => o.CustomerId);
+
+            // Without this, two concurrent status-changing requests for the same order (e.g. two
+            // cancellations) would both blindly overwrite the row: Order carries no other field that
+            // changes on every transition and blocks a stale second write the way Article.RowVersion
+            // already does for stock updates.
+            _ = builder.Property<int>("RowVersion")
+                .HasColumnName("RowVersion")
+                .IsConcurrencyToken()
+                .HasDefaultValue(0);
         }
     }
 }

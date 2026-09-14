@@ -1,0 +1,72 @@
+.trend-chart {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.trend-chart-legend {
+    display: flex;
+    gap: var(--space-4);
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.trend-chart-legend-item {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--space-2);
+}
+
+.trend-chart-dot {
+    border-radius: 999px;
+    display: inline-block;
+    height: 8px;
+    width: 8px;
+}
+
+.trend-chart-dot-orders {
+    background: var(--color-primary);
+}
+
+.trend-chart-dot-revenue {
+    background: var(--color-info);
+}
+
+.trend-chart-grid {
+    column-gap: var(--space-3);
+    display: grid;
+    grid-template-columns: max-content 1fr max-content;
+    row-gap: var(--space-2);
+}
+
+.trend-chart-svg {
+    height: 180px;
+    width: 100%;
+}
+
+.trend-chart-gridline {
+    stroke: var(--color-border);
+    stroke-width: 1;
+}
+
+.trend-chart-axis-left,
+.trend-chart-axis-right {
+    color: var(--color-text-muted);
+    display: flex;
+    flex-direction: column;
+    font-size: 0.72rem;
+    height: 180px;
+    justify-content: space-between;
+    text-align: right;
+}
+
+.trend-chart-axis-right {
+    text-align: left;
+}
+
+.trend-chart-axis-bottom {
+    color: var(--color-text-muted);
+    display: flex;
+    font-size: 0.72rem;
+    justify-content: space-between;
+}

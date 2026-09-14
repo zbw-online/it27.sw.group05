@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Catalog;
 using OrderManagement.Domain.Catalog.Events;
 using OrderManagement.Domain.Catalog.ValueObjects;
@@ -9,304 +7,460 @@ using SharedKernel.Primitives;
 namespace OrderManagement.Domain.Tests.Catalog
 {
     [TestClass]
-    public class ArticleEquivalenceAndBoundaryTests
+    public sealed class ArticleTests
     {
-        // -----------------------------
-        // Helpers
-        // -----------------------------
+        private static readonly ArticleGroupId ValidGroupId = new(1);
+
         private static Result<Article> CreateValidArticle(
-            int id = 1,
-            string? articleNr = "ART001",
-            string name = "Test Product",
+            string? articleNr = "ART-000001",
+            string? name = "Test Article",
             decimal priceAmount = 99.99m,
             string priceCurrency = "CHF",
-            int groupId = 1,
+            ArticleGroupId? groupId = null,
             int stock = 10,
-            decimal vatRate = 7.7m,
-            string? description = "Test description")
-            => Article.Create(id, articleNr, name, priceAmount, priceCurrency, groupId, stock, vatRate, description);
-
-        private static string Repeat(char c, int count) => new(c, count);
-
-        // ============================================================
-        // 1) Create(...) — Equivalence Classes
-        // ============================================================
+            int reorderPoint = 20,
+            decimal vatRate = 7.70m,
+            string? description = "Test description",
+            ArticleStatus status = ArticleStatus.Active) => Article.Create(
+                articleNr: articleNr,
+                name: name,
+                priceAmount: priceAmount,
+                priceCurrency: priceCurrency,
+                groupId: groupId ?? ValidGroupId,
+                stock: stock,
+                reorderPoint: reorderPoint,
+                vatRate: vatRate,
+                description: description,
+                status: status);
 
         [TestMethod]
-        public void CreateValidInputsShouldSucceedAndRaiseCreatedEvent()
+        public void Create_WithValidInputs_ShouldSucceed()
         {
-            // ECP: Valid article with all properties
-            Result<Article> r = CreateValidArticle();
+            Result<Article> result = CreateValidArticle();
 
-            Assert.IsTrue(r.IsSuccess);
-            Article a = r.Value!;
-            Assert.AreEqual("ART001", a.ArticleNumber.Value);
-            Assert.AreEqual("Test Product", a.Name);
-            Assert.AreEqual(99.99m, a.Price.Amount);
-            Assert.AreEqual("CHF", a.Price.Currency);
-            Assert.AreEqual(1, a.ArticleGroupId.Value);
-            Assert.IsTrue(a.DomainEvents.Count >= 1);   // ArticleCreated
+            Assert.IsTrue(result.IsSuccess, result.Error);
+
+            Article article = result.Value!;
+
+            Assert.AreEqual(0, article.Id.Value);
+            Assert.AreEqual("ART-000001", article.ArticleNumber.Value);
+            Assert.AreEqual("Test Article", article.Name);
+            Assert.AreEqual(99.99m, article.Price.Amount);
+            Assert.AreEqual("CHF", article.Price.Currency);
+            Assert.AreEqual(ValidGroupId, article.ArticleGroupId);
+            Assert.AreEqual(10, article.Stock);
+            Assert.AreEqual(7.70m, article.VatRate);
+            Assert.AreEqual("Test description", article.Description);
+            Assert.AreEqual(ArticleStatus.Active, article.Status);
         }
 
         [TestMethod]
-        public void CreateInvalidIdNegativeShouldFail()
+        public void Create_WithValidInputs_ShouldRaiseCreatedEvent()
         {
-            // ECP: Invalid id class (id <= 0)
-            Result<Article> r = CreateValidArticle(id: -1);
+            Article article = CreateValidArticle().EnsureValue();
 
-            Assert.IsFalse(r.IsSuccess);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleCreated));
         }
 
         [TestMethod]
-        public void CreateNameWhitespaceOnlyShouldFail()
+        public void Create_WithInvalidArticleNumber_ShouldFail()
         {
-            // ECP: Invalid name class (empty after trim)
-            Result<Article> r = CreateValidArticle(name: "   ");
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreateInvalidGroupIdNegativeShouldFail()
-        {
-            // ECP: Invalid group id (groupId <= 0)
-            Result<Article> r = CreateValidArticle(groupId: -1);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreateInvalidStockNegativeShouldFail()
-        {
-            // ECP: Invalid stock (stock < 0)
-            Result<Article> r = CreateValidArticle(stock: -1);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreateArticleNumberInvalidFromValueObjectShouldFail()
-        {
-            // ECP: Invalid ArticleNumber (handled by ArticleNumber.Create)
-            Result<Article> r = Article.Create(1, new string('A', 21), "Valid Name", 10.0m, "CHF", 1);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        // ============================================================
-        // 2) Create(...) — Boundary Value Analysis
-        // ============================================================
-
-        [TestMethod]
-        public void CreateArticleNumberLengthBoundary20ShouldSucceed()
-        {
-            // BVA: ArticleNumber length = 20 (max valid)
-            string nr = Repeat('A', 20);
-            Result<Article> r = Article.Create(1, nr, "Valid Name", 10.0m, "CHF", 1);
-
-            Assert.IsTrue(r.IsSuccess);
-            Assert.AreEqual(nr, r.Value!.ArticleNumber.Value);
-        }
-
-        [TestMethod]
-        public void CreateArticleNumberLengthBoundary21ShouldFail()
-        {
-            // BVA: ArticleNumber length = 21 (over max)
-            string nr = Repeat('A', 21);
-            Result<Article> r = Article.Create(1, nr, "Valid Name", 10.0m, "CHF", 1);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreateNameLengthBoundary200ShouldSucceed()
-        {
-            // BVA: name length = 200 (max valid)
-            string name = Repeat('A', 200);
-            Result<Article> r = CreateValidArticle(name: name);
-
-            Assert.IsTrue(r.IsSuccess);
-            Assert.AreEqual(name, r.Value!.Name);
-        }
-
-        [TestMethod]
-        public void CreateNameLengthBoundary201ShouldFail()
-        {
-            // BVA: name length = 201 (over max)
-            string name = Repeat('A', 201);
-            Result<Article> r = CreateValidArticle(name: name);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreateVatRateBoundaryMin0ShouldSucceed()
-        {
-            // BVA: VatRate = 0.00 (min valid, decimal(5,2))
-            Result<Article> r = CreateValidArticle(vatRate: 0.00m);
-
-            Assert.IsTrue(r.IsSuccess);
-            Assert.AreEqual(0.00m, r.Value!.VatRate);
-        }
-
-        [TestMethod]
-        public void CreateVatRateBoundaryMax99999ShouldSucceed()
-        {
-            // BVA: VatRate = 999.99 (max valid)
-            Result<Article> r = CreateValidArticle(vatRate: 999.99m);
-
-            Assert.IsTrue(r.IsSuccess);
-            Assert.AreEqual(999.99m, r.Value!.VatRate);
-        }
-
-        [TestMethod]
-        public void CreateVatRateBoundaryOverMax1000ShouldFail()
-        {
-            // BVA: VatRate > 999.99
-            Result<Article> r = CreateValidArticle(vatRate: 1000.00m);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreateVatRateNegativeShouldFail()
-        {
-            // BVA: VatRate < 0
-            Result<Article> r = CreateValidArticle(vatRate: -0.01m);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreateVatRateMoreThan2DecimalsShouldFail()
-        {
-            // BVA: VatRate with >2 decimals (e.g. 7.777 → fails floor check)
-            Result<Article> r = CreateValidArticle(vatRate: 7.777m);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
-        [TestMethod]
-        public void CreateVatRateValid2DecimalsShouldSucceed()
-        {
-            // BVA: Valid VatRate 7.70 (2 decimals, Swiss standard rate [web:8])
-            Result<Article> r = CreateValidArticle(vatRate: 7.70m);
-
-            Assert.IsTrue(r.IsSuccess);
-            Assert.AreEqual(7.70m, r.Value!.VatRate);
-        }
-        [TestMethod]
-        public void CannotCreateArticleWithNegativePriceThrows() =>
-            // Test happens at Money layer (correct place for invariant)
-            Assert.ThrowsException<DomainException>(() => Article.Create(1, "ART001", "Valid Name", -10.0m, "CHF", 1));
-
-        // ============================================================
-        // 3) ChangePrice(...) — Equivalence Classes
-        // ============================================================
-
-        [TestMethod]
-        public void ChangePriceValidPriceShouldSucceedAndRaiseEvent()
-        {
-            Result<Article> r = CreateValidArticle();
-            Article a = r.Value!;
-
-            Result<Money> moneyResult = Money.From(199.99m, "CHF")!;
-            Assert.IsTrue(moneyResult.IsSuccess);
-            Money newPrice = moneyResult.Value!;
-            Result result = a.ChangePrice(newPrice);
-
-            Assert.IsTrue(result.IsSuccess);
-            Assert.AreEqual(199.99m, a.Price.Amount);
-            Assert.IsTrue(a.DomainEvents.Any(e => e is ArticlePriceChanged));
-        }
-
-        // ============================================================
-        // 4) UpdateStock(...) — Equivalence Classes & BVA
-        // ============================================================
-
-        [TestMethod]
-        public void UpdateStockIncreaseShouldSucceed()
-        {
-            Result<Article> r = CreateValidArticle(stock: 10);
-            Article a = r.Value!;
-
-            Result result = a.UpdateStock(5);  // Increase
-
-            Assert.IsTrue(result.IsSuccess);
-            Assert.AreEqual(15, a.Stock);
-            Assert.IsTrue(a.DomainEvents.Any(e => e is ArticleStockChanged));
-        }
-
-        [TestMethod]
-        public void UpdateStockDecreaseToZeroShouldSucceed()
-        {
-            Result<Article> r = CreateValidArticle(stock: 5);
-            Article a = r.Value!;
-
-            Result result = a.UpdateStock(-5);  // To zero
-
-            Assert.IsTrue(result.IsSuccess);
-            Assert.AreEqual(0, a.Stock);
-        }
-
-        [TestMethod]
-        public void UpdateStockDecreaseBelowZeroShouldFail()
-        {
-            Result<Article> r = CreateValidArticle(stock: 3);
-            Article a = r.Value!;
-
-            Result result = a.UpdateStock(-5);  // Below zero
+            Result<Article> result = CreateValidArticle(articleNr: "INVALID ARTICLE NUMBER!");
 
             Assert.IsFalse(result.IsSuccess);
-            Assert.AreEqual(3, a.Stock);  // Unchanged
-        }
-
-        // ============================================================
-        // 5) ChangeGroup(...) — Equivalence Classes
-        // ============================================================
-
-        [TestMethod]
-        public void ChangeGroupValidGroupIdShouldSucceedAndRaiseEvent()
-        {
-            Result<Article> r = CreateValidArticle();
-            Article a = r.Value!;
-
-            Result result = a.ChangeGroup(new ArticleGroupId(2));
-
-            Assert.IsTrue(result.IsSuccess);
-            Assert.AreEqual(2, a.ArticleGroupId.Value);
-            Assert.IsTrue(a.DomainEvents.Any(e => e is ArticleMovedToGroup));
         }
 
         [TestMethod]
-        public void ChangeGroupInvalidGroupIdShouldFail()
+        public void Create_WithWhitespaceName_ShouldFail()
         {
-            Result<Article> r = CreateValidArticle();
-            Article a = r.Value!;
-
-            Result result = a.ChangeGroup(new ArticleGroupId(-1));
+            Result<Article> result = CreateValidArticle(name: "   ");
 
             Assert.IsFalse(result.IsSuccess);
-            Assert.AreNotEqual(-1, a.ArticleGroupId.Value);
         }
-
-        // ============================================================
-        // 6) CreateInvalidCurrencyThrowsDomainException()
-        // ============================================================
 
         [TestMethod]
-        public void CreateInvalidCurrencyThrowsDomainException()
+        public void Create_WithNameLongerThan200Characters_ShouldFail()
         {
-            // ECP: Invalid currency (Money.From throws)
-            _ = Assert.ThrowsException<DomainException>(() =>
-                Article.Create(1, "ART001", "Valid Name", 10.0m, "XX", 1));
+            string name = new('A', 201);
 
-            // BVA: Wrong length currencies
-            _ = Assert.ThrowsException<DomainException>(() =>
-                Article.Create(1, "ART001", "Valid Name", 10.0m, "CH", 1));   // 2 chars
-            _ = Assert.ThrowsException<DomainException>(() =>
-                Article.Create(1, "ART001", "Valid Name", 10.0m, "CHHH", 1)); // 4 chars
+            Result<Article> result = CreateValidArticle(name: name);
+
+            Assert.IsFalse(result.IsSuccess);
         }
 
+        [TestMethod]
+        public void Create_WithUnassignedArticleGroupId_ShouldFail()
+        {
+            Result<Article> result = CreateValidArticle(groupId: ArticleGroupId.Empty);
+
+            Assert.IsFalse(result.IsSuccess);
+        }
+
+        [TestMethod]
+        public void Create_WithNegativeStock_ShouldFail()
+        {
+            Result<Article> result = CreateValidArticle(stock: -1);
+
+            Assert.IsFalse(result.IsSuccess);
+        }
+
+        [TestMethod]
+        public void Create_WithNegativeVatRate_ShouldFail()
+        {
+            Result<Article> result = CreateValidArticle(vatRate: -0.01m);
+
+            Assert.IsFalse(result.IsSuccess);
+        }
+
+        [TestMethod]
+        public void Create_WithVatRateGreaterThan99999_ShouldFail()
+        {
+            Result<Article> result = CreateValidArticle(vatRate: 1000.00m);
+
+            Assert.IsFalse(result.IsSuccess);
+        }
+
+        [TestMethod]
+        public void Create_WithVatRateMoreThanTwoDecimals_ShouldFail()
+        {
+            Result<Article> result = CreateValidArticle(vatRate: 7.777m);
+
+            Assert.IsFalse(result.IsSuccess);
+        }
+
+        [TestMethod]
+        public void ChangePrice_WithValidPrice_ShouldSucceed()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            Money newPrice = Money.From(199.99m, "CHF").EnsureValue();
+
+            Result result = article.ChangePrice(newPrice);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(199.99m, article.Price.Amount);
+            Assert.AreEqual("CHF", article.Price.Currency);
+        }
+
+        [TestMethod]
+        public void ChangePrice_WithValidPrice_ShouldRaisePriceChangedEvent()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            Money newPrice = Money.From(199.99m, "CHF").EnsureValue();
+
+            Result result = article.ChangePrice(newPrice);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticlePriceChanged));
+        }
+
+        [TestMethod]
+        public void UpdateStock_WithPositiveDelta_ShouldIncreaseStock()
+        {
+            Article article = CreateValidArticle(stock: 10).EnsureValue();
+
+            Result result = article.UpdateStock(5);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(15, article.Stock);
+        }
+
+        [TestMethod]
+        public void UpdateStock_WithNegativeDeltaWithinAvailableStock_ShouldDecreaseStock()
+        {
+            Article article = CreateValidArticle(stock: 10).EnsureValue();
+
+            Result result = article.UpdateStock(-4);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(6, article.Stock);
+        }
+
+        [TestMethod]
+        public void UpdateStock_DecreaseBelowZero_ShouldFail()
+        {
+            Article article = CreateValidArticle(stock: 3).EnsureValue();
+
+            Result result = article.UpdateStock(-5);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(3, article.Stock);
+        }
+
+        [TestMethod]
+        public void UpdateStock_WithValidDelta_ShouldRaiseStockChangedEvent()
+        {
+            Article article = CreateValidArticle(stock: 10).EnsureValue();
+
+            Result result = article.UpdateStock(5);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleStockChanged));
+        }
+
+        [TestMethod]
+        public void UpdateStock_IncreaseBeyondMaximumValue_ShouldFail()
+        {
+            Article article = CreateValidArticle(stock: int.MaxValue - 1).EnsureValue();
+
+            Result result = article.UpdateStock(5);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(int.MaxValue - 1, article.Stock);
+        }
+
+        [TestMethod]
+        public void ChangeGroup_WithAssignedGroupId_ShouldSucceed()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            var newGroupId = new ArticleGroupId(2);
+
+            Result result = article.ChangeGroup(newGroupId);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(newGroupId, article.ArticleGroupId);
+        }
+
+        [TestMethod]
+        public void ChangeGroup_WithUnassignedGroupId_ShouldFail()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.ChangeGroup(ArticleGroupId.Empty);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(ValidGroupId, article.ArticleGroupId);
+        }
+
+        [TestMethod]
+        public void ChangeGroup_WithAssignedGroupId_ShouldRaiseMovedEvent()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            var newGroupId = new ArticleGroupId(2);
+
+            Result result = article.ChangeGroup(newGroupId);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleMovedToGroup));
+        }
+
+        [TestMethod]
+        public void Deactivate_WhenActive_ShouldSucceedAndSetInactive()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.Deactivate();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(ArticleStatus.Inactive, article.Status);
+        }
+
+        [TestMethod]
+        public void Deactivate_WhenActive_ShouldRaiseDeactivatedEvent()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.Deactivate();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleDeactivated));
+        }
+
+        [TestMethod]
+        public void Deactivate_WhenAlreadyInactive_ShouldFail()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            article.Deactivate().EnsureSuccess();
+
+            Result result = article.Deactivate();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(ArticleStatus.Inactive, article.Status);
+        }
+
+        [TestMethod]
+        public void EnsureAvailableForOrder_WhenActive_ShouldSucceed()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.EnsureAvailableForOrder();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+        }
+
+        [TestMethod]
+        public void EnsureAvailableForOrder_WhenInactive_ShouldFailWithArticleName()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            article.Deactivate().EnsureSuccess();
+
+            Result result = article.EnsureAvailableForOrder();
+
+            Assert.IsFalse(result.IsSuccess);
+            StringAssert.Contains(result.Error, article.Name);
+        }
+
+        [TestMethod]
+        public void Reactivate_WhenInactive_ShouldSucceedAndSetActive()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            article.Deactivate().EnsureSuccess();
+
+            Result result = article.Reactivate();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(ArticleStatus.Active, article.Status);
+        }
+
+        [TestMethod]
+        public void Reactivate_WhenInactive_ShouldRaiseReactivatedEvent()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+            article.Deactivate().EnsureSuccess();
+
+            Result result = article.Reactivate();
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleReactivated));
+        }
+
+        [TestMethod]
+        public void Reactivate_WhenAlreadyActive_ShouldFail()
+        {
+            Article article = CreateValidArticle().EnsureValue();
+
+            Result result = article.Reactivate();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(ArticleStatus.Active, article.Status);
+        }
+
+        [TestMethod]
+        public void Create_WithNegativeReorderPoint_ShouldFail()
+        {
+            Result<Article> result = CreateValidArticle(reorderPoint: -1);
+
+            Assert.IsFalse(result.IsSuccess);
+        }
+
+        [TestMethod]
+        public void Create_WithReorderPoint_ShouldSetReorderPoint()
+        {
+            Article article = CreateValidArticle(reorderPoint: 15).EnsureValue();
+
+            Assert.AreEqual(15, article.ReorderPoint);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenStockIsZero_ShouldBeOutOfStock()
+        {
+            Article article = CreateValidArticle(stock: 0, reorderPoint: 20).EnsureValue();
+
+            Assert.AreEqual(StockLevel.OutOfStock, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenStockIsBelowReorderPoint_ShouldBeLow()
+        {
+            Article article = CreateValidArticle(stock: 5, reorderPoint: 20).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Low, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenStockEqualsReorderPoint_ShouldBeLow()
+        {
+            Article article = CreateValidArticle(stock: 20, reorderPoint: 20).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Low, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenStockIsAboveReorderPoint_ShouldBeAvailable()
+        {
+            Article article = CreateValidArticle(stock: 21, reorderPoint: 20).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenReorderPointIsZeroAndStockIsZero_ShouldBeOutOfStock()
+        {
+            Article article = CreateValidArticle(stock: 0, reorderPoint: 0).EnsureValue();
+
+            Assert.AreEqual(StockLevel.OutOfStock, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void StockLevel_WhenReorderPointIsZeroAndStockIsPositive_ShouldBeAvailable()
+        {
+            Article article = CreateValidArticle(stock: 1, reorderPoint: 0).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void ChangeReorderPoint_WithNegativeValue_ShouldFail()
+        {
+            Article article = CreateValidArticle(reorderPoint: 20).EnsureValue();
+
+            Result result = article.ChangeReorderPoint(-1);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(20, article.ReorderPoint);
+        }
+
+        [TestMethod]
+        public void ChangeReorderPoint_WithValidValue_ShouldUpdateReorderPointOnlyAndRecomputeStockLevel()
+        {
+            Article article = CreateValidArticle(stock: 15, reorderPoint: 20).EnsureValue();
+            Assert.AreEqual(StockLevel.Low, article.StockLevel);
+
+            Result result = article.ChangeReorderPoint(10);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.AreEqual(10, article.ReorderPoint);
+            Assert.AreEqual(15, article.Stock);
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void ChangeReorderPoint_WithValidValue_ShouldRaiseReorderPointChangedEvent()
+        {
+            Article article = CreateValidArticle(reorderPoint: 20).EnsureValue();
+
+            Result result = article.ChangeReorderPoint(10);
+
+            Assert.IsTrue(result.IsSuccess, result.Error);
+            Assert.IsTrue(article.DomainEvents.Any(e => e is ArticleReorderPointChanged));
+        }
+
+        [TestMethod]
+        public void UpdateStock_AcrossReorderPointBoundary_ShouldRecomputeStockLevel()
+        {
+            Article article = CreateValidArticle(stock: 21, reorderPoint: 20).EnsureValue();
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+
+            Result decreaseResult = article.UpdateStock(-1);
+            Assert.IsTrue(decreaseResult.IsSuccess, decreaseResult.Error);
+            Assert.AreEqual(StockLevel.Low, article.StockLevel);
+
+            Result depleteResult = article.UpdateStock(-20);
+            Assert.IsTrue(depleteResult.IsSuccess, depleteResult.Error);
+            Assert.AreEqual(StockLevel.OutOfStock, article.StockLevel);
+
+            Result increaseResult = article.UpdateStock(25);
+            Assert.IsTrue(increaseResult.IsSuccess, increaseResult.Error);
+            Assert.AreEqual(StockLevel.Available, article.StockLevel);
+        }
+
+        [TestMethod]
+        public void TwoArticles_WithSameStockButDifferentReorderPoints_ShouldHaveDifferentStockLevels()
+        {
+            Article lenient = CreateValidArticle(articleNr: "ART-000002", stock: 10, reorderPoint: 5).EnsureValue();
+            Article strict = CreateValidArticle(articleNr: "ART-000003", stock: 10, reorderPoint: 15).EnsureValue();
+
+            Assert.AreEqual(StockLevel.Available, lenient.StockLevel);
+            Assert.AreEqual(StockLevel.Low, strict.StockLevel);
+        }
     }
 }

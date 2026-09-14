@@ -1,0 +1,57 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+
+<li role="none">
+    <div class="category-tree-row @(PendingSelectedId == Node.Id ? "is-selected" : string.Empty)" style="padding-left: calc(var(--space-5) * @Depth)">
+        @if (Node.Children.Count > 0)
+        {
+            <button type="button"
+                    class="category-tree-toggle"
+                    aria-label="@(IsExpanded ? "Einklappen" : "Ausklappen")"
+                    aria-expanded="@(IsExpanded ? "true" : "false")"
+                    @onclick="ToggleAsync"
+                    @onclick:stopPropagation="true">
+                <span class="category-tree-chevron @(IsExpanded ? "is-open" : string.Empty)" aria-hidden="true">&#9656;</span>
+            </button>
+        }
+        else
+        {
+            <span class="category-tree-toggle-spacer" aria-hidden="true"></span>
+        }
+        <button type="button"
+                role="treeitem"
+                aria-selected="@(PendingSelectedId == Node.Id ? "true" : "false")"
+                class="category-tree-label"
+                @onclick="SelectAsync">
+            @Node.Name
+        </button>
+    </div>
+    @if (IsExpanded && Node.Children.Count > 0)
+    {
+        <ul role="group" class="category-tree-children">
+            @foreach (CategoryTreeItem child in Node.Children)
+            {
+                <CategoryTreeNode Node="child"
+                                  Depth="Depth + 1"
+                                  ExpandedIds="ExpandedIds"
+                                  PendingSelectedId="PendingSelectedId"
+                                  OnToggleExpand="OnToggleExpand"
+                                  OnSelect="OnSelect" />
+            }
+        </ul>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired] public CategoryTreeItem Node { get; set; } = default!;
+    [Parameter] public int Depth { get; set; }
+    [Parameter, EditorRequired] public HashSet<int> ExpandedIds { get; set; } = [];
+    [Parameter] public int? PendingSelectedId { get; set; }
+    [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
+    [Parameter] public EventCallback<int> OnSelect { get; set; }
+
+    private bool IsExpanded => ExpandedIds.Contains(Node.Id);
+
+    private Task ToggleAsync() => OnToggleExpand.InvokeAsync(Node.Id);
+
+    private Task SelectAsync() => OnSelect.InvokeAsync(Node.Id);
+}

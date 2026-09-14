@@ -1,0 +1,619 @@
+@page "/auftraege/neu"
+@using OrderManagement.Application.Features.Catalog.Contracts
+@using OrderManagement.Application.Features.Catalog.GetArticleGroupHierarchy
+@using OrderManagement.Application.Features.Catalog.SearchArticles
+@using OrderManagement.Application.Features.Customers.GetCustomerDetails
+@using OrderManagement.Application.Features.Customers.PreviewAddressForDate
+@using OrderManagement.Application.Features.Customers.SearchCustomers
+@using OrderManagement.Application.Features.Customers.Contracts
+@using OrderManagement.Application.Features.Orders.CreateOrder
+@using OrderManagement.Application.Features.Orders.GetNextOrderNumber
+@using OrderManagement.Application.Features.Orders.Contracts
+@using OrderManagement.Domain.Catalog.ValueObjects
+@using OrderManagement.Presentation.Blazor.Components.Shared
+@using SharedKernel.Primitives
+@inject ISearchCustomersUseCase SearchCustomersUseCase
+@inject IGetCustomerDetailsUseCase GetCustomerDetailsUseCase
+@inject IPreviewAddressForDateUseCase PreviewAddressForDateUseCase
+@inject ISearchArticlesUseCase SearchArticlesUseCase
+@inject IGetNextOrderNumberUseCase GetNextOrderNumberUseCase
+@inject IGetArticleGroupHierarchyUseCase GetArticleGroupHierarchyUseCase
+@inject ICreateOrderUseCase CreateOrderUseCase
+@inject NavigationManager Navigation
+
+<PageTitle>Neuer Auftrag – Muster AG</PageTitle>
+
+<div class="wizard-header">
+    <div class="page-header-title">
+        <h1>Neuer Auftrag</h1>
+        @if (_orderNumber is not null)
+        {
+            <p class="page-subtitle numeric">@_orderNumber</p>
+        }
+    </div>
+</div>
+
+<ol class="wizard-steps" aria-label="Fortschritt">
+    <li class="@StepClass(1)"><span class="wizard-step-index" aria-hidden="true">1</span> Kunde</li>
+    <li class="@StepClass(2)"><span class="wizard-step-index" aria-hidden="true">2</span> Positionen</li>
+    <li class="@StepClass(3)"><span class="wizard-step-index" aria-hidden="true">3</span> Prüfen</li>
+</ol>
+
+@if (_submitError is not null)
+{
+    <div class="inline-alert inline-alert-danger" role="alert">@_submitError</div>
+}
+
+@if (_step == 1)
+{
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Kunde auswählen</h2>
+        </div>
+
+        <SearchField Label="Kunde suchen" Placeholder="Kunde suchen (Name, Nummer, E-Mail)" @bind-Value="_customerSearchTerm" OnSearch="SearchCustomersAsync" />
+
+        @if (_selectedCustomer is not null)
+        {
+            <div class="selected-customer-card">
+                <div>
+                    <strong>@_selectedCustomer.FullName</strong>
+                    <span class="numeric">@_selectedCustomer.CustomerNumber</span>
+                    <span>@_selectedCustomer.Email</span>
+                    @if (_selectedCustomer.CurrentAddress is not null)
+                    {
+                        <span>@_selectedCustomer.CurrentAddress.Street @_selectedCustomer.CurrentAddress.HouseNumber, @_selectedCustomer.CurrentAddress.PostalCode @_selectedCustomer.CurrentAddress.City</span>
+                    }
+                    else
+                    {
+                        <span class="trend-down">Keine aktuelle Adresse hinterlegt – Adresse kann beim Liefertermin oder manuell erfasst werden.</span>
+                    }
+                </div>
+                <Button Variant="ButtonVariant.Secondary" OnClick="ClearSelectedCustomer">Kunde ändern</Button>
+            </div>
+        }
+        else if (_customerResults.Count > 0)
+        {
+            <ul class="add-line-results">
+                @foreach (CustomerListItemDto customer in _customerResults)
+                {
+                    <li>
+                        <span>@customer.CustomerNumber – @customer.FullName (@customer.Email)</span>
+                        <Button Variant="ButtonVariant.Secondary" OnClick="() => SelectCustomerAsync(customer.CustomerId)">Auswählen</Button>
+                    </li>
+                }
+            </ul>
+        }
+
+        <div class="form-actions">
+            <Button Variant="ButtonVariant.Primary" OnClick="GoToPositionsAsync" Disabled="@(_selectedCustomer is null)">Weiter zu Positionen →</Button>
+        </div>
+    </article>
+}
+else if (_step == 2)
+{
+    <div class="wizard-content">
+    <div class="wizard-columns">
+        <aside class="panel">
+            <div class="panel-header"><h2>Kunde</h2></div>
+            @if (_selectedCustomer is not null)
+            {
+                <p><strong>@_selectedCustomer.FullName</strong></p>
+                <p class="numeric">@_selectedCustomer.CustomerNumber</p>
+                <Button Variant="ButtonVariant.Secondary" OnClick="() => _step = 1">Kunde ändern</Button>
+            }
+        </aside>
+
+        <section class="panel">
+            <div class="panel-header"><h2>Artikel hinzufügen</h2></div>
+            <SearchField Label="Artikel suchen" Placeholder="Artikel suchen" @bind-Value="_articleSearchTerm" OnSearch="SearchArticlesAsync" />
+            <div class="form-field-wide" style="margin-top: var(--space-3)">
+                <CategoryCascadeSelector Label="Kategorie" Hierarchy="_hierarchy" SelectedGroupId="_selectedGroupId" SelectedGroupIdChanged="OnCategoryChangedAsync" />
+            </div>
+
+            @if (_isArticlesLoading)
+            {
+                <LoadingState Text="Artikel werden geladen …" />
+            }
+            else if (_articleResults.Count == 0)
+            {
+                <EmptyState Title="Keine Artikel gefunden" Description="Passen Sie Suche oder Kategorie an." />
+            }
+            else
+            {
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Artikel-Nr.</th>
+                                <th scope="col">Bezeichnung</th>
+                                <th scope="col">Lager</th>
+                                <th scope="col">Preis</th>
+                                <th scope="col"><span class="visually-hidden">Aktionen</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (ArticleListItemDto article in _articleResults)
+                            {
+                                <tr>
+                                    <td class="numeric">@article.ArticleNumber</td>
+                                    <td>
+                                        @article.Name
+                                        @if (article.StockLevel != StockLevel.Available)
+                                        {
+                                            <span class="low-stock-flag" title="@StockLevelLabel(article.StockLevel)" aria-label="@StockLevelLabel(article.StockLevel)">⚠</span>
+                                        }
+                                    </td>
+                                    <td class="numeric">@article.Stock Stk.</td>
+                                    <td class="numeric">@Formatting.Chf(article.PriceAmount)</td>
+                                    <td class="table-actions">
+                                        <Button Variant="ButtonVariant.Secondary" OnClick="() => AddToCart(article)">+ Hinzufügen</Button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        <aside class="panel wizard-summary">
+            <div class="panel-header"><h2>Auftragsübersicht</h2></div>
+
+            <dl class="totals-list">
+                <div><dt>Auftrags-Nr.</dt><dd class="numeric">@_orderNumber</dd></div>
+                <div><dt>Bestelldatum</dt><dd class="numeric">@Formatting.Date(DateOnly.FromDateTime(DateTime.Today))</dd></div>
+            </dl>
+
+            <div class="form-field">
+                <label for="delivery-date">Liefertermin</label>
+                <DateInput Id="delivery-date" @bind-Value="_deliveryDate" @bind-Value:after="RefreshAddressPreviewsAsync" />
+            </div>
+            <div class="form-field">
+                <label for="customer-reference">Ihre Referenz</label>
+                <input id="customer-reference" class="form-control" placeholder="z. B. Projekt XY" @bind="_customerReference" />
+            </div>
+
+            @if (_cart.Count == 0)
+            {
+                <EmptyState Title="Noch keine Positionen" Description="Fügen Sie Artikel aus der Liste hinzu." />
+            }
+            else
+            {
+                <ul class="cart-lines">
+                    @foreach (OrderCartLine line in _cart.Lines)
+                    {
+                        <li class="cart-line">
+                            <div class="cart-line-info">
+                                <strong>@line.ArticleName</strong>
+                                <span class="numeric">@line.ArticleNumber</span>
+                                @if (line.StockLevel != StockLevel.Available)
+                                {
+                                    <span class="low-stock-flag" title="@StockLevelLabel(line.StockLevel)">⚠ @StockLevelLabel(line.StockLevel)</span>
+                                }
+                            </div>
+                            <div class="quantity-stepper">
+                                <Button Variant="ButtonVariant.Secondary" OnClick="() => ChangeQuantity(line, -1)" Disabled="line.Quantity <= 1">−</Button>
+                                <input type="number" min="1" class="form-control quantity-input" value="@line.Quantity" @onchange="e => SetQuantity(line, e.Value)" aria-label="@($"Menge für {line.ArticleName}")" />
+                                <Button Variant="ButtonVariant.Secondary" OnClick="() => ChangeQuantity(line, 1)">+</Button>
+                            </div>
+                            <span class="numeric cart-line-total">@Formatting.Chf(line.UnitPriceAmount * line.Quantity)</span>
+                            <Button Variant="ButtonVariant.Danger" OnClick="() => RemoveFromCart(line.ArticleId)">Entfernen</Button>
+                        </li>
+                    }
+                </ul>
+
+                <dl class="totals-list">
+                    <div><dt>Zwischensumme</dt><dd class="numeric">@Formatting.Chf(_cart.Totals.Subtotal)</dd></div>
+                    <div><dt>MwSt.</dt><dd class="numeric">@Formatting.Chf(_cart.Totals.VatAmount)</dd></div>
+                    <div class="totals-final"><dt>Total CHF</dt><dd class="numeric">@Formatting.Chf(_cart.Totals.Total)</dd></div>
+                </dl>
+            }
+
+            <div class="address-section">
+                <h3>Rechnungsadresse</h3>
+                @if (_isBillingManual)
+                {
+                    <div class="form-grid">
+                        <input class="form-control" placeholder="Strasse" @bind="_billingStreet" aria-label="Rechnungsadresse Strasse" />
+                        <input class="form-control" placeholder="Nr." @bind="_billingHouseNumber" aria-label="Rechnungsadresse Hausnummer" />
+                        <input class="form-control" placeholder="PLZ" @bind="_billingPostalCode" aria-label="Rechnungsadresse PLZ" />
+                        <input class="form-control" placeholder="Ort" @bind="_billingCity" aria-label="Rechnungsadresse Ort" />
+                        <input class="form-control" placeholder="Land" @bind="_billingCountry" aria-label="Rechnungsadresse Land" maxlength="2" />
+                    </div>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="ResetBillingToAutomatic">Auf Kundenadresse zurücksetzen</Button>
+                }
+                else if (_billingAutoPreview?.HasValidAddress == true)
+                {
+                    <p>@_billingAutoPreview.Street @_billingAutoPreview.HouseNumber</p>
+                    <p>@_billingAutoPreview.PostalCode @_billingAutoPreview.City, @_billingAutoPreview.CountryCode</p>
+                    <StatusBadge Text="Automatisch für Liefertermin" Tone="StatusTone.Info" />
+                    <Button Variant="ButtonVariant.Secondary" OnClick="StartBillingOverride">Rechnungsadresse ändern</Button>
+                }
+                else
+                {
+                    <div class="inline-alert inline-alert-danger" role="alert">Für den gewählten Liefertermin ist keine gültige Kundenadresse hinterlegt. Bitte erfassen Sie eine manuelle Adresse.</div>
+                    <Button Variant="ButtonVariant.Primary" OnClick="StartBillingOverride">Rechnungsadresse erfassen</Button>
+                }
+            </div>
+
+            <div class="address-section">
+                <h3>Lieferadresse</h3>
+                @if (_isDeliveryManual)
+                {
+                    <div class="form-grid">
+                        <input class="form-control" placeholder="Strasse" @bind="_deliveryStreet" aria-label="Lieferadresse Strasse" />
+                        <input class="form-control" placeholder="Nr." @bind="_deliveryHouseNumber" aria-label="Lieferadresse Hausnummer" />
+                        <input class="form-control" placeholder="PLZ" @bind="_deliveryPostalCode" aria-label="Lieferadresse PLZ" />
+                        <input class="form-control" placeholder="Ort" @bind="_deliveryCity" aria-label="Lieferadresse Ort" />
+                        <input class="form-control" placeholder="Land" @bind="_deliveryCountry" aria-label="Lieferadresse Land" maxlength="2" />
+                    </div>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="ResetDeliveryToAutomatic">Auf Kundenadresse zurücksetzen</Button>
+                }
+                else if (_deliveryAutoPreview?.HasValidAddress == true)
+                {
+                    <p>@_deliveryAutoPreview.Street @_deliveryAutoPreview.HouseNumber</p>
+                    <p>@_deliveryAutoPreview.PostalCode @_deliveryAutoPreview.City, @_deliveryAutoPreview.CountryCode</p>
+                    <StatusBadge Text="Automatisch für Liefertermin" Tone="StatusTone.Info" />
+                    <Button Variant="ButtonVariant.Secondary" OnClick="StartDeliveryOverride">Lieferadresse ändern</Button>
+                }
+                else
+                {
+                    <div class="inline-alert inline-alert-danger" role="alert">Für den gewählten Liefertermin ist keine gültige Kundenadresse hinterlegt. Bitte erfassen Sie eine manuelle Adresse.</div>
+                    <Button Variant="ButtonVariant.Primary" OnClick="StartDeliveryOverride">Lieferadresse erfassen</Button>
+                }
+            </div>
+
+            <div class="form-actions">
+                <Button Variant="ButtonVariant.Primary" OnClick="() => _step = 3" Disabled="@(_cart.Count == 0 || !BillingAddressReady || !DeliveryAddressReady)">Weiter zur Prüfung →</Button>
+            </div>
+        </aside>
+    </div>
+    </div>
+}
+else if (_step == 3 && _selectedCustomer is not null)
+{
+    <article class="panel">
+        <div class="panel-header"><h2>Auftrag prüfen</h2></div>
+
+        <div class="grid-row grid-row-2">
+            <div>
+                <h3>Kunde</h3>
+                <p><strong>@_selectedCustomer.FullName</strong></p>
+                <p class="numeric">@_selectedCustomer.CustomerNumber · @_selectedCustomer.Email</p>
+            </div>
+            <div>
+                <h3>Liefertermin</h3>
+                <p class="numeric">@Formatting.Date(DateOnly.FromDateTime(_deliveryDate))</p>
+                @if (!string.IsNullOrWhiteSpace(_customerReference))
+                {
+                    <p><strong>Ihre Referenz:</strong> @_customerReference</p>
+                }
+            </div>
+        </div>
+
+        <div class="grid-row grid-row-2" style="margin-top: var(--space-4)">
+            <div>
+                <h3>Rechnungsadresse</h3>
+                <p>@BillingAddressLine1</p>
+                <p>@BillingAddressLine2</p>
+                <StatusBadge Text="@(_isBillingManual ? "Manuell geändert" : "Automatisch für Liefertermin")" Tone="@(_isBillingManual ? StatusTone.Warning : StatusTone.Info)" />
+            </div>
+            <div>
+                <h3>Lieferadresse</h3>
+                <p>@DeliveryAddressLine1</p>
+                <p>@DeliveryAddressLine2</p>
+                <StatusBadge Text="@(_isDeliveryManual ? "Manuell geändert" : "Automatisch für Liefertermin")" Tone="@(_isDeliveryManual ? StatusTone.Warning : StatusTone.Info)" />
+            </div>
+        </div>
+
+        <h3 style="margin-top: var(--space-5)">Positionen</h3>
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Artikel</th>
+                        <th scope="col">Menge</th>
+                        <th scope="col">Einzelpreis</th>
+                        <th scope="col">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (OrderCartLine line in _cart.Lines)
+                    {
+                        <tr>
+                            <td>@line.ArticleName</td>
+                            <td class="numeric">@line.Quantity</td>
+                            <td class="numeric">@Formatting.Chf(line.UnitPriceAmount)</td>
+                            <td class="numeric">@Formatting.Chf(line.UnitPriceAmount * line.Quantity)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <dl class="totals-list" style="margin-top: var(--space-4)">
+            <div><dt>Zwischensumme</dt><dd class="numeric">@Formatting.Chf(_cart.Totals.Subtotal)</dd></div>
+            <div><dt>MwSt.</dt><dd class="numeric">@Formatting.Chf(_cart.Totals.VatAmount)</dd></div>
+            <div class="totals-final"><dt>Total CHF</dt><dd class="numeric">@Formatting.Chf(_cart.Totals.Total)</dd></div>
+        </dl>
+
+        <div class="form-actions">
+            <Button Variant="ButtonVariant.Secondary" OnClick="() => _step = 2" Disabled="_isSubmitting">← Zurück zu Positionen</Button>
+            <Button Variant="ButtonVariant.Primary" Type="submit" OnClick="SubmitOrderAsync" Disabled="_isSubmitting">@(_isSubmitting ? "Wird erstellt …" : "Auftrag erstellen")</Button>
+        </div>
+    </article>
+}
+
+@code {
+    private static string StockLevelLabel(StockLevel level) => level switch
+    {
+        StockLevel.Low => "Tiefer Bestand",
+        StockLevel.OutOfStock => "Nicht an Lager",
+        _ => "Verfügbar"
+    };
+
+    private int _step = 1;
+    private string? _orderNumber;
+
+    private string? _customerSearchTerm;
+    private readonly List<CustomerListItemDto> _customerResults = [];
+    private GetCustomerDetailsResponse? _selectedCustomer;
+
+    private string? _articleSearchTerm;
+    private int? _selectedGroupId;
+    private IReadOnlyList<ArticleGroupHierarchyDto> _hierarchy = [];
+    private bool _isArticlesLoading;
+    private readonly List<ArticleListItemDto> _articleResults = [];
+
+    private readonly OrderCart _cart = new();
+    private DateTime _deliveryDate = DateTime.Today.AddDays(7);
+    private string? _customerReference;
+
+    private PreviewAddressForDateResponse? _billingAutoPreview;
+    private PreviewAddressForDateResponse? _deliveryAutoPreview;
+
+    private bool _isBillingManual;
+    private bool _isDeliveryManual;
+
+    private string _billingStreet = string.Empty;
+    private string _billingHouseNumber = string.Empty;
+    private string _billingPostalCode = string.Empty;
+    private string _billingCity = string.Empty;
+    private string _billingCountry = "CH";
+
+    private string _deliveryStreet = string.Empty;
+    private string _deliveryHouseNumber = string.Empty;
+    private string _deliveryPostalCode = string.Empty;
+    private string _deliveryCity = string.Empty;
+    private string _deliveryCountry = "CH";
+
+    private bool _isSubmitting;
+    private string? _submitError;
+
+    private bool BillingAddressReady => _isBillingManual
+        ? !string.IsNullOrWhiteSpace(_billingStreet) && !string.IsNullOrWhiteSpace(_billingHouseNumber)
+            && !string.IsNullOrWhiteSpace(_billingPostalCode) && !string.IsNullOrWhiteSpace(_billingCity)
+        : _billingAutoPreview?.HasValidAddress == true;
+
+    private bool DeliveryAddressReady => _isDeliveryManual
+        ? !string.IsNullOrWhiteSpace(_deliveryStreet) && !string.IsNullOrWhiteSpace(_deliveryHouseNumber)
+            && !string.IsNullOrWhiteSpace(_deliveryPostalCode) && !string.IsNullOrWhiteSpace(_deliveryCity)
+        : _deliveryAutoPreview?.HasValidAddress == true;
+
+    private string BillingAddressLine1 => _isBillingManual
+        ? $"{_billingStreet} {_billingHouseNumber}"
+        : $"{_billingAutoPreview?.Street} {_billingAutoPreview?.HouseNumber}";
+
+    private string BillingAddressLine2 => _isBillingManual
+        ? $"{_billingPostalCode} {_billingCity}, {_billingCountry}"
+        : $"{_billingAutoPreview?.PostalCode} {_billingAutoPreview?.City}, {_billingAutoPreview?.CountryCode}";
+
+    private string DeliveryAddressLine1 => _isDeliveryManual
+        ? $"{_deliveryStreet} {_deliveryHouseNumber}"
+        : $"{_deliveryAutoPreview?.Street} {_deliveryAutoPreview?.HouseNumber}";
+
+    private string DeliveryAddressLine2 => _isDeliveryManual
+        ? $"{_deliveryPostalCode} {_deliveryCity}, {_deliveryCountry}"
+        : $"{_deliveryAutoPreview?.PostalCode} {_deliveryAutoPreview?.City}, {_deliveryAutoPreview?.CountryCode}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await GetNextOrderNumberUseCase.ExecuteAsync(new GetNextOrderNumberQuery());
+        _orderNumber = result.IsSuccess ? result.Value : null;
+
+        var hierarchyResult = await GetArticleGroupHierarchyUseCase.ExecuteAsync(new GetArticleGroupHierarchyQuery(null));
+        _hierarchy = hierarchyResult.IsSuccess ? hierarchyResult.Value! : [];
+    }
+
+    private string StepClass(int step) =>
+        step == _step ? "wizard-step is-current" : step < _step ? "wizard-step is-done" : "wizard-step";
+
+    private async Task SearchCustomersAsync()
+    {
+        _customerResults.Clear();
+        if (string.IsNullOrWhiteSpace(_customerSearchTerm))
+        {
+            return;
+        }
+
+        var result = await SearchCustomersUseCase.ExecuteAsync(new SearchCustomersQuery(_customerSearchTerm));
+        if (result.IsSuccess)
+        {
+            _customerResults.AddRange(result.Value!.Take(8));
+        }
+    }
+
+    private async Task SelectCustomerAsync(int customerId)
+    {
+        var result = await GetCustomerDetailsUseCase.ExecuteAsync(new GetCustomerDetailsQuery(customerId));
+        if (result.IsSuccess)
+        {
+            _selectedCustomer = result.Value;
+            _customerResults.Clear();
+            await RefreshAddressPreviewsAsync();
+        }
+    }
+
+    private void ClearSelectedCustomer()
+    {
+        _selectedCustomer = null;
+        _customerSearchTerm = null;
+        _billingAutoPreview = null;
+        _deliveryAutoPreview = null;
+    }
+
+    private async Task RefreshAddressPreviewsAsync()
+    {
+        if (_selectedCustomer is null)
+        {
+            return;
+        }
+
+        var query = new PreviewAddressForDateQuery(_selectedCustomer.CustomerId, DateOnly.FromDateTime(_deliveryDate));
+        var result = await PreviewAddressForDateUseCase.ExecuteAsync(query);
+
+        PreviewAddressForDateResponse? preview = result.IsSuccess ? result.Value : null;
+        _billingAutoPreview = preview;
+        _deliveryAutoPreview = preview;
+    }
+
+    private void StartBillingOverride()
+    {
+        if (_billingAutoPreview?.HasValidAddress == true && string.IsNullOrEmpty(_billingStreet))
+        {
+            _billingStreet = _billingAutoPreview.Street ?? string.Empty;
+            _billingHouseNumber = _billingAutoPreview.HouseNumber ?? string.Empty;
+            _billingPostalCode = _billingAutoPreview.PostalCode ?? string.Empty;
+            _billingCity = _billingAutoPreview.City ?? string.Empty;
+            _billingCountry = _billingAutoPreview.CountryCode ?? "CH";
+        }
+
+        _isBillingManual = true;
+    }
+
+    private void ResetBillingToAutomatic()
+    {
+        _isBillingManual = false;
+        _billingStreet = _billingHouseNumber = _billingPostalCode = _billingCity = string.Empty;
+        _billingCountry = "CH";
+    }
+
+    private void StartDeliveryOverride()
+    {
+        if (_deliveryAutoPreview?.HasValidAddress == true && string.IsNullOrEmpty(_deliveryStreet))
+        {
+            _deliveryStreet = _deliveryAutoPreview.Street ?? string.Empty;
+            _deliveryHouseNumber = _deliveryAutoPreview.HouseNumber ?? string.Empty;
+            _deliveryPostalCode = _deliveryAutoPreview.PostalCode ?? string.Empty;
+            _deliveryCity = _deliveryAutoPreview.City ?? string.Empty;
+            _deliveryCountry = _deliveryAutoPreview.CountryCode ?? "CH";
+        }
+
+        _isDeliveryManual = true;
+    }
+
+    private void ResetDeliveryToAutomatic()
+    {
+        _isDeliveryManual = false;
+        _deliveryStreet = _deliveryHouseNumber = _deliveryPostalCode = _deliveryCity = string.Empty;
+        _deliveryCountry = "CH";
+    }
+
+    private async Task GoToPositionsAsync()
+    {
+        if (_selectedCustomer is null)
+        {
+            return;
+        }
+
+        _step = 2;
+
+        if (_articleResults.Count == 0)
+        {
+            await SearchArticlesAsync();
+        }
+    }
+
+    private async Task OnCategoryChangedAsync(int? groupId)
+    {
+        _selectedGroupId = groupId;
+        await SearchArticlesAsync();
+    }
+
+    private async Task SearchArticlesAsync()
+    {
+        _isArticlesLoading = true;
+        var result = await SearchArticlesUseCase.ExecuteAsync(new SearchArticlesQuery(_articleSearchTerm, _selectedGroupId, ArticleStatus.Active));
+        _articleResults.Clear();
+        if (result.IsSuccess)
+        {
+            _articleResults.AddRange(result.Value!.Take(25));
+        }
+
+        _isArticlesLoading = false;
+    }
+
+    private void AddToCart(ArticleListItemDto article) => _cart.Add(article);
+
+    private void RemoveFromCart(int articleId) => _cart.Remove(articleId);
+
+    private void ChangeQuantity(OrderCartLine line, int delta) => _cart.ChangeQuantity(line.ArticleId, delta);
+
+    private void SetQuantity(OrderCartLine line, object? rawValue)
+    {
+        if (int.TryParse(rawValue?.ToString(), out int quantity))
+        {
+            _cart.SetQuantity(line.ArticleId, quantity);
+        }
+    }
+
+    private async Task SubmitOrderAsync()
+    {
+        if (_isSubmitting || _selectedCustomer is null || _orderNumber is null
+            || !BillingAddressReady || !DeliveryAddressReady)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _submitError = null;
+
+        List<CreateOrderLineInput> lines = [.. _cart.Lines.Select(l => new CreateOrderLineInput(l.ArticleId, l.Quantity))];
+
+        AddressOverrideInput? billingOverride = _isBillingManual
+            ? new AddressOverrideInput(_billingStreet, _billingHouseNumber, _billingPostalCode, _billingCity, _billingCountry)
+            : null;
+
+        AddressOverrideInput? deliveryOverride = _isDeliveryManual
+            ? new AddressOverrideInput(_deliveryStreet, _deliveryHouseNumber, _deliveryPostalCode, _deliveryCity, _deliveryCountry)
+            : null;
+
+        var command = new CreateOrderCommand(
+            _orderNumber,
+            _selectedCustomer.CustomerId,
+            DateOnly.FromDateTime(_deliveryDate),
+            _customerReference,
+            billingOverride,
+            deliveryOverride,
+            lines);
+
+        var result = await CreateOrderUseCase.ExecuteAsync(command);
+
+        if (!result.IsSuccess)
+        {
+            _submitError = result.Error;
+            _isSubmitting = false;
+
+            var refreshedNumber = await GetNextOrderNumberUseCase.ExecuteAsync(new GetNextOrderNumberQuery());
+            if (refreshedNumber.IsSuccess)
+            {
+                _orderNumber = refreshedNumber.Value;
+            }
+
+            return;
+        }
+
+        Navigation.NavigateTo($"auftraege/{result.Value!.OrderId}");
+    }
+}

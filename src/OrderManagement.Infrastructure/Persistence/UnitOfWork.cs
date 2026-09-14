@@ -1,4 +1,6 @@
-using OrderManagement.Application.Abstractions;
+using Microsoft.EntityFrameworkCore;
+
+using OrderManagement.Application.Abstractions.Persistence;
 
 using SharedKernel.Primitives;
 
@@ -15,9 +17,17 @@ namespace OrderManagement.Infrastructure.Persistence
                 _ = await _context.SaveChangesAsync(cancellationToken);
                 return Result.Success();
             }
-            catch (Exception ex)
+            catch (DbUpdateConcurrencyException)
             {
-                return Result.Fail(ex.Message);
+                return Result.Fail("Der Lagerbestand wurde zwischenzeitlich geändert. Bitte laden Sie die Artikel erneut und prüfen Sie die Mengen.");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return Result.Fail("Die Änderung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.");
             }
         }
     }

@@ -1,10 +1,7 @@
-trigger:
-  branches:
-    include:
-      - feature/*
-      - Feature*
+trigger: none
 
 pr:
+  autoCancel: true
   branches:
     include:
       - Develop
@@ -12,17 +9,256 @@ pr:
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- checkout: self
-  clean: true
+variables:
+  buildConfiguration: 'Release'
 
-- task: UseDotNet@2
-  inputs:
-    packageType: sdk
-    version: 9.x
+stages:
 
-- script: dotnet restore
-  displayName: Restore
+# --- Stage 1: restore and build ---
+- stage: RestoreAndBuild
+  displayName: '1. Restore and build'
+  jobs:
+  - job: Build
+    steps:
+    - checkout: self
+      clean: true
+    - task: UseDotNet@2
+      displayName: Install .NET 10 SDK
+      inputs:
+        packageType: sdk
+        version: '10.x'
+    - script: dotnet restore
+      displayName: Restore
+    - script: dotnet build --configuration $(buildConfiguration) --no-restore
+      displayName: Build
 
-- script: dotnet test --configuration Release --no-restore
-  displayName: Run tests
+# --- Stage 1b: validate the Compose files themselves (config parses and required vars resolve) ---
+- stage: ValidateComposeFiles
+  displayName: '1b. Validate Compose files'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Validate
+    steps:
+    - checkout: self
+      clean: true
+    - script: |
+        set -euo pipefail
+        docker compose -f compose.test.yaml config --quiet
+        echo "compose.test.yaml OK"
+      displayName: Validate compose.test.yaml
+    - script: |
+        set -euo pipefail
+        export MSSQL_SA_PASSWORD="CI_Validation_Only_Not_Real!"
+        docker compose -f compose.yaml config --quiet
+        echo "compose.yaml OK"
+      displayName: Validate compose.yaml
+
+# --- Stage 3: unit and bUnit tests (no external dependencies) ---
+- stage: UnitAndComponentTests
+  displayName: '3. Unit and bUnit tests'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Test
+    steps:
+    - template: templates/dotnet-test-with-coverage.yml
+      parameters:
+        displayName: 'Run unit and bUnit tests'
+        projects: 'tests/SharedKernel.Tests/SharedKernel.Tests.csproj tests/OrderManagement.Domain.Tests/OrderManagement.Domain.Tests.csproj tests/OrderManagement.Application.Tests/OrderManagement.Application.Tests.csproj tests/OrderManagement.Presentation.Blazor.Tests/OrderManagement.Presentation.Blazor.Tests.csproj'
+        buildConfiguration: $(buildConfiguration)
+        coverageArtifactName: 'coverage-unit'
+        testResultsTitle: 'UnitAndComponentTests'
+
+# --- Stage 3b: architecture tests (enforce Clean Architecture layering rules) ---
+- stage: ArchitectureTests
+  displayName: '3b. Architecture tests'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Test
+    steps:
+    - template: templates/dotnet-test-with-coverage.yml
+      parameters:
+        displayName: 'Run architecture tests'
+        projects: 'tests/OrderManagement.ArchitectureTests/OrderManagement.ArchitectureTests.csproj'
+        buildConfiguration: $(buildConfiguration)
+        coverageArtifactName: 'coverage-architecture'
+        testResultsTitle: 'ArchitectureTests'
+
+# --- Stage 4: SQL Server integration tests (Testcontainers; Docker is available on the hosted ubuntu-latest agent) ---
+- stage: SqlServerIntegrationTests
+  displayName: '4. SQL Server integration tests'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Test
+    steps:
+    - template: templates/dotnet-test-with-coverage.yml
+      parameters:
+        displayName: 'Run SQL Server integration tests'
+        projects: 'tests/OrderManagement.Infrastructure.IntegrationTests/OrderManagement.Infrastructure.IntegrationTests.csproj'
+        buildConfiguration: $(buildConfiguration)
+        coverageArtifactName: 'coverage-integration'
+        testResultsTitle: 'SqlServerIntegrationTests'
+
+# --- Stage 5: Reqnroll acceptance tests (Testcontainers) ---
+- stage: AcceptanceTests
+  displayName: '5. Reqnroll acceptance tests'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Test
+    steps:
+    - template: templates/dotnet-test-with-coverage.yml
+      parameters:
+        displayName: 'Run Reqnroll acceptance tests'
+        projects: 'tests/OrderManagement.AcceptanceTests/OrderManagement.AcceptanceTests.csproj'
+        buildConfiguration: $(buildConfiguration)
+        coverageArtifactName: 'coverage-acceptance'
+        testResultsTitle: 'AcceptanceTests'
+
+# --- Stage 6: Playwright critical-path tests (boots the real app; not part of line-coverage collection) ---
+- stage: PlaywrightTests
+  displayName: '6. Playwright critical-path tests'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Test
+    steps:
+    - checkout: self
+      clean: true
+    - task: UseDotNet@2
+      displayName: Install .NET 10 SDK
+      inputs:
+        packageType: sdk
+        version: '10.x'
+    - script: dotnet restore
+      displayName: Restore
+    - script: dotnet build --configuration $(buildConfiguration) --no-restore
+      displayName: Build
+    - script: pwsh tests/OrderManagement.PlaywrightTests/bin/$(buildConfiguration)/net10.0/playwright.ps1 install --with-deps chromium
+      displayName: Install Playwright browser
+    - script: dotnet test tests/OrderManagement.PlaywrightTests/OrderManagement.PlaywrightTests.csproj --configuration $(buildConfiguration) --no-build --logger trx --results-directory "$(Agent.TempDirectory)/trx"
+      displayName: Run Playwright tests
+      env:
+        PLAYWRIGHT_APP_CONFIGURATION: $(buildConfiguration)
+    - task: PublishTestResults@2
+      displayName: Publish Playwright TRX results
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: VSTest
+        testResultsFiles: '$(Agent.TempDirectory)/trx/*.trx'
+        testRunTitle: PlaywrightTests
+    - task: PublishPipelineArtifact@1
+      displayName: Publish Playwright traces/screenshots (failure only)
+      condition: failed()
+      inputs:
+        targetPath: '$(Agent.TempDirectory)/trx'
+        artifact: 'PlaywrightFailureArtifacts'
+        publishLocation: pipeline
+
+# --- Stage 6b: validate the Docker-only test path itself (compose.test.yaml), scoped to the
+# Playwright E2E project so the unit/domain/integration/acceptance suites - already run natively
+# above with coverage collection - are not executed a second time for no additional benefit. ---
+- stage: DockerComposeE2ETests
+  displayName: '6b. Docker Compose E2E tests'
+  dependsOn: RestoreAndBuild
+  jobs:
+  - job: Test
+    steps:
+    - checkout: self
+      clean: true
+    - script: |
+        set -euo pipefail
+        export TEST_PROJECTS="tests/OrderManagement.PlaywrightTests/OrderManagement.PlaywrightTests.csproj"
+        docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests
+      displayName: Run Playwright E2E tests against the Compose stack
+    - script: docker compose -f compose.test.yaml logs
+      displayName: Show Compose logs (failure only)
+      condition: failed()
+    - script: docker compose -f compose.test.yaml down -v
+      displayName: Tear down Compose test stack
+      condition: always()
+
+# --- Stage 7 & 8: coverage generation and threshold enforcement ---
+- stage: Coverage
+  displayName: '7-8. Coverage generation and threshold enforcement'
+  dependsOn:
+  - UnitAndComponentTests
+  - ArchitectureTests
+  - SqlServerIntegrationTests
+  - AcceptanceTests
+  condition: succeededOrFailed()
+  jobs:
+  - job: Coverage
+    steps:
+    - checkout: none
+    - task: DownloadPipelineArtifact@2
+      displayName: Download coverage-unit
+      inputs:
+        artifact: coverage-unit
+        path: '$(Agent.TempDirectory)/coverage/unit'
+    - task: DownloadPipelineArtifact@2
+      displayName: Download coverage-architecture
+      inputs:
+        artifact: coverage-architecture
+        path: '$(Agent.TempDirectory)/coverage/architecture'
+    - task: DownloadPipelineArtifact@2
+      displayName: Download coverage-integration
+      inputs:
+        artifact: coverage-integration
+        path: '$(Agent.TempDirectory)/coverage/integration'
+    - task: DownloadPipelineArtifact@2
+      displayName: Download coverage-acceptance
+      inputs:
+        artifact: coverage-acceptance
+        path: '$(Agent.TempDirectory)/coverage/acceptance'
+    - task: UseDotNet@2
+      inputs:
+        packageType: sdk
+        version: 10.x
+    - script: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.5.11
+      displayName: Install ReportGenerator
+    - script: |
+        reportgenerator \
+          "-reports:$(Agent.TempDirectory)/coverage/**/coverage.cobertura.xml" \
+          "-targetdir:$(Build.ArtifactStagingDirectory)/coverage-report" \
+          "-reporttypes:Html;TextSummary;Cobertura"
+      displayName: Generate coverage report
+    - task: PublishPipelineArtifact@1
+      displayName: Publish coverage report
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/coverage-report'
+        artifact: CoverageReport
+        publishLocation: pipeline
+    - script: |
+        set -euo pipefail
+
+        SUMMARY="$(Build.ArtifactStagingDirectory)/coverage-report/Summary.txt"
+
+        if [ ! -f "$SUMMARY" ]; then
+          echo "##vso[task.logissue type=error]Coverage summary was not generated."
+          exit 1
+        fi
+
+        cat "$SUMMARY"
+
+        LINE_COVERAGE="$(
+          grep -m1 "Line coverage:" "$SUMMARY" |
+          grep -oE "[0-9]+(\.[0-9]+)?" |
+          head -1
+        )"
+
+        if [ -z "$LINE_COVERAGE" ]; then
+          echo "##vso[task.logissue type=error]Could not read line coverage from Summary.txt."
+          exit 1
+        fi
+
+        THRESHOLD=50
+
+        echo "Line coverage: ${LINE_COVERAGE}% (required: ${THRESHOLD}%)"
+
+        if awk -v coverage="$LINE_COVERAGE" -v minimum="$THRESHOLD" \
+          'BEGIN { exit !(coverage < minimum) }'
+        then
+          echo "##vso[task.logissue type=error]Line coverage ${LINE_COVERAGE}% is below the required ${THRESHOLD}% minimum."
+          exit 1
+        fi
+
+        echo "Coverage requirement passed."
+      displayName: Enforce minimum coverage threshold

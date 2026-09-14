@@ -27,7 +27,8 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
 
             _ = builder.Property(x => x.Id)
                 .HasColumnName("CustomerAddressId")
-                .ValueGeneratedOnAdd();
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn();
 
             _ = builder.Property<CustomerId>("CustomerId")
                 .HasColumnName("CustomerId")

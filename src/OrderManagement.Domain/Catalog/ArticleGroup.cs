@@ -9,15 +9,15 @@ namespace OrderManagement.Domain.Catalog
     public sealed class ArticleGroup : AggregateRoot<ArticleGroupId>
     {
         private readonly List<ArticleGroup> _children = [];
-        private ArticleGroup() : base(new ArticleGroupId(0)) { }
+        private ArticleGroup() : base(ArticleGroupId.Empty)
+        {
+            // EF Core
+        }
 
-        private ArticleGroup(
-            ArticleGroupId id,
-            string name
-            ) : base(id)
+        private ArticleGroup(string name) : base(ArticleGroupId.Empty)
         {
             Name = name;
-            AddDomainEvent(new ArticleGroupCreated(id, DateTime.UtcNow));
+            AddDomainEvent(new ArticleGroupCreated(name, DateTime.UtcNow));
         }
 
         public string Name { get; private set; } = default!;
@@ -27,74 +27,58 @@ namespace OrderManagement.Domain.Catalog
         public int Status { get; private set; } = 1;
 
         public static Result<ArticleGroup> Create(
-            int id,
             string? name,
-            int? parentGroupId = null
-            )
+            ArticleGroupId? parentGroupId = null)
         {
-            if (id <= 0) return Results.Fail<ArticleGroup>("ArticleGroup id must be positive.");
-
             string trimmedName = (name ?? string.Empty).Trim();
             if (trimmedName.Length == 0)
                 return Results.Fail<ArticleGroup>("Name is required.");
-
             if (trimmedName.Length > 150)
                 return Results.Fail<ArticleGroup>("Name must not exceed 150 characters.");
 
-            if (parentGroupId.HasValue && parentGroupId <= 0)
-                return Results.Fail<ArticleGroup>("ParentGroupId must be positive.");
 
-            var group = new ArticleGroup(new ArticleGroupId(id), trimmedName);
+            if (parentGroupId.HasValue && !parentGroupId.Value.IsAssigned)
+                return Results.Fail<ArticleGroup>("ParentGroupId must be assigned.");
 
-            if (parentGroupId.HasValue)
-                group.ParentGroupId = new ArticleGroupId(parentGroupId.Value);
+
+            var group = new ArticleGroup(trimmedName)
+            {
+                ParentGroupId = parentGroupId
+            };
 
             return Results.Success(group);
         }
 
         public Result AddChild(ArticleGroup child)
         {
+
+            if (!Id.IsAssigned)
+                return Result.Fail("Parent group must be persisted before children can be attached.");
+
+            if (!child.ParentGroupId.HasValue || child.ParentGroupId.Value != Id)
+                return Result.Fail("Child group does not reference this group as parent.");
+
             if (_children.Contains(child))
                 return Result.Fail("Child already exists.");
 
-            if (HasCircularReference(child))
-                return Result.Fail("Cannot create circular group hierarchy.");
 
             _children.Add(child);
             return Result.Success();
         }
 
-        private bool HasCircularReference(ArticleGroup potentialChild)
-        {
-            var visited = new HashSet<int> { Id.Value };
-            ArticleGroup? current = this;
-
-            while (current?.ParentGroupId.HasValue == true)
-            {
-                int parentId = current.ParentGroupId.Value.Value;
-
-                if (parentId == potentialChild.Id.Value)
-                    return true; // potentialChild is ancestor
-
-                if (visited.Contains(parentId))
-                    return true; // cycle detected
-
-                _ = visited.Add(parentId);
-                current = null!; // In real app, load parent from repo
-            }
-
-            return false;
-        }
-
-
         public Result Rename(string newName)
         {
             string trimmedName = (newName ?? string.Empty).Trim();
+
             if (trimmedName.Length == 0)
                 return Result.Fail("Name is required.");
+            if (trimmedName.Length > 150)
+                return Result.Fail("Name must not exced 150 characters.");
 
+            string oldName = Name;
             Name = trimmedName;
-            AddDomainEvent(new ArticleGroupRenamed(Id, DateTime.UtcNow));
+            AddDomainEvent(new ArticleGroupRenamed(oldName, trimmedName, DateTime.UtcNow));
+
             return Result.Success();
         }
     }

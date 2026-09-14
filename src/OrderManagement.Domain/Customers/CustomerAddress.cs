@@ -5,17 +5,18 @@ namespace OrderManagement.Domain.Customers
     public sealed class CustomerAddress : Entity<int>
     {
 
-        private CustomerAddress() : base(0) { }
-
+        private CustomerAddress() : base(0)
+        {
+            // Required by EF Core.
+        }
         internal CustomerAddress(
-            int id,
             DateOnly validFrom,
             DateOnly? validTo,
             string street,
             string houseNumber,
             string postalCode,
             string city,
-            string countryCode) : base(id)
+            string countryCode) : base(0)
         {
 
             ValidFrom = validFrom;

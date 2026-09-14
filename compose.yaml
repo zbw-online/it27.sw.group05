@@ -1,0 +1,61 @@
+name: ordermanagement
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is required. Copy .env.example to .env and set a password.}
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' -b -o /dev/null"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 90s
+    restart: unless-stopped
+    networks:
+      - ordermanagement
+
+  database-init:
+    build:
+      context: .
+      target: runtime
+    command: ["dotnet", "OrderManagement.Presentation.Blazor.dll", "initialize-database"]
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__OrderManagement: Server=sqlserver,1433;Database=OrderManagement;User Id=sa;Password=${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is required. Copy .env.example to .env and set a password.};TrustServerCertificate=True;
+      DatabaseInitialization__SeedDemoData: ${SEED_DEMO_DATA:-true}
+    networks:
+      - ordermanagement
+
+  app:
+    build:
+      context: .
+      target: runtime
+    depends_on:
+      database-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__OrderManagement: Server=sqlserver,1433;Database=OrderManagement;User Id=sa;Password=${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is required. Copy .env.example to .env and set a password.};TrustServerCertificate=True;
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    restart: unless-stopped
+    networks:
+      - ordermanagement
+
+networks:
+  ordermanagement:
+
+volumes:
+  mssql-data:

@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+docs/
+infra/
+.git/
+.github/
+.azuredevops/
+.vs/
+.vscode/
+*.md
+*.sln.docstates
+**/*.user
+**/appsettings.Development.json

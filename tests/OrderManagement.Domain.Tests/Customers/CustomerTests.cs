@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using OrderManagement.Domain.Customers;
 
 using SharedKernel.Primitives;
@@ -14,20 +12,17 @@ namespace OrderManagement.Domain.Tests.Customers
         // Helpers
         // -----------------------------
         private static Result<Customer> CreateValidCustomer(
-            int id = 1,
-            string customerNr = "C-00001",
+            string customerNr = "CU00001",
             string lastName = "Mueller",
             string surName = "Edi",
             string email = "edi.mueller@example.com",
-            string? website = null,
-            string passwordHash = "hash") => Customer.Create(
-                id: id,
+            string? website = null
+            ) => Customer.Create(
                 customerNr: customerNr,
                 lastName: lastName,
                 surName: surName,
                 email: email,
-                website: website,
-                passwordHash: passwordHash);
+                website: website);
 
         private static string Repeat(char c, int count) => new(c, count);
 
@@ -46,14 +41,6 @@ namespace OrderManagement.Domain.Tests.Customers
             Assert.IsTrue(c.DomainEvents.Count >= 1);
         }
 
-        [TestMethod]
-        public void CreateInvalidIdNegativeShouldFail()
-        {
-            // ECP: Invalid id class (id < 0)
-            Result<Customer> r = CreateValidCustomer(id: -1);
-
-            Assert.IsFalse(r.IsSuccess);
-        }
 
         [TestMethod]
         public void CreateLastNameWhitespaceOnlyShouldFail()
@@ -82,15 +69,6 @@ namespace OrderManagement.Domain.Tests.Customers
             Assert.IsFalse(r.IsSuccess);
         }
 
-        [TestMethod]
-        public void CreatePasswordHashEmptyShouldFail()
-        {
-            // ECP: Invalid password hash class (null/whitespace (here empty))
-            Result<Customer> r = CreateValidCustomer(passwordHash: "");
-
-            Assert.IsFalse(r.IsSuccess);
-        }
-
         // ============================================================
         // 2) Create(...) — Boundary Value Analysis
         // ============================================================
@@ -99,7 +77,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void CreateCustomerNumberLengthBoundary7ShouldSucceed()
         {
             // BVA: customer number length = 7 (max valid)
-            string nr = "C-00001"; // 7
+            string nr = "CU00001"; // 7
 
             Result<Customer> r = CreateValidCustomer(customerNr: nr);
 
@@ -147,10 +125,18 @@ namespace OrderManagement.Domain.Tests.Customers
         }
 
         [TestMethod]
-        public void CreateWebsiteNotAbsoluteUrlShouldFail()
+        public void CreateWebsiteWithoutSchemeAndPathShouldSucceed()
         {
-            // ECP: invalid website class (not absolute)
+            // ECP: valid website class according to the project requirement.
             Result<Customer> r = CreateValidCustomer(website: "example.com/path");
+
+            Assert.IsTrue(r.IsSuccess);
+        }
+
+        [TestMethod]
+        public void CreateWebsiteWithWhitespaceInsideDomainShouldFail()
+        {
+            Result<Customer> r = CreateValidCustomer(website: "exa mple.com");
 
             Assert.IsFalse(r.IsSuccess);
         }
@@ -163,7 +149,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressValidInputsFirstAddressShouldSucceed()
         {
             // ECP: Valid address change class (first address)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -181,7 +167,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressInvalidCountryCodeLength3ShouldFail()
         {
             // ECP: Invalid country code class (length != 2)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -198,7 +184,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressStreetWhitespaceOnlyShouldFail()
         {
             // ECP: Invalid street class
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -219,7 +205,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressCountryCodeLengthBoundary2ShouldSucceed()
         {
             // BVA: country code length = 2 (valid boundary)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -236,7 +222,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressCountryCodeLengthBoundary1ShouldFail()
         {
             // BVA: country code length = 1 (just below boundary)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -253,7 +239,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressCountryCodeLengthBoundary3ShouldFail()
         {
             // BVA: country code length = 3 (just above boundary)
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -274,7 +260,7 @@ namespace OrderManagement.Domain.Tests.Customers
         public void ChangeAddressOverlapBoundaryCloseDateEqualsValidFromMinusOneShouldSucceedAndClosePrevious()
         {
             // This tests the boundary where the previous address is closed exactly the day before the new one starts.
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r1 = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 01),
@@ -302,13 +288,53 @@ namespace OrderManagement.Domain.Tests.Customers
             Assert.AreEqual(new DateOnly(2025, 01, 31), first.ValidTo!.Value);
         }
 
+
+
+        [TestMethod]
+        public void ChangeAddressFutureAddressShouldKeepCurrentAddressActiveUntilFutureValidFrom()
+        {
+            Customer c = CreateValidCustomer().Value!;
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            DateOnly currentValidFrom = today.AddMonths(-1);
+            DateOnly futureValidFrom = today.AddMonths(1);
+
+            Result r1 = c.ChangeAddress(
+                validFrom: currentValidFrom,
+                street: "Current Street",
+                houseNumber: "1",
+                postalCode: "9000",
+                city: "St. Gallen",
+                countryCode: "CH");
+
+            Result r2 = c.ChangeAddress(
+                validFrom: futureValidFrom,
+                street: "Future Street",
+                houseNumber: "2",
+                postalCode: "8000",
+                city: "Zurich",
+                countryCode: "CH");
+
+            Assert.IsTrue(r1.IsSuccess, r1.Error);
+            Assert.IsTrue(r2.IsSuccess, r2.Error);
+
+            CustomerAddress? current = c.AddressAt(today);
+            Assert.IsNotNull(current);
+            Assert.AreEqual("Current Street", current.Street);
+
+            CustomerAddress future = c.Addresses.Single(a => a.ValidFrom == futureValidFrom);
+            Assert.AreEqual("Future Street", future.Street);
+
+            CustomerAddress oldCurrent = c.Addresses.Single(a => a.ValidFrom == currentValidFrom);
+            Assert.AreEqual(futureValidFrom.AddDays(-1), oldCurrent.ValidTo);
+        }
+
         [TestMethod]
         public void ChangeAddressOverlapBoundaryNewValidFromBeforeCurrentValidFromShouldFail()
         {
             // BVA: closeDate < active.ValidFrom should fail (overlap invalid)
             // active.ValidFrom = 2025-01-10
             // new validFrom = 2025-01-05 => closeDate = 2025-01-04 which is < 2025-01-10 => invalid
-            Customer c = CreateValidCustomer(id: 1).Value!;
+            Customer c = CreateValidCustomer().Value!;
 
             Result r1 = c.ChangeAddress(
                 validFrom: new DateOnly(2025, 01, 10),

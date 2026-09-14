@@ -1,157 +1,92 @@
 # Auftragsverwaltung
 
-Desktop-Anwendung zur Verwaltung von Kunden, Artikeln, Artikelgruppen
-und Aufträgen.
-Technologien: **.NET / C#**, **Entity Framework Core (Code First)**,
-**MS SQL Server**
+Die Anwendung richtet sich an Sachbearbeiter und verwaltet Kunden, Adressen,
+Artikel, Artikelgruppen und Aufträge. Anwendung und SQL Server laufen
+containerisiert mit Docker Compose.
 
-------------------------------------------------------------------------
+## Schnellstart
 
-# Inhaltsverzeichnis
+Voraussetzungen:
 
--   [Voraussetzungen](#voraussetzungen)
--   [Dependencies wiederherstellen](#dependencies-wiederherstellen)
--   [EF Core Verbindung einrichten](#ef-core-verbindung-einrichten)
--   [Datenbank erstellen](#datenbank-erstellen)
--   [Tests ausführen](#tests-ausführen)
--   [Code formatieren](#code-formatieren)
--   [Git Workflow](#git-workflow)
+- [Git](https://git-scm.com/)
+- Docker Desktop oder Docker Engine mit Docker Compose
 
-------------------------------------------------------------------------
+Windows PowerShell:
 
-# Voraussetzungen
-
-Installiert sein müssen:
-
--   Visual Studio 20XX
--   .NET SDK
--   MS SQL Server 
--   Git
--   Docker Desktop 
-
-Optional:
-
--   SQL Server Management Studio (SSMS)
--   EF Core CLI
-
-EF CLI installieren:
-
-``` ps
-dotnet tool install --global dotnet-ef
+```powershell
+git clone https://github.com/zbw-online/it27.sw.group05.git
+cd it27.sw.group05
+Copy-Item .env.example .env
+docker compose up --build -d
 ```
 
-------------------------------------------------------------------------
+Linux oder macOS:
 
-# Dependencies wiederherstellen
-
-``` ps
-dotnet restore
+```bash
+git clone https://github.com/zbw-online/it27.sw.group05.git
+cd it27.sw.group05
+cp .env.example .env
+docker compose up --build -d
 ```
 
-------------------------------------------------------------------------
+Vor dem Start muss in `.env` ein sicheres SQL-Server-Passwort gesetzt werden.
 
-# EF Core Verbindung einrichten
-
-Für lokale Entwicklung werden **User Secrets** verwendet.
-
-In den **src Ordner wechseln**
-
-``` ps
-cd .\src
+```text
+Anwendung: http://localhost:8080
+Health Check: http://localhost:8080/health/live
 ```
 
-User-Secrets initialisieren (Pfad ggf. anpassen):
+## Wichtige Befehle
 
-``` ps
-dotnet user-secrets init --project "C:\Path\To\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj"
+Stack starten:
+
+```bash
+docker compose up --build -d
 ```
 
-Connection String setzen:
+Status anzeigen:
 
-``` ps
-dotnet user-secrets set "ConnectionStrings:OrderManagement" "Server=.;Database=OrderManagement;Trusted_Connection=true;TrustServerCertificate=true;" --project "C:\Path\To\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj"
+```bash
+docker compose ps
 ```
 
-Alternative Beispiele:
+Logs anzeigen:
 
-LocalDB
-
-``` ps
-Server=(localdb)\MSSQLLocalDB;Database=OrderManagement;Trusted_Connection=true;
+```bash
+docker compose logs -f
 ```
 
-SQL Express
+Stack stoppen:
 
-``` ps
-Server=localhost\SQLEXPRESS;Database=OrderManagement;Trusted_Connection=true;
+```bash
+docker compose down
 ```
 
-------------------------------------------------------------------------
+Datenbank und Volume vollständig löschen (**löscht alle lokalen Daten
+dauerhaft**):
 
-# Datenbank erstellen
-
-Migrationen anwenden:
-
-``` ps
-dotnet ef database update --project "C:\Path\To\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj"
+```bash
+docker compose down -v
 ```
 
-Neue Migration erstellen:
+Tests ausführen:
 
-``` ps
-dotnet ef migrations add InitialCreate --project "C:\Path\To\OrderManagement.Infrastructure\OrderManagement.Infrastructure.csproj"
+```bash
+docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests
+docker compose -f compose.test.yaml down -v
 ```
 
-------------------------------------------------------------------------
+## Release erstellen
 
-# Tests ausführen
-
-Alle Tests ausführen:
-
-``` ps
-dotnet test
+```bash
+git fetch origin main
+git tag -a Abgabe_Projekt origin/main -m "Release Abgabe_Projekt"
+git push origin Abgabe_Projekt
 ```
 
-Bestimmtes Testprojekt ausführen:
-
-``` ps
-dotnet test .\tests\OrderManagement.Tests\OrderManagement.Tests.csproj
-```
-
-------------------------------------------------------------------------
-
-# Code formatieren
-
-Vor jedem Push ausführen:
-
-``` ps
-dotnet format
-```
-
-------------------------------------------------------------------------
-
-# Git Workflow
-
-Feature Branch wechseln:
-
-``` ps
-git checkout Feature_Beispiel_Branch
-```
-
-Änderungen committen:
-
-``` ps
-git status
-git add .
-git commit -m "Implement core logic"
-git push origin Feature_Beispiel_Branch
-```
-
-Empfohlener Ablauf:
-
-1.  Feature Branch erstellen
-2.  Änderungen implementieren
-3.  Tests ausführen
-4.  Code formatieren
-5.  Commit + Push
-6.  Pull Request erstellen
+- Zuerst `Develop` per Pull Request nach `main` mergen.
+- Danach den Tag auf dem gewünschten `main`-Commit erstellen.
+- Nur Tags mit dem Präfix `Abgabe_` lösen ein Release aus.
+- Jeder Tag-Name muss eindeutig sein.
+- Veröffentlichte Tags nicht verschieben oder wiederverwenden.
+- GitHub stellt Source-Code-ZIP und TAR.GZ automatisch bereit.

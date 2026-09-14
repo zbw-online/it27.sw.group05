@@ -13,34 +13,33 @@ namespace OrderManagement.Domain.Customers
 
         private readonly List<CustomerAddress> _addresses = [];
 
-        private Customer() : base(new CustomerId(0)) { }
+        private Customer() : base(CustomerId.Empty)
+        {
+            // Required by EF Core.
+        }
         private Customer(
-            CustomerId id,
-            CustomerNumber number,
+            CustomerNumber customerNumber,
             string lastName,
             string surName,
             Email email,
-            string? website,
-            string passwordHash
-            ) : base(id)
+            string? website
+            ) : base(CustomerId.Empty)
         {
 
-            CustomerNumber = number;
+            CustomerNumber = customerNumber;
             LastName = lastName;
             SurName = surName;
             Email = email;
             Website = website;
-            PasswordHash = passwordHash;
 
-            AddDomainEvent(new CustomerCreated(id, DateTime.UtcNow));
+            AddDomainEvent(new CustomerCreated(customerNumber, DateTime.UtcNow));
         }
 
-        public CustomerNumber CustomerNumber { get; private set; }
-        public string LastName { get; private set; }
-        public string SurName { get; private set; }
-        public Email Email { get; private set; }
+        public CustomerNumber CustomerNumber { get; private set; } = default!;
+        public string LastName { get; private set; } = default!;
+        public string SurName { get; private set; } = default!;
+        public Email Email { get; private set; } = default!;
         public string? Website { get; private set; }
-        public string PasswordHash { get; private set; }
 
         public IReadOnlyCollection<CustomerAddress> Addresses => _addresses.AsReadOnly();
 
@@ -50,21 +49,15 @@ namespace OrderManagement.Domain.Customers
             .FirstOrDefault(a => a.IsActiveOn(onDate));
 
         public static Result<Customer> Create(
-            int id,
             string customerNr,
             string lastName,
             string surName,
             string email,
-            string? website,
-            string passwordHash
+            string? website
             )
         {
-
-            // ID and CustomerNr Rules
-            if (id <= 0) return Results.Fail<Customer>("Customer id must be positive.");
-
+            // CustomerNumber Rules
             Result<CustomerNumber> nr = CustomerNumber.Create(customerNr);
-
             if (!nr.IsSuccess) return Results.Fail<Customer>(nr.Error!);
 
             // E-Mail Rules
@@ -78,33 +71,20 @@ namespace OrderManagement.Domain.Customers
             if (ln.Length == 0) return Results.Fail<Customer>("LastName is required.");
             if (sn.Length == 0) return Results.Fail<Customer>("SurName is required.");
 
-            // Website Rules
-            string? w = null;
-            string websiteTrim = (website ?? string.Empty).Trim();
-            if (websiteTrim.Length > 0)
+            Result<string?> websiteResult = NormalizeWebsite(website);
+            if (!websiteResult.IsSuccess)
             {
-                if (websiteTrim.Length > 255) return Results.Fail<Customer>("Website is too long.");
-                if (!Uri.TryCreate(websiteTrim, UriKind.Absolute, out _))
-                {
-                    return Results.Fail<Customer>("Website must be a valid absolute URL.");
-                }
-                w = websiteTrim;
+                return Results.Fail<Customer>(websiteResult.Error!);
             }
 
-            // PasswordHash Rules
-            if (string.IsNullOrWhiteSpace(passwordHash))
-            {
-                return Results.Fail<Customer>("PasswordHash is required.");
-            }
+            string? w = websiteResult.Value;
 
             var customer = new Customer(
-                new CustomerId(id),
                 nr.Value!,
                 ln,
                 sn,
                 em.Value!,
-                w,
-                passwordHash
+                w
                 );
 
             return Results.Success(customer);
@@ -140,7 +120,6 @@ namespace OrderManagement.Domain.Customers
             }
 
             _addresses.Add(new CustomerAddress(
-                id: 0,
                 validFrom: validFrom,
                 validTo: null,
                 street: street.Trim(),
@@ -150,39 +129,82 @@ namespace OrderManagement.Domain.Customers
                 countryCode: countryCode.Trim().ToUpperInvariant()
                 ));
 
-            AddDomainEvent(new CustomerAddressChanged(Id, DateTime.UtcNow));
+            AddDomainEvent(new CustomerAddressChanged(CustomerNumber, DateTime.UtcNow));
             return Result.Success();
         }
 
         public Result ChangeWebsite(string? website)
         {
-            string w = (website ?? string.Empty).Trim();
-
-            if (w.Length == 0)
+            Result<string?> websiteResult = NormalizeWebsite(website);
+            if (!websiteResult.IsSuccess)
             {
-                Website = null;
-                return Result.Success();
+                return Result.Fail(websiteResult.Error!);
             }
 
-            if (w.Length > 255) return Result.Fail("Website is too long.");
-            if (!Uri.TryCreate(w, UriKind.Absolute, out _))
-            {
-                return Result.Fail("Website must be a valid absolute URL.");
-            }
-            Website = w;
+            Website = websiteResult.Value;
             return Result.Success();
         }
 
-        public Result SetPasswordHash(string encodedHash)
+
+        private static Result<string?> NormalizeWebsite(string? website)
         {
-            if (string.IsNullOrWhiteSpace(encodedHash))
+            string value = (website ?? string.Empty).Trim();
+
+            if (value.Length == 0)
             {
-                return Result.Fail("Password hash is required."); ;
+                return Results.Success<string?>(null);
             }
 
-            PasswordHash = encodedHash.Trim();
+            if (value.Length > 255)
+            {
+                return Results.Fail<string?>("Website is too long.");
+            }
+
+            string valueForValidation = value.Contains("://", StringComparison.Ordinal)
+                ? value
+                : $"https://{value}";
+
+            return !Uri.TryCreate(valueForValidation, UriKind.Absolute, out Uri? uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+                string.IsNullOrWhiteSpace(uri.Host) ||
+                !uri.Host.Contains('.', StringComparison.Ordinal)
+                ? Results.Fail<string?>("Website must be a valid website address.")
+                : Results.Success<string?>(value);
+        }
+
+        public Result ChangeName(string lastName, string surName)
+        {
+            string normalizedLastName = (lastName ?? string.Empty).Trim();
+            string normalizedSurName = (surName ?? string.Empty).Trim();
+
+            if (normalizedLastName.Length == 0)
+            {
+                return Result.Fail("LastName is required.");
+            }
+
+            if (normalizedSurName.Length == 0)
+            {
+                return Result.Fail("SurName is required.");
+            }
+
+            LastName = normalizedLastName;
+            SurName = normalizedSurName;
+
             return Result.Success();
         }
 
+        public Result ChangeEmail(string email)
+        {
+            Result<Email> emailResult = Email.Create(email);
+
+            if (!emailResult.IsSuccess)
+            {
+                return Result.Fail(emailResult.Error!);
+            }
+
+            Email = emailResult.Value!;
+
+            return Result.Success();
+        }
     }
 }

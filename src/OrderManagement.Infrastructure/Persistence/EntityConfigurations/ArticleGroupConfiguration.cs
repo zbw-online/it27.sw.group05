@@ -28,7 +28,8 @@ namespace OrderManagement.Infrastructure.Persistence.EntityConfigurations
             _ = builder.Property(g => g.Id)
                 .HasColumnName("ArticleGroupId")
                 .HasConversion(id => id.Value, v => new ArticleGroupId(v))
-                .ValueGeneratedNever();
+                .ValueGeneratedOnAdd()
+                .UseIdentityColumn();
 
             _ = builder.Property(g => g.Name)
                 .HasMaxLength(150)

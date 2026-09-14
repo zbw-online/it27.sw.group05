@@ -1,0 +1,49 @@
+@namespace OrderManagement.Presentation.Blazor.Components.Shared
+@implements IAsyncDisposable
+@inject IJSRuntime JsRuntime
+
+<div class="filter-select">
+    <label class="filter-select-label" for="@_selectId">@Label</label>
+    <select @ref="_selectRef" id="@_selectId" class="filter-select-input" @onchange="OnChange">
+        @ChildContent
+    </select>
+</div>
+
+@code {
+    private readonly string _selectId = $"filter-{Guid.NewGuid():N}";
+    private ElementReference _selectRef;
+    private IJSObjectReference? _module;
+    private string? _appliedValue;
+
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_appliedValue == Value)
+        {
+            return;
+        }
+
+        _module ??= await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/filterSelect.js");
+        await _module.InvokeVoidAsync("setValue", _selectRef, Value);
+        _appliedValue = Value;
+    }
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString();
+        _appliedValue = Value;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.DisposeAsync();
+        }
+    }
+}

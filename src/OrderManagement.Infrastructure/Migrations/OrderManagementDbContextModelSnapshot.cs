@@ -17,7 +17,7 @@ namespace OrderManagement.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.12")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -25,8 +25,11 @@ namespace OrderManagement.Infrastructure.Migrations
             modelBuilder.Entity("OrderManagement.Domain.Catalog.Article", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasColumnName("ArticleId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ArticleGroupId")
                         .HasColumnType("int")
@@ -40,6 +43,12 @@ namespace OrderManagement.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int>("ReorderPoint")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(20)
+                        .HasColumnName("ReorderPoint");
+
                     b.Property<DateTime>("RowValidFrom")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")
@@ -49,6 +58,13 @@ namespace OrderManagement.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")
                         .HasColumnName("RowValidUntil");
+
+                    b.Property<int>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("RowVersion");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -90,8 +106,11 @@ namespace OrderManagement.Infrastructure.Migrations
             modelBuilder.Entity("OrderManagement.Domain.Catalog.ArticleGroup", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasColumnName("ArticleGroupId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -151,8 +170,11 @@ namespace OrderManagement.Infrastructure.Migrations
             modelBuilder.Entity("OrderManagement.Domain.Customers.Customer", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasColumnName("CustomerId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("CustomerNumber")
                         .IsRequired()
@@ -170,11 +192,6 @@ namespace OrderManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime>("RowValidFrom")
                         .ValueGeneratedOnAddOrUpdate()
@@ -198,10 +215,12 @@ namespace OrderManagement.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerNumber")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_CustomerNumber");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_Email");
 
                     b.ToTable("Customers", null, t =>
                         {
@@ -311,9 +330,34 @@ namespace OrderManagement.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BillingAddressSource")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("BillingAddressSource");
+
                     b.Property<int>("CustomerId")
                         .HasColumnType("int")
                         .HasColumnName("CustomerId");
+
+                    b.Property<string>("CustomerReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("CustomerReference");
+
+                    b.Property<string>("DeliveryAddressSource")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("DeliveryAddressSource");
+
+                    b.Property<DateOnly>("DeliveryDate")
+                        .HasColumnType("date")
+                        .HasColumnName("DeliveryDate");
+
+                    b.Property<bool>("IsInventoryApplied")
+                        .HasColumnType("bit")
+                        .HasColumnName("IsInventoryApplied");
 
                     b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime2")
@@ -335,12 +379,30 @@ namespace OrderManagement.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("RowValidUntil");
 
+                    b.Property<int>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("RowVersion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime?>("StatusChangedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("StatusChangedAtUtc");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("OrderNumber")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Orders_OrderNumber");
 
                     b.ToTable("Orders", null, t =>
                         {
@@ -516,6 +578,10 @@ namespace OrderManagement.Infrastructure.Migrations
 
                             b1.HasKey("ArticleId");
 
+                            b1.HasIndex("Value")
+                                .IsUnique()
+                                .HasDatabaseName("IX_Articles_ArticleNumber");
+
                             b1.ToTable("Articles", null, t =>
                                 {
                                     t.Property("RowValidFrom")
@@ -572,20 +638,33 @@ namespace OrderManagement.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.OwnsOne("SharedKernel.Primitives.Money", "Total", b1 =>
+                    b.OwnsOne("SharedKernel.Primitives.Address", "BillingAddress", b1 =>
                         {
                             b1.Property<int>("OrderId")
                                 .HasColumnType("int");
 
-                            b1.Property<decimal>("Amount")
-                                .HasPrecision(18, 2)
-                                .HasColumnType("decimal(18,2)")
-                                .HasColumnName("TotalAmount");
-
-                            b1.Property<string>("Currency")
+                            b1.Property<string>("City")
                                 .IsRequired()
-                                .HasColumnType("nchar(3)")
-                                .HasColumnName("TotalCurrency");
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("BillingCity");
+
+                            b1.Property<string>("Country")
+                                .IsRequired()
+                                .HasColumnType("nchar(2)")
+                                .HasColumnName("BillingCountryCode");
+
+                            b1.Property<string>("Number")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("nvarchar(20)")
+                                .HasColumnName("BillingHouseNumber");
+
+                            b1.Property<string>("PostalCode")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("nvarchar(20)")
+                                .HasColumnName("BillingPostalCode");
 
                             b1.Property<DateTime>("RowValidFrom")
                                 .ValueGeneratedOnAddOrUpdate()
@@ -596,6 +675,12 @@ namespace OrderManagement.Infrastructure.Migrations
                                 .ValueGeneratedOnAddOrUpdate()
                                 .HasColumnType("datetime2")
                                 .HasColumnName("RowValidUntil");
+
+                            b1.Property<string>("Street")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("nvarchar(200)")
+                                .HasColumnName("BillingStreet");
 
                             b1.HasKey("OrderId");
 
@@ -692,6 +777,60 @@ namespace OrderManagement.Infrastructure.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
                         });
+
+                    b.OwnsOne("SharedKernel.Primitives.Money", "Total", b1 =>
+                        {
+                            b1.Property<int>("OrderId")
+                                .HasColumnType("int");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("decimal(18,2)")
+                                .HasColumnName("TotalAmount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasColumnType("nchar(3)")
+                                .HasColumnName("TotalCurrency");
+
+                            b1.Property<DateTime>("RowValidFrom")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("RowValidFrom");
+
+                            b1.Property<DateTime>("RowValidUntil")
+                                .ValueGeneratedOnAddOrUpdate()
+                                .HasColumnType("datetime2")
+                                .HasColumnName("RowValidUntil");
+
+                            b1.HasKey("OrderId");
+
+                            b1.ToTable("Orders", null, t =>
+                                {
+                                    t.Property("RowValidFrom")
+                                        .HasColumnName("RowValidFrom");
+
+                                    t.Property("RowValidUntil")
+                                        .HasColumnName("RowValidUntil");
+                                });
+
+                            b1.ToTable(tb => tb.IsTemporal(ttb =>
+                                    {
+                                        ttb.UseHistoryTable("OrdersHistory");
+                                        ttb
+                                            .HasPeriodStart("RowValidFrom")
+                                            .HasColumnName("RowValidFrom");
+                                        ttb
+                                            .HasPeriodEnd("RowValidUntil")
+                                            .HasColumnName("RowValidUntil");
+                                    }));
+
+                            b1.WithOwner()
+                                .HasForeignKey("OrderId");
+                        });
+
+                    b.Navigation("BillingAddress")
+                        .IsRequired();
 
                     b.Navigation("DeliveryAddress")
                         .IsRequired();
